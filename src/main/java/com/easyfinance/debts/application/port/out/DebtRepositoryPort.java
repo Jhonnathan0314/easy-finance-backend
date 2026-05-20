@@ -4,6 +4,7 @@ import com.easyfinance.debts.application.query.ListDebtsQuery;
 import com.easyfinance.debts.application.response.PageResponse;
 import com.easyfinance.debts.domain.model.Debt;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface DebtRepositoryPort {
@@ -13,6 +14,8 @@ public interface DebtRepositoryPort {
     Optional<Debt> findByAccountIdAndId(Long accountId, Long debtId);
 
     Optional<Debt> findByAccountIdAndIdForUpdate(Long accountId, Long debtId);
+
+    List<Debt> findActiveByAccountId(Long accountId);
 
     PageResponse<Debt> findAll(ListDebtsQuery query);
 }

@@ -126,7 +126,7 @@ Authorization: Bearer <accessToken>
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/v1/accounts/{accountId}/imports/expenses/template` | Download account-scoped `.xlsx` template with valid categories, payment methods, and payment states. |
+| GET | `/api/v1/accounts/{accountId}/imports/expenses/template` | Download account-scoped `.xlsx` template with valid categories, payment methods, payment states, and active debt options for preview. |
 | POST | `/api/v1/accounts/{accountId}/imports/expenses/preview` | Multipart `.xlsx` preview; field name `file`. |
-| POST | `/api/v1/accounts/{accountId}/imports/expenses/{batchId}/confirm` | Confirm valid rows and create expenses. |
+| POST | `/api/v1/accounts/{accountId}/imports/expenses/{batchId}/confirm` | Confirm valid rows, create expenses, and register debt payments for rows marked as debt payments. |
 | GET | `/api/v1/accounts/{accountId}/imports/expenses/{batchId}` | Get import batch and row errors. |

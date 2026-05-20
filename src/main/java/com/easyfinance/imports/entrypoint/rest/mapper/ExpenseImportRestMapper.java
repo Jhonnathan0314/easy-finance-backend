@@ -40,9 +40,15 @@ public final class ExpenseImportRestMapper {
                 response.paymentMethodName(),
                 response.paymentMethodId(),
                 response.paymentState(),
+                response.appliesDebtPayment(),
+                response.debtId(),
+                response.debtLabel(),
+                response.debtPaymentType(),
+                response.debtPaymentNotes(),
                 response.valid(),
                 response.errors().stream().map(ExpenseImportRestMapper::toDto).toList(),
-                response.createdExpenseId()
+                response.createdExpenseId(),
+                response.createdDebtPaymentId()
         );
     }
 

@@ -164,6 +164,70 @@ class ExpenseImportConfirmationTransactionIT {
         }
     }
 
+    @Test
+    void debtImportConfirmationCreatesExpenseDebtPaymentAndUpdatesDebt() {
+        Fixture fixture = createDebtPaymentFixture(new BigDecimal("500.00"), "ACTIVE");
+        currentUserProvider.setParticipantId(fixture.participantId());
+
+        var response = confirmExpenseImportPort.confirm(fixture.accountId(), fixture.batchId());
+
+        Long expenseCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM expenses WHERE account_id = ? AND description = ?",
+                Long.class,
+                fixture.accountId(),
+                "Imported debt payment"
+        );
+        Long paymentId = jdbcTemplate.queryForObject(
+                "SELECT created_debt_payment_id FROM expense_import_rows WHERE account_id = ? AND batch_id = ?",
+                Long.class,
+                fixture.accountId(),
+                fixture.batchId()
+        );
+        BigDecimal remainingAmount = jdbcTemplate.queryForObject(
+                "SELECT remaining_amount FROM debts WHERE account_id = ? AND id = ?",
+                BigDecimal.class,
+                fixture.accountId(),
+                fixture.debtId()
+        );
+        Long paymentCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM debt_payments WHERE account_id = ? AND debt_id = ? AND id = ?",
+                Long.class,
+                fixture.accountId(),
+                fixture.debtId(),
+                paymentId
+        );
+
+        assertThat(response.status()).isEqualTo("CONFIRMED");
+        assertThat(expenseCount).isOne();
+        assertThat(paymentId).isNotNull();
+        assertThat(paymentCount).isOne();
+        assertThat(remainingAmount).isEqualByComparingTo(new BigDecimal("400.00"));
+    }
+
+    @Test
+    void debtPaymentOverpaymentDuringConfirmRollsBackBatchExpenseAndPayment() {
+        Fixture fixture = createDebtPaymentFixture(new BigDecimal("50.00"), "ACTIVE");
+        currentUserProvider.setParticipantId(fixture.participantId());
+
+        assertThatThrownBy(() -> confirmExpenseImportPort.confirm(fixture.accountId(), fixture.batchId()))
+                .isInstanceOfSatisfying(BusinessRuleViolationException.class,
+                        ex -> assertThat(ex.code()).isEqualTo("IMPORT_CONFIRMATION_FAILED"));
+
+        assertDebtImportRollback(fixture, new BigDecimal("50.00"));
+    }
+
+    @Test
+    void inactiveDebtDuringConfirmRollsBackBatchExpenseAndPayment() {
+        Fixture fixture = createDebtPaymentFixture(new BigDecimal("0.00"), "PAID");
+        currentUserProvider.setParticipantId(fixture.participantId());
+
+        assertThatThrownBy(() -> confirmExpenseImportPort.confirm(fixture.accountId(), fixture.batchId()))
+                .isInstanceOfSatisfying(BusinessRuleViolationException.class,
+                        ex -> assertThat(ex.code()).isEqualTo("IMPORT_CONFIRMATION_FAILED"));
+
+        assertDebtImportRollback(fixture, new BigDecimal("0.00"));
+    }
+
     private Fixture createFixture(int rows) {
         Long participantId = createParticipant();
         Long accountId = jdbcTemplate.queryForObject(
@@ -234,7 +298,140 @@ class ExpenseImportConfirmationTransactionIT {
                     "[]"
             );
         }
-        return new Fixture(accountId, participantId, batchId);
+        return new Fixture(accountId, participantId, batchId, null);
+    }
+
+    private Fixture createDebtPaymentFixture(BigDecimal remainingAmount, String debtState) {
+        Long participantId = createParticipant();
+        Long accountId = jdbcTemplate.queryForObject(
+                "INSERT INTO accounts (name, status) VALUES (?, ?) RETURNING id",
+                Long.class,
+                "Import debt tx " + System.nanoTime(),
+                "ACTIVE"
+        );
+        jdbcTemplate.update(
+                "INSERT INTO account_participants (account_id, participant_id, role, status) VALUES (?, ?, ?, ?)",
+                accountId,
+                participantId,
+                "ACCOUNT_MEMBER",
+                "ACTIVE"
+        );
+        Long categoryId = jdbcTemplate.queryForObject(
+                "INSERT INTO categories (account_id, name, normalized_name, type, status) VALUES (?, ?, ?, ?, ?) RETURNING id",
+                Long.class,
+                accountId,
+                "Import Debt Category " + System.nanoTime(),
+                "import-debt-category-" + System.nanoTime(),
+                "EXPENSE",
+                "ACTIVE"
+        );
+        Long paymentMethodId = jdbcTemplate.queryForObject(
+                "INSERT INTO payment_methods (account_id, name, normalized_name, type, status) VALUES (?, ?, ?, ?, ?) RETURNING id",
+                Long.class,
+                accountId,
+                "Import Debt Cash " + System.nanoTime(),
+                "import-debt-cash-" + System.nanoTime(),
+                "CASH",
+                "ACTIVE"
+        );
+        Long debtId = jdbcTemplate.queryForObject(
+                """
+                INSERT INTO debts
+                (account_id, participant_id, source_type, name, total_amount, total_currency, remaining_amount, remaining_currency, start_date, state)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
+                """,
+                Long.class,
+                accountId,
+                participantId,
+                "MANUAL",
+                "Import Debt",
+                new BigDecimal("500.00"),
+                "COP",
+                remainingAmount,
+                "COP",
+                "2026-05-01",
+                debtState
+        );
+        Long batchId = jdbcTemplate.queryForObject(
+                """
+                INSERT INTO expense_import_batches (account_id, participant_id, original_filename, status, total_rows, valid_rows, invalid_rows)
+                VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id
+                """,
+                Long.class,
+                accountId,
+                participantId,
+                "expenses.xlsx",
+                "PREVIEW",
+                1,
+                1,
+                0
+        );
+        jdbcTemplate.update(
+                """
+                INSERT INTO expense_import_rows
+                (account_id, batch_id, row_number, expense_date, description, amount, currency, category_name, category_id, payment_method_name, payment_method_id, payment_state, applies_debt_payment, debt_id, debt_label, debt_payment_type, debt_payment_notes, valid, errors_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb)
+                """,
+                accountId,
+                batchId,
+                2,
+                "2026-05-12",
+                "Imported debt payment",
+                new BigDecimal("100.00"),
+                "COP",
+                "Food",
+                categoryId,
+                "Cash",
+                paymentMethodId,
+                "PAID",
+                true,
+                debtId,
+                "Import Debt | Saldo: 500.00 | Inicio: 2026-05-01 | MANUAL",
+                "INSTALLMENT",
+                "Imported debt note",
+                true,
+                "[]"
+        );
+        return new Fixture(accountId, participantId, batchId, debtId);
+    }
+
+    private void assertDebtImportRollback(Fixture fixture, BigDecimal expectedRemainingAmount) {
+        Long expenseCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM expenses WHERE account_id = ? AND description = ?",
+                Long.class,
+                fixture.accountId(),
+                "Imported debt payment"
+        );
+        Long paymentCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM debt_payments WHERE account_id = ? AND debt_id = ?",
+                Long.class,
+                fixture.accountId(),
+                fixture.debtId()
+        );
+        Long linkedRows = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM expense_import_rows WHERE account_id = ? AND batch_id = ? AND (created_expense_id IS NOT NULL OR created_debt_payment_id IS NOT NULL)",
+                Long.class,
+                fixture.accountId(),
+                fixture.batchId()
+        );
+        String batchStatus = jdbcTemplate.queryForObject(
+                "SELECT status FROM expense_import_batches WHERE account_id = ? AND id = ?",
+                String.class,
+                fixture.accountId(),
+                fixture.batchId()
+        );
+        BigDecimal remainingAmount = jdbcTemplate.queryForObject(
+                "SELECT remaining_amount FROM debts WHERE account_id = ? AND id = ?",
+                BigDecimal.class,
+                fixture.accountId(),
+                fixture.debtId()
+        );
+
+        assertThat(expenseCount).isZero();
+        assertThat(paymentCount).isZero();
+        assertThat(linkedRows).isZero();
+        assertThat(batchStatus).isEqualTo("PREVIEW");
+        assertThat(remainingAmount).isEqualByComparingTo(expectedRemainingAmount);
     }
 
     private Long createParticipant() {
@@ -263,7 +460,7 @@ class ExpenseImportConfirmationTransactionIT {
         return first.success() ? second.error() : first.error();
     }
 
-    private record Fixture(Long accountId, Long participantId, Long batchId) {
+    private record Fixture(Long accountId, Long participantId, Long batchId, Long debtId) {
     }
 
     private record ConfirmAttempt(boolean success, Throwable error) {

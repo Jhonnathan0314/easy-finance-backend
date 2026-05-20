@@ -264,6 +264,13 @@ POST /api/v1/accounts/{accountId}/imports/expenses/preview
 POST /api/v1/accounts/{accountId}/imports/expenses/{batchId}/confirm
 ```
 
+Expense import rows expose debt-payment metadata in preview/confirm responses:
+`appliesDebtPayment`, `debtId`, `debtLabel`, `debtPaymentType`, `debtPaymentNotes`, and
+`createdDebtPaymentId`. Current Excel files without debt-payment columns remain valid. The generated
+template includes `AplicaPagoDeuda`, `Deuda`, `TipoPagoDeuda`, and `NotasPagoDeuda`; preview validates
+and persists those fields. Confirm creates the simple expense and registers the debt payment through
+the debt-payment use case for rows with `appliesDebtPayment = true`.
+
 Analytics:
 
 ```text

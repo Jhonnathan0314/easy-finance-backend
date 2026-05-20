@@ -64,6 +64,13 @@ public class JpaExpenseImportRepositoryAdapter implements ExpenseImportRepositor
     }
 
     @Override
+    public void updateCreatedDebtPaymentId(Long accountId, Long rowId, Long debtPaymentId) {
+        var row = rowRepository.findByAccountIdAndId(accountId, rowId).orElseThrow();
+        row.setCreatedDebtPaymentId(debtPaymentId);
+        rowRepository.saveAndFlush(row);
+    }
+
+    @Override
     public List<ExpenseImportRow> findRowsByBatch(Long accountId, Long batchId) {
         return rowRepository.findByAccountIdAndBatchIdOrderByRowNumberAsc(accountId, batchId)
                 .stream()

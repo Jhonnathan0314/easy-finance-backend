@@ -91,6 +91,14 @@ Mirror backend validation to reduce failed submissions.
   - `Categoría`
   - `MedioPago`
   - `EstadoPago`
+  - `AplicaPagoDeuda`
+  - `Deuda`
+  - `TipoPagoDeuda`
+  - `NotasPagoDeuda`
+- older files without debt-payment columns remain accepted.
+- `AplicaPagoDeuda` supports `SI` or `NO`; blank is treated as `NO`.
+- if `AplicaPagoDeuda = SI`, `Deuda` and `TipoPagoDeuda` are required.
+- if `AplicaPagoDeuda = NO` or blank, debt-payment fields must stay empty.
+- confirm creates the expense and registers the debt payment for rows marked with `SI`.
 - max rows: backend-configured, currently documented as 1000.
 - formulas are rejected.
-

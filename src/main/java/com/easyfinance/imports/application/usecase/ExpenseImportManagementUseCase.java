@@ -8,6 +8,11 @@ import com.easyfinance.catalogs.application.validation.CategoryValidationView;
 import com.easyfinance.catalogs.application.validation.PaymentMethodValidationView;
 import com.easyfinance.catalogs.domain.model.CatalogStatus;
 import com.easyfinance.catalogs.domain.model.CategoryType;
+import com.easyfinance.debts.application.command.RegisterDebtPaymentCommand;
+import com.easyfinance.debts.application.port.in.RegisterDebtPaymentPort;
+import com.easyfinance.debts.application.port.out.DebtRepositoryPort;
+import com.easyfinance.debts.domain.model.Debt;
+import com.easyfinance.debts.domain.model.DebtState;
 import com.easyfinance.expenses.application.command.CreateImportedExpenseCommand;
 import com.easyfinance.expenses.application.port.in.CreateImportedExpensePort;
 import com.easyfinance.expenses.domain.model.ExpensePaymentState;
@@ -47,16 +52,19 @@ public class ExpenseImportManagementUseCase implements PreviewExpenseImportPort,
 
     private static final String TEMPLATE_FILENAME = "easy-finance-expense-import-template.xlsx";
     private static final String TEMPLATE_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    private static final String DEFAULT_DEBT_PAYMENT_NOTES = "Pago registrado desde importacion de gastos";
 
     private final CurrentUserProvider currentUserProvider;
     private final AccountAuthorizationService accountAuthorizationService;
     private final CatalogValidationPort catalogValidationPort;
     private final CategoryRepositoryPort categoryRepository;
     private final PaymentMethodRepositoryPort paymentMethodRepository;
+    private final DebtRepositoryPort debtRepository;
     private final ExpenseImportParserPort parserPort;
     private final ExpenseImportTemplateGeneratorPort templateGeneratorPort;
     private final ExpenseImportRepositoryPort importRepository;
     private final CreateImportedExpensePort createImportedExpensePort;
+    private final RegisterDebtPaymentPort registerDebtPaymentPort;
     private final long maxFileSizeBytes;
 
     public ExpenseImportManagementUseCase(
@@ -65,10 +73,12 @@ public class ExpenseImportManagementUseCase implements PreviewExpenseImportPort,
             CatalogValidationPort catalogValidationPort,
             CategoryRepositoryPort categoryRepository,
             PaymentMethodRepositoryPort paymentMethodRepository,
+            DebtRepositoryPort debtRepository,
             ExpenseImportParserPort parserPort,
             ExpenseImportTemplateGeneratorPort templateGeneratorPort,
             ExpenseImportRepositoryPort importRepository,
             CreateImportedExpensePort createImportedExpensePort,
+            RegisterDebtPaymentPort registerDebtPaymentPort,
             @Value("${easy-finance.imports.expenses.max-file-size-bytes:5242880}") long maxFileSizeBytes
     ) {
         this.currentUserProvider = currentUserProvider;
@@ -76,10 +86,12 @@ public class ExpenseImportManagementUseCase implements PreviewExpenseImportPort,
         this.catalogValidationPort = catalogValidationPort;
         this.categoryRepository = categoryRepository;
         this.paymentMethodRepository = paymentMethodRepository;
+        this.debtRepository = debtRepository;
         this.parserPort = parserPort;
         this.templateGeneratorPort = templateGeneratorPort;
         this.importRepository = importRepository;
         this.createImportedExpensePort = createImportedExpensePort;
+        this.registerDebtPaymentPort = registerDebtPaymentPort;
         this.maxFileSizeBytes = maxFileSizeBytes;
     }
 
@@ -90,7 +102,10 @@ public class ExpenseImportManagementUseCase implements PreviewExpenseImportPort,
         accountAuthorizationService.requireActiveMemberForActiveAccount(command.accountId(), currentUser.participantId());
         validateFile(command);
         List<ExpenseImportRow> parsedRows = parserPort.parse(command, command.accountId());
-        List<ExpenseImportRow> validatedRows = parsedRows.stream().map(this::validateCatalogs).toList();
+        List<ExpenseImportRow> validatedRows = parsedRows.stream()
+                .map(this::validateCatalogs)
+                .map(this::validateDebtPayment)
+                .toList();
         ExpenseImportBatch batch = ExpenseImportBatch.preview(command.accountId(), currentUser.participantId(), command.originalFilename(), validatedRows);
         return toResponse(importRepository.savePreview(batch));
     }
@@ -117,6 +132,17 @@ public class ExpenseImportManagementUseCase implements PreviewExpenseImportPort,
                         row.paymentState()
                 ));
                 importRepository.updateCreatedExpenseId(accountId, row.id(), expense.id());
+                if (row.appliesDebtPayment()) {
+                    var debtPayment = registerDebtPaymentPort.registerDebtPayment(new RegisterDebtPaymentCommand(
+                            accountId,
+                            row.debtId(),
+                            row.debtPaymentType(),
+                            row.amount(),
+                            row.expenseDate(),
+                            debtPaymentNotes(row)
+                    ));
+                    importRepository.updateCreatedDebtPaymentId(accountId, row.id(), debtPayment.payment().id());
+                }
             }
             return toResponse(importRepository.saveBatch(confirmed));
         } catch (DomainException ex) {
@@ -145,7 +171,11 @@ public class ExpenseImportManagementUseCase implements PreviewExpenseImportPort,
                 .stream()
                 .map(paymentMethod -> paymentMethod.name())
                 .toList();
-        byte[] content = templateGeneratorPort.generate(new ExpenseImportTemplateData(categoryNames, paymentMethodNames));
+        var debtOptions = debtRepository.findActiveByAccountId(accountId)
+                .stream()
+                .map(debt -> new ExpenseImportTemplateData.DebtOption(debt.id(), debtLabel(debt)))
+                .toList();
+        byte[] content = templateGeneratorPort.generate(new ExpenseImportTemplateData(categoryNames, paymentMethodNames, debtOptions));
         return new ExpenseImportTemplateResponse(TEMPLATE_FILENAME, TEMPLATE_CONTENT_TYPE, content);
     }
 
@@ -185,8 +215,40 @@ public class ExpenseImportManagementUseCase implements PreviewExpenseImportPort,
         return copyWithValidation(row, categoryId, paymentMethodId, errors);
     }
 
+    private ExpenseImportRow validateDebtPayment(ExpenseImportRow row) {
+        if (!row.valid() || !row.appliesDebtPayment()) {
+            return row;
+        }
+        List<ImportRowError> errors = new ArrayList<>(row.errors());
+        Long debtId = row.debtId();
+
+        if (debtId == null) {
+            errors.add(new ImportRowError("Deuda", "IMPORT_DEBT_NOT_FOUND", "Debt was not found."));
+            return copyWithDebtValidation(row, debtId, errors);
+        }
+
+        var debt = debtRepository.findByAccountIdAndId(row.accountId(), debtId);
+        if (debt.isEmpty()) {
+            errors.add(new ImportRowError("Deuda", "IMPORT_DEBT_NOT_FOUND", "Debt was not found."));
+        } else {
+            Debt value = debt.get();
+            if (value.state() != DebtState.ACTIVE) {
+                errors.add(new ImportRowError("Deuda", "IMPORT_DEBT_NOT_ACTIVE", "Debt is not active."));
+            }
+            if (row.amount() != null && row.amount().amount().compareTo(value.remainingBalance().amount()) > 0) {
+                errors.add(new ImportRowError("Monto", "IMPORT_DEBT_PAYMENT_EXCEEDS_REMAINING_BALANCE", "Debt payment exceeds remaining balance."));
+            }
+        }
+
+        return copyWithDebtValidation(row, debtId, errors);
+    }
+
     private static ExpenseImportRow copyWithValidation(ExpenseImportRow row, Long categoryId, Long paymentMethodId, List<ImportRowError> errors) {
-        return new ExpenseImportRow(row.id(), row.accountId(), row.batchId(), row.rowNumber(), row.expenseDate(), row.description(), row.amount(), row.categoryName(), categoryId, row.paymentMethodName(), paymentMethodId, row.paymentState(), errors.isEmpty(), errors, row.createdExpenseId(), row.createdAt(), row.updatedAt());
+        return new ExpenseImportRow(row.id(), row.accountId(), row.batchId(), row.rowNumber(), row.expenseDate(), row.description(), row.amount(), row.categoryName(), categoryId, row.paymentMethodName(), paymentMethodId, row.paymentState(), row.appliesDebtPayment(), row.debtId(), row.debtLabel(), row.debtPaymentType(), row.debtPaymentNotes(), errors.isEmpty(), errors, row.createdExpenseId(), row.createdDebtPaymentId(), row.createdAt(), row.updatedAt());
+    }
+
+    private static ExpenseImportRow copyWithDebtValidation(ExpenseImportRow row, Long debtId, List<ImportRowError> errors) {
+        return new ExpenseImportRow(row.id(), row.accountId(), row.batchId(), row.rowNumber(), row.expenseDate(), row.description(), row.amount(), row.categoryName(), row.categoryId(), row.paymentMethodName(), row.paymentMethodId(), row.paymentState(), row.appliesDebtPayment(), debtId, row.debtLabel(), row.debtPaymentType(), row.debtPaymentNotes(), errors.isEmpty(), errors, row.createdExpenseId(), row.createdDebtPaymentId(), row.createdAt(), row.updatedAt());
     }
 
     private void validateFile(PreviewExpenseImportCommand command) {
@@ -209,6 +271,22 @@ public class ExpenseImportManagementUseCase implements PreviewExpenseImportPort,
 
     private static String normalize(String value) {
         return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static String debtLabel(Debt debt) {
+        return "%s | Saldo: %s | Inicio: %s | %s".formatted(
+                debt.name(),
+                debt.remainingBalance().amount().setScale(2).toPlainString(),
+                debt.startDate(),
+                debt.sourceType().name()
+        );
+    }
+
+    private static String debtPaymentNotes(ExpenseImportRow row) {
+        if (row.debtPaymentNotes() == null || row.debtPaymentNotes().isBlank()) {
+            return DEFAULT_DEBT_PAYMENT_NOTES;
+        }
+        return row.debtPaymentNotes().trim();
     }
 
     private static ExpenseImportBatchResponse toResponse(ExpenseImportBatch batch) {
@@ -239,9 +317,15 @@ public class ExpenseImportManagementUseCase implements PreviewExpenseImportPort,
                 row.paymentMethodName(),
                 row.paymentMethodId(),
                 row.paymentState() == null ? null : row.paymentState().name(),
+                row.appliesDebtPayment(),
+                row.debtId(),
+                row.debtLabel(),
+                row.debtPaymentType() == null ? null : row.debtPaymentType().name(),
+                row.debtPaymentNotes(),
                 row.valid(),
                 row.errors().stream().map(error -> new ImportRowErrorResponse(error.column(), error.code(), error.message())).toList(),
-                row.createdExpenseId()
+                row.createdExpenseId(),
+                row.createdDebtPaymentId()
         );
     }
 }

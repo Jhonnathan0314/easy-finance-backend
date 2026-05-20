@@ -75,8 +75,7 @@
 - Expense imports are Excel `.xlsx` only.
 - Flow is preview then confirm.
 - Preview validates rows and does not create expenses.
-- Confirm creates expenses only for valid rows.
+- Confirm creates expenses only for valid rows and registers debt payments for valid rows marked with debt payment.
 - Invalid rows remain reported in the batch.
 - Confirm is locked per batch to avoid duplicate expenses.
 - Confirm is transactional: if one valid row fails, no partial expenses or partial row updates remain.
-

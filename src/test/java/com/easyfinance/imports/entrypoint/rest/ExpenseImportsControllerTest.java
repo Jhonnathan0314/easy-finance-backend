@@ -137,8 +137,14 @@ class ExpenseImportsControllerTest {
                         "Cash",
                         30L,
                         "PAID",
+                        false,
+                        null,
+                        null,
+                        null,
+                        null,
                         true,
                         List.of(),
+                        null,
                         null
                 ))
         );

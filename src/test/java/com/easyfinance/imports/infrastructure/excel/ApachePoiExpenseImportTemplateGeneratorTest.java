@@ -21,8 +21,9 @@ class ApachePoiExpenseImportTemplateGeneratorTest {
     @Test
     void generatedWorkbookHasExpectedSheetsHeadersAndValues() throws Exception {
         byte[] bytes = generator.generate(new ExpenseImportTemplateData(
-                List.of("Alimentación", "Transporte"),
-                List.of("Efectivo", "Visa")
+                List.of("AlimentaciÃ³n", "Transporte"),
+                List.of("Efectivo", "Visa"),
+                List.of(new ExpenseImportTemplateData.DebtOption(99L, "Loan | Saldo: 120000.00 | Inicio: 2026-05-01 | MANUAL"))
         ));
 
         try (Workbook workbook = new XSSFWorkbook(new ByteArrayInputStream(bytes))) {
@@ -32,15 +33,21 @@ class ApachePoiExpenseImportTemplateGeneratorTest {
             assertThat(gastos).isNotNull();
             assertThat(valores).isNotNull();
             assertThat(workbook.isSheetHidden(workbook.getSheetIndex(valores))).isTrue();
-            assertThat(headerValues(gastos.getRow(0))).containsExactly("Fecha", "Descripción", "Monto", "Categoría", "MedioPago", "EstadoPago");
-            assertThat(valores.getRow(1).getCell(0).getStringCellValue()).isEqualTo("Alimentación");
+            assertThat(headerValues(gastos.getRow(0))).containsExactly("Fecha", "DescripciÃ³n", "Monto", "CategorÃ­a", "MedioPago", "EstadoPago", "AplicaPagoDeuda", "Deuda", "TipoPagoDeuda", "NotasPagoDeuda");
+            assertThat(valores.getRow(1).getCell(0).getStringCellValue()).isEqualTo("AlimentaciÃ³n");
             assertThat(valores.getRow(2).getCell(0).getStringCellValue()).isEqualTo("Transporte");
             assertThat(valores.getRow(1).getCell(1).getStringCellValue()).isEqualTo("Efectivo");
             assertThat(valores.getRow(2).getCell(1).getStringCellValue()).isEqualTo("Visa");
             assertThat(valores.getRow(1).getCell(2).getStringCellValue()).isEqualTo("PENDING");
             assertThat(valores.getRow(2).getCell(2).getStringCellValue()).isEqualTo("PARTIAL");
             assertThat(valores.getRow(3).getCell(2).getStringCellValue()).isEqualTo("PAID");
-            assertThat(gastos.getDataValidations()).hasSizeGreaterThanOrEqualTo(5);
+            assertThat(valores.getRow(1).getCell(3).getStringCellValue()).isEqualTo("Loan | Saldo: 120000.00 | Inicio: 2026-05-01 | MANUAL");
+            assertThat(valores.getRow(1).getCell(4).getNumericCellValue()).isEqualTo(99D);
+            assertThat(valores.getRow(1).getCell(5).getStringCellValue()).isEqualTo("SI");
+            assertThat(valores.getRow(2).getCell(5).getStringCellValue()).isEqualTo("NO");
+            assertThat(valores.getRow(1).getCell(6).getStringCellValue()).isEqualTo("INSTALLMENT");
+            assertThat(valores.getRow(2).getCell(6).getStringCellValue()).isEqualTo("CAPITAL_PAYMENT");
+            assertThat(gastos.getDataValidations()).hasSizeGreaterThanOrEqualTo(8);
         }
     }
 
@@ -57,6 +64,7 @@ class ApachePoiExpenseImportTemplateGeneratorTest {
             assertThat(row.categoryName()).isEqualTo("Food");
             assertThat(row.paymentMethodName()).isEqualTo("Cash");
             assertThat(row.paymentState().name()).isEqualTo("PAID");
+            assertThat(row.appliesDebtPayment()).isFalse();
         });
     }
 
@@ -69,6 +77,8 @@ class ApachePoiExpenseImportTemplateGeneratorTest {
 
             assertThat(valores).isNotNull();
             assertThat(valores.getRow(1).getCell(2).getStringCellValue()).isEqualTo("PENDING");
+            assertThat(valores.getRow(1).getCell(5).getStringCellValue()).isEqualTo("SI");
+            assertThat(valores.getRow(1).getCell(6).getStringCellValue()).isEqualTo("INSTALLMENT");
         }
     }
 
@@ -79,7 +89,11 @@ class ApachePoiExpenseImportTemplateGeneratorTest {
                 row.getCell(2).getStringCellValue(),
                 row.getCell(3).getStringCellValue(),
                 row.getCell(4).getStringCellValue(),
-                row.getCell(5).getStringCellValue()
+                row.getCell(5).getStringCellValue(),
+                row.getCell(6).getStringCellValue(),
+                row.getCell(7).getStringCellValue(),
+                row.getCell(8).getStringCellValue(),
+                row.getCell(9).getStringCellValue()
         );
     }
 

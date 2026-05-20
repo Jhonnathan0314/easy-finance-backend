@@ -144,6 +144,10 @@ Multipart form-data:
 Headers expected in first sheet:
 
 ```text
-Fecha | Descripción | Monto | Categoría | MedioPago | EstadoPago
+Fecha | Descripción | Monto | Categoría | MedioPago | EstadoPago | AplicaPagoDeuda | Deuda | TipoPagoDeuda | NotasPagoDeuda
 ```
 
+Older files without the debt-payment columns remain accepted. In the current template, `AplicaPagoDeuda`
+supports `SI`/`NO`, `Deuda` is selected from active account debts, and `TipoPagoDeuda` supports
+`INSTALLMENT`/`CAPITAL_PAYMENT`; preview validates these fields, and confirm creates simple
+expenses and registers debt payments for rows with `AplicaPagoDeuda = SI`.

@@ -289,7 +289,7 @@ Expected:
 - Response is `200`.
 - `Content-Type` is `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`.
 - `Content-Disposition` downloads `easy-finance-expense-import-template.xlsx`.
-- Workbook contains `Gastos` headers and account-scoped catalog values.
+- Workbook contains `Gastos` headers, account-scoped catalog values, active debts, and debt-payment dropdown values.
 
 ## 13. Expense Import Preview
 
@@ -297,6 +297,12 @@ Upload an `.xlsx` file with first-sheet headers:
 
 ```text
 Fecha | Descripción | Monto | Categoría | MedioPago | EstadoPago
+```
+
+Files generated from the current template can also include optional debt-payment columns:
+
+```text
+AplicaPagoDeuda | Deuda | TipoPagoDeuda | NotasPagoDeuda
 ```
 
 Endpoint:

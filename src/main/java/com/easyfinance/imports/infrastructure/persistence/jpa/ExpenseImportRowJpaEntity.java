@@ -46,6 +46,16 @@ public class ExpenseImportRowJpaEntity {
     private Long paymentMethodId;
     @Column(name = "payment_state")
     private String paymentState;
+    @Column(name = "applies_debt_payment", nullable = false)
+    private boolean appliesDebtPayment;
+    @Column(name = "debt_id")
+    private Long debtId;
+    @Column(name = "debt_label")
+    private String debtLabel;
+    @Column(name = "debt_payment_type")
+    private String debtPaymentType;
+    @Column(name = "debt_payment_notes")
+    private String debtPaymentNotes;
     @Column(name = "valid", nullable = false)
     private boolean valid;
     @JdbcTypeCode(SqlTypes.JSON)
@@ -53,6 +63,8 @@ public class ExpenseImportRowJpaEntity {
     private List<ImportRowError> errorsJson;
     @Column(name = "created_expense_id")
     private Long createdExpenseId;
+    @Column(name = "created_debt_payment_id")
+    private Long createdDebtPaymentId;
     @Column(name = "created_at", insertable = false, updatable = false)
     private Instant createdAt;
     @Column(name = "updated_at", insertable = false, updatable = false)
@@ -84,12 +96,24 @@ public class ExpenseImportRowJpaEntity {
     public void setPaymentMethodId(Long paymentMethodId) { this.paymentMethodId = paymentMethodId; }
     public String getPaymentState() { return paymentState; }
     public void setPaymentState(String paymentState) { this.paymentState = paymentState; }
+    public boolean isAppliesDebtPayment() { return appliesDebtPayment; }
+    public void setAppliesDebtPayment(boolean appliesDebtPayment) { this.appliesDebtPayment = appliesDebtPayment; }
+    public Long getDebtId() { return debtId; }
+    public void setDebtId(Long debtId) { this.debtId = debtId; }
+    public String getDebtLabel() { return debtLabel; }
+    public void setDebtLabel(String debtLabel) { this.debtLabel = debtLabel; }
+    public String getDebtPaymentType() { return debtPaymentType; }
+    public void setDebtPaymentType(String debtPaymentType) { this.debtPaymentType = debtPaymentType; }
+    public String getDebtPaymentNotes() { return debtPaymentNotes; }
+    public void setDebtPaymentNotes(String debtPaymentNotes) { this.debtPaymentNotes = debtPaymentNotes; }
     public boolean isValid() { return valid; }
     public void setValid(boolean valid) { this.valid = valid; }
     public List<ImportRowError> getErrorsJson() { return errorsJson; }
     public void setErrorsJson(List<ImportRowError> errorsJson) { this.errorsJson = errorsJson; }
     public Long getCreatedExpenseId() { return createdExpenseId; }
     public void setCreatedExpenseId(Long createdExpenseId) { this.createdExpenseId = createdExpenseId; }
+    public Long getCreatedDebtPaymentId() { return createdDebtPaymentId; }
+    public void setCreatedDebtPaymentId(Long createdDebtPaymentId) { this.createdDebtPaymentId = createdDebtPaymentId; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }

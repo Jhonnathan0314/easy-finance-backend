@@ -2,10 +2,10 @@ package com.easyfinance.imports.infrastructure.excel;
 
 import com.easyfinance.imports.application.command.PreviewExpenseImportCommand;
 import com.easyfinance.shared.domain.BusinessRuleViolationException;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.CreationHelper;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
 
@@ -22,8 +22,8 @@ class ApachePoiExpenseImportParserTest {
     private final ApachePoiExpenseImportParser parser = new ApachePoiExpenseImportParser(2);
 
     @Test
-    void parsesValidRowsAndIgnoresBlankRows() throws Exception {
-        byte[] file = workbookWithRows(new Object[][]{
+    void parsesValidLegacyRowsAndIgnoresBlankRows() throws Exception {
+        byte[] file = legacyWorkbookWithRows(new Object[][]{
                 {"2026-05-01", "Lunch", 120.50, "Food", "Cash", "PAID"},
                 {null, null, null, null, null, null}
         });
@@ -35,11 +35,87 @@ class ApachePoiExpenseImportParserTest {
         assertThat(rows.getFirst().amount().amount()).isEqualByComparingTo("120.50");
         assertThat(rows.getFirst().description()).isEqualTo("Lunch");
         assertThat(rows.getFirst().categoryName()).isEqualTo("Food");
+        assertThat(rows.getFirst().appliesDebtPayment()).isFalse();
+    }
+
+    @Test
+    void parsesDebtPaymentRowFromDynamicTemplate() throws Exception {
+        byte[] file = debtWorkbookWithRows(new Object[][]{
+                {"2026-05-01", "Lunch", 120.50, "Food", "Cash", "PAID", "SI", "Loan | Saldo: 120.00 | Inicio: 2026-05-01 | MANUAL", "INSTALLMENT", "Imported payment"}
+        });
+
+        var rows = parser.parse(command(file), 1L);
+
+        assertThat(rows).singleElement().satisfies(row -> {
+            assertThat(row.valid()).isTrue();
+            assertThat(row.appliesDebtPayment()).isTrue();
+            assertThat(row.debtId()).isEqualTo(99L);
+            assertThat(row.debtLabel()).isEqualTo("Loan | Saldo: 120.00 | Inicio: 2026-05-01 | MANUAL");
+            assertThat(row.debtPaymentType().name()).isEqualTo("INSTALLMENT");
+            assertThat(row.debtPaymentNotes()).isEqualTo("Imported payment");
+        });
+    }
+
+    @Test
+    void emptyOrNoDebtPaymentFlagIsFalse() throws Exception {
+        byte[] file = debtWorkbookWithRows(new Object[][]{
+                {"2026-05-01", "Lunch", 120.50, "Food", "Cash", "PAID", "", "", "", ""},
+                {"2026-05-02", "Dinner", 50.00, "Food", "Cash", "PAID", "NO", "", "", ""}
+        });
+
+        var rows = new ApachePoiExpenseImportParser(10).parse(command(file), 1L);
+
+        assertThat(rows).hasSize(2).allSatisfy(row -> {
+            assertThat(row.valid()).isTrue();
+            assertThat(row.appliesDebtPayment()).isFalse();
+        });
+    }
+
+    @Test
+    void invalidDebtPaymentTypeProducesRowError() throws Exception {
+        byte[] file = debtWorkbookWithRows(new Object[][]{
+                {"2026-05-01", "Lunch", 120.50, "Food", "Cash", "PAID", "SI", "Loan | Saldo: 120.00 | Inicio: 2026-05-01 | MANUAL", "OTHER", ""}
+        });
+
+        var rows = parser.parse(command(file), 1L);
+
+        assertThat(rows).singleElement().satisfies(row -> {
+            assertThat(row.valid()).isFalse();
+            assertThat(row.errors()).extracting("code").contains("IMPORT_DEBT_PAYMENT_TYPE_INVALID");
+        });
+    }
+
+    @Test
+    void debtFieldsWithNoFlagProduceRowError() throws Exception {
+        byte[] file = debtWorkbookWithRows(new Object[][]{
+                {"2026-05-01", "Lunch", 120.50, "Food", "Cash", "PAID", "NO", "Loan | Saldo: 120.00 | Inicio: 2026-05-01 | MANUAL", "", ""}
+        });
+
+        var rows = parser.parse(command(file), 1L);
+
+        assertThat(rows).singleElement().satisfies(row -> {
+            assertThat(row.valid()).isFalse();
+            assertThat(row.errors()).extracting("code").contains("IMPORT_DEBT_PAYMENT_FIELDS_NOT_ALLOWED");
+        });
+    }
+
+    @Test
+    void invalidDebtPaymentFlagProducesRowError() throws Exception {
+        byte[] file = debtWorkbookWithRows(new Object[][]{
+                {"2026-05-01", "Lunch", 120.50, "Food", "Cash", "PAID", "YES", "", "", ""}
+        });
+
+        var rows = parser.parse(command(file), 1L);
+
+        assertThat(rows).singleElement().satisfies(row -> {
+            assertThat(row.valid()).isFalse();
+            assertThat(row.errors()).extracting("code").contains("IMPORT_DEBT_PAYMENT_FLAG_INVALID");
+        });
     }
 
     @Test
     void reportsInvalidRowValues() throws Exception {
-        byte[] file = workbookWithRows(new Object[][]{
+        byte[] file = legacyWorkbookWithRows(new Object[][]{
                 {"bad-date", "", -1, "Food", "Cash", "UNKNOWN"}
         });
 
@@ -93,7 +169,7 @@ class ApachePoiExpenseImportParserTest {
 
     @Test
     void rowLimitFails() throws Exception {
-        byte[] file = workbookWithRows(new Object[][]{
+        byte[] file = legacyWorkbookWithRows(new Object[][]{
                 {"2026-05-01", "A", 1, "Food", "Cash", "PAID"},
                 {"2026-05-02", "B", 1, "Food", "Cash", "PAID"},
                 {"2026-05-03", "C", 1, "Food", "Cash", "PAID"}
@@ -107,11 +183,18 @@ class ApachePoiExpenseImportParserTest {
         return new PreviewExpenseImportCommand(1L, "expenses.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", bytes.length, new ByteArrayInputStream(bytes));
     }
 
-    private static byte[] workbookWithRows(Object[][] data) throws Exception {
+    private static byte[] legacyWorkbookWithRows(Object[][] data) throws Exception {
+        return workbookWithRows(new String[]{"Fecha", "DescripciÃ³n", "Monto", "CategorÃ­a", "MedioPago", "EstadoPago"}, data, false);
+    }
+
+    private static byte[] debtWorkbookWithRows(Object[][] data) throws Exception {
+        return workbookWithRows(new String[]{"Fecha", "DescripciÃ³n", "Monto", "CategorÃ­a", "MedioPago", "EstadoPago", "AplicaPagoDeuda", "Deuda", "TipoPagoDeuda", "NotasPagoDeuda"}, data, true);
+    }
+
+    private static byte[] workbookWithRows(String[] headers, Object[][] data, boolean includeValuesSheet) throws Exception {
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             var sheet = workbook.createSheet("Gastos");
             Row header = sheet.createRow(0);
-            String[] headers = {"Fecha", "Descripción", "Monto", "Categoría", "MedioPago", "EstadoPago"};
             for (int i = 0; i < headers.length; i++) {
                 header.createCell(i).setCellValue(headers[i]);
             }
@@ -126,6 +209,15 @@ class ApachePoiExpenseImportParserTest {
                     }
                 }
             }
+            if (includeValuesSheet) {
+                var values = workbook.createSheet("Valores");
+                Row valuesHeader = values.createRow(0);
+                valuesHeader.createCell(3).setCellValue("Deudas");
+                valuesHeader.createCell(4).setCellValue("DeudaId");
+                Row debt = values.createRow(1);
+                debt.createCell(3).setCellValue("Loan | Saldo: 120.00 | Inicio: 2026-05-01 | MANUAL");
+                debt.createCell(4).setCellValue(99L);
+            }
             workbook.write(output);
             return output.toByteArray();
         }
@@ -135,7 +227,7 @@ class ApachePoiExpenseImportParserTest {
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             var sheet = workbook.createSheet("Gastos");
             Row header = sheet.createRow(0);
-            String[] headers = {"Fecha", "Descripción", "Monto", "Categoría", "MedioPago", "EstadoPago"};
+            String[] headers = {"Fecha", "DescripciÃ³n", "Monto", "CategorÃ­a", "MedioPago", "EstadoPago"};
             for (int i = 0; i < headers.length; i++) {
                 header.createCell(i).setCellValue(headers[i]);
             }
@@ -160,7 +252,7 @@ class ApachePoiExpenseImportParserTest {
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             var sheet = workbook.createSheet("Gastos");
             Row header = sheet.createRow(0);
-            String[] headers = {"Fecha", "Descripción", "Monto", "Categoría", "MedioPago", "EstadoPago"};
+            String[] headers = {"Fecha", "DescripciÃ³n", "Monto", "CategorÃ­a", "MedioPago", "EstadoPago"};
             for (int i = 0; i < headers.length; i++) {
                 header.createCell(i).setCellValue(headers[i]);
             }

@@ -88,6 +88,5 @@ States: `ACTIVE`, `CANCELLED`
 States: `PREVIEW`, `CONFIRMED`, `CANCELLED`
 
 - Preview creates batch and rows, no expenses.
-- Confirm creates expenses for valid rows and marks batch `CONFIRMED`.
+- Confirm creates expenses for valid rows, registers debt payments for rows marked with debt payment, and marks batch `CONFIRMED`.
 - Confirm cannot run twice.
-

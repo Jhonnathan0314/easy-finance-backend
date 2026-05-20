@@ -15,6 +15,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -47,6 +48,14 @@ public class JpaDebtRepositoryAdapter implements DebtRepositoryPort {
     @Override
     public Optional<Debt> findByAccountIdAndIdForUpdate(Long accountId, Long debtId) {
         return repository.findByAccountIdAndIdForUpdate(accountId, debtId).map(mapper::toDomain);
+    }
+
+    @Override
+    public List<Debt> findActiveByAccountId(Long accountId) {
+        return repository.findByAccountIdAndStateOrderByStartDateDescCreatedAtDesc(accountId, DebtStateJpa.ACTIVE)
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     @Override

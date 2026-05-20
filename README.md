@@ -745,7 +745,7 @@ Main analytics error codes include `ANALYTICS_PERIOD_INVALID`, `ANALYTICS_DATE_R
 Expense imports are a two-step Excel workflow scoped by account:
 
 1. Preview validates the `.xlsx` file and stores an import batch in `PREVIEW`.
-2. Confirm creates simple expenses only from valid rows and marks the batch `CONFIRMED`.
+2. Confirm creates simple expenses from valid rows, registers debt payments for rows with `AplicaPagoDeuda = SI`, and marks the batch `CONFIRMED`.
 
 Download dynamic template:
 
@@ -780,13 +780,26 @@ curl http://localhost:8080/api/v1/accounts/1/imports/expenses/25 \
 Expected first-sheet headers:
 
 ```text
-Fecha | Descripción | Monto | Categoría | MedioPago | EstadoPago
+Fecha | Descripción | Monto | Categoría | MedioPago | EstadoPago | AplicaPagoDeuda | Deuda | TipoPagoDeuda | NotasPagoDeuda
 ```
+
+Debt payment import preview contract:
+
+- Current files without debt-payment columns remain compatible.
+- The generated template includes optional debt-payment columns `AplicaPagoDeuda`, `Deuda`, `TipoPagoDeuda`, and `NotasPagoDeuda`.
+- `AplicaPagoDeuda` accepts `SI` or `NO`; blank is treated as `NO`.
+- If `AplicaPagoDeuda = SI`, `Deuda` and `TipoPagoDeuda` are required. `TipoPagoDeuda` must be `INSTALLMENT` or `CAPITAL_PAYMENT`.
+- If `AplicaPagoDeuda = NO` or blank, `Deuda`, `TipoPagoDeuda`, and `NotasPagoDeuda` must be empty.
+- For MVP, a row with `AplicaPagoDeuda = SI` uses the row `Monto` as the debt payment amount; there is no separate debt-payment amount column.
+- Debt IDs are not exposed in the main Excel sheet. The selected debt is resolved through a backend-generated hidden mapping.
+- Preview validates that the selected debt exists, belongs to the account, is `ACTIVE`, and that `Monto` does not exceed the debt remaining balance.
+- Row response fields are `appliesDebtPayment`, `debtId`, `debtLabel`, `debtPaymentType`, `debtPaymentNotes`, and `createdDebtPaymentId`.
+- Import confirmation creates the simple expense first and then registers the debt payment through the debt-payment use case.
 
 Import rules:
 
 - Any active account member can download the template; archived accounts allow template download because it is read-only.
-- The generated template contains the required headers, a hidden `Valores` sheet, dropdowns for active `EXPENSE` categories, active payment methods, and `EstadoPago`.
+- The generated template contains the required headers, a hidden `Valores` sheet, dropdowns for active `EXPENSE` categories, active payment methods, `EstadoPago`, `AplicaPagoDeuda`, active account debts, and `TipoPagoDeuda`.
 - Only `.xlsx` files are accepted.
 - Default maximum file size is `5MB`, configurable with `EXPENSE_IMPORT_MAX_FILE_SIZE_BYTES`.
 - Default maximum row count is `1000`, configurable with `EXPENSE_IMPORT_MAX_ROWS`.
@@ -796,13 +809,15 @@ Import rules:
 - Payment method names must match an active account payment method.
 - `EstadoPago` must be `PENDING`, `PARTIAL`, or `PAID`.
 - Confirmation persists only valid rows; invalid rows remain reported in the batch.
-- Confirmation is transactional: if one valid row cannot create its expense, no imported expenses are committed.
-- Confirmation locks the import batch pessimistically, so concurrent confirmations cannot create duplicate expenses.
+- Confirmation is transactional: if one valid row cannot create its expense or debt payment, no imported expenses or debt payments are committed.
+- Confirmation locks the import batch pessimistically, so concurrent confirmations cannot create duplicate expenses or debt payments.
 - The imported expense uses the participant who created the preview batch for traceability.
 
 Main import error codes include `IMPORT_FILE_REQUIRED`, `IMPORT_FILE_INVALID_TYPE`, `IMPORT_FILE_TOO_LARGE`, `IMPORT_TEMPLATE_INVALID`, `IMPORT_ROW_LIMIT_EXCEEDED`, `IMPORT_BATCH_NOT_FOUND`, `IMPORT_ALREADY_CONFIRMED`, `IMPORT_NOT_CONFIRMABLE`, `IMPORT_CONFIRMATION_FAILED`, and `IMPORT_NO_VALID_ROWS`.
 
 Row-level errors include `REQUIRED`, `INVALID_DATE`, `INVALID_AMOUNT`, `CATEGORY_NOT_FOUND`, `CATEGORY_INACTIVE`, `CATEGORY_INVALID_TYPE`, `PAYMENT_METHOD_NOT_FOUND`, `PAYMENT_METHOD_INACTIVE`, and `INVALID_PAYMENT_STATE`.
+
+Debt-payment row errors include `IMPORT_DEBT_PAYMENT_DEBT_REQUIRED`, `IMPORT_DEBT_PAYMENT_TYPE_REQUIRED`, `IMPORT_DEBT_PAYMENT_FIELDS_NOT_ALLOWED`, `IMPORT_DEBT_NOT_FOUND`, `IMPORT_DEBT_NOT_ACTIVE`, `IMPORT_DEBT_PAYMENT_EXCEEDS_REMAINING_BALANCE`, `IMPORT_DEBT_PAYMENT_TYPE_INVALID`, and `IMPORT_DEBT_PAYMENT_FLAG_INVALID`.
 
 ## Build
 

@@ -1,6 +1,7 @@
 package com.easyfinance.imports.domain.model;
 
 import com.easyfinance.expenses.domain.model.ExpensePaymentState;
+import com.easyfinance.debts.domain.model.DebtPaymentType;
 import com.easyfinance.shared.domain.Money;
 
 import java.time.Instant;
@@ -20,9 +21,15 @@ public record ExpenseImportRow(
         String paymentMethodName,
         Long paymentMethodId,
         ExpensePaymentState paymentState,
+        boolean appliesDebtPayment,
+        Long debtId,
+        String debtLabel,
+        DebtPaymentType debtPaymentType,
+        String debtPaymentNotes,
         boolean valid,
         List<ImportRowError> errors,
         Long createdExpenseId,
+        Long createdDebtPaymentId,
         Instant createdAt,
         Instant updatedAt
 ) {

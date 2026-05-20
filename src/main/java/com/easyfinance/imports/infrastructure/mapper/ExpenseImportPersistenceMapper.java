@@ -1,5 +1,6 @@
 package com.easyfinance.imports.infrastructure.mapper;
 
+import com.easyfinance.debts.domain.model.DebtPaymentType;
 import com.easyfinance.expenses.domain.model.ExpensePaymentState;
 import com.easyfinance.imports.domain.model.ExpenseImportBatch;
 import com.easyfinance.imports.domain.model.ExpenseImportRow;
@@ -63,9 +64,15 @@ public class ExpenseImportPersistenceMapper {
         entity.setPaymentMethodName(row.paymentMethodName());
         entity.setPaymentMethodId(row.paymentMethodId());
         entity.setPaymentState(row.paymentState() == null ? null : row.paymentState().name());
+        entity.setAppliesDebtPayment(row.appliesDebtPayment());
+        entity.setDebtId(row.debtId());
+        entity.setDebtLabel(row.debtLabel());
+        entity.setDebtPaymentType(row.debtPaymentType() == null ? null : row.debtPaymentType().name());
+        entity.setDebtPaymentNotes(row.debtPaymentNotes());
         entity.setValid(row.valid());
         entity.setErrorsJson(row.errors());
         entity.setCreatedExpenseId(row.createdExpenseId());
+        entity.setCreatedDebtPaymentId(row.createdDebtPaymentId());
         return entity;
     }
 
@@ -83,9 +90,15 @@ public class ExpenseImportPersistenceMapper {
                 entity.getPaymentMethodName(),
                 entity.getPaymentMethodId(),
                 entity.getPaymentState() == null ? null : ExpensePaymentState.valueOf(entity.getPaymentState()),
+                entity.isAppliesDebtPayment(),
+                entity.getDebtId(),
+                entity.getDebtLabel(),
+                entity.getDebtPaymentType() == null ? null : DebtPaymentType.valueOf(entity.getDebtPaymentType()),
+                entity.getDebtPaymentNotes(),
                 entity.isValid(),
                 entity.getErrorsJson() == null ? List.of() : entity.getErrorsJson(),
                 entity.getCreatedExpenseId(),
+                entity.getCreatedDebtPaymentId(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );

@@ -33,6 +33,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -392,6 +393,11 @@ class DebtPaymentTransactionIT {
         @Override
         public Optional<Debt> findByAccountIdAndIdForUpdate(Long accountId, Long debtId) {
             return delegate.findByAccountIdAndIdForUpdate(accountId, debtId);
+        }
+
+        @Override
+        public List<Debt> findActiveByAccountId(Long accountId) {
+            return delegate.findActiveByAccountId(accountId);
         }
 
         @Override

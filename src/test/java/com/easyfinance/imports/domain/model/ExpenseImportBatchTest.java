@@ -58,12 +58,13 @@ class ExpenseImportBatchTest {
     private static ExpenseImportRow validRow() {
         return new ExpenseImportRow(null, 1L, null, 2, LocalDate.of(2026, 5, 1), "Lunch",
                 Money.cop(new BigDecimal("120.00")), "Food", 10L, "Cash", 20L,
-                ExpensePaymentState.PAID, true, List.of(), null, null, null);
+                ExpensePaymentState.PAID, false, null, null, null, null,
+                true, List.of(), null, null, null, null);
     }
 
     private static ExpenseImportRow invalidRow() {
         return new ExpenseImportRow(null, 1L, null, 3, null, null, null,
-                null, null, null, null, null, false,
-                List.of(new ImportRowError("Fecha", "REQUIRED", "Fecha is required.")), null, null, null);
+                null, null, null, null, null, false, null, null, null, null,
+                false, List.of(new ImportRowError("Fecha", "REQUIRED", "Fecha is required.")), null, null, null, null);
     }
 }

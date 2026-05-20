@@ -179,7 +179,7 @@ Steps:
 Expected result:
 
 - Preview does not create expenses.
-- Confirm creates only valid expenses.
+- Confirm creates only valid expenses and debt payments for rows marked as debt payments.
 - Second confirm fails with `IMPORT_ALREADY_CONFIRMED`.
 
 ## Approval Criteria

@@ -18,5 +18,7 @@ public interface ExpenseImportRepositoryPort {
 
     void updateCreatedExpenseId(Long accountId, Long rowId, Long expenseId);
 
+    void updateCreatedDebtPaymentId(Long accountId, Long rowId, Long debtPaymentId);
+
     List<ExpenseImportRow> findRowsByBatch(Long accountId, Long batchId);
 }

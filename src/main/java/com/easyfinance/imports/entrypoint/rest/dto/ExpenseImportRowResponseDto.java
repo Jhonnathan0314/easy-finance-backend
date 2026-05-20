@@ -16,8 +16,14 @@ public record ExpenseImportRowResponseDto(
         String paymentMethodName,
         Long paymentMethodId,
         String paymentState,
+        boolean appliesDebtPayment,
+        Long debtId,
+        String debtLabel,
+        String debtPaymentType,
+        String debtPaymentNotes,
         boolean valid,
         List<ImportRowErrorDto> errors,
-        Long createdExpenseId
+        Long createdExpenseId,
+        Long createdDebtPaymentId
 ) {
 }

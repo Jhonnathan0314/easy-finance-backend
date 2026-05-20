@@ -136,6 +136,6 @@ Analytics cashflow represents real money only: active incomes, active simple exp
 
 ```ts
 interface ImportRowError { column: string; code: string; message: string; }
-interface ExpenseImportRowResponse { id: number; rowNumber: number; expenseDate?: string | null; description?: string | null; amount?: number | null; currency?: "COP" | null; categoryName?: string | null; categoryId?: number | null; paymentMethodName?: string | null; paymentMethodId?: number | null; paymentState?: string | null; valid: boolean; errors: ImportRowError[]; createdExpenseId?: number | null; }
+interface ExpenseImportRowResponse { id: number; rowNumber: number; expenseDate?: string | null; description?: string | null; amount?: number | null; currency?: "COP" | null; categoryName?: string | null; categoryId?: number | null; paymentMethodName?: string | null; paymentMethodId?: number | null; paymentState?: string | null; appliesDebtPayment: boolean; debtId?: number | null; debtLabel?: string | null; debtPaymentType?: "INSTALLMENT" | "CAPITAL_PAYMENT" | null; debtPaymentNotes?: string | null; valid: boolean; errors: ImportRowError[]; createdExpenseId?: number | null; createdDebtPaymentId?: number | null; }
 interface ExpenseImportBatchResponse { batchId: number; accountId: number; participantId: number; originalFilename: string; status: string; totalRows: number; validRows: number; invalidRows: number; confirmedAt?: string | null; rows: ExpenseImportRowResponse[]; }
 ```
