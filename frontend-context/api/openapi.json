@@ -1,0 +1,404 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Easy Finance MVP API",
+    "version": "0.1.0",
+    "description": "Frontend handoff OpenAPI contract derived from the Easy Finance Spring Boot controllers and DTOs."
+  },
+  "servers": [
+    { "url": "http://localhost:8080", "description": "Local backend" }
+  ],
+  "security": [
+    { "bearerAuth": [] }
+  ],
+  "tags": [
+    { "name": "Auth" },
+    { "name": "Accounts" },
+    { "name": "Catalogs" },
+    { "name": "Expenses" },
+    { "name": "Debts" },
+    { "name": "Budgets" },
+    { "name": "Income" },
+    { "name": "Analytics" },
+    { "name": "Imports" }
+  ],
+  "paths": {
+    "/api/v1/auth/register": {
+      "post": {
+        "tags": ["Auth"],
+        "security": [],
+        "summary": "Register user",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RegisterRequest" } } } },
+        "responses": { "201": { "description": "Registered", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthTokenResponse" } } } }, "400": { "$ref": "#/components/responses/Error" } }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "security": [],
+        "summary": "Login",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginRequest" } } } },
+        "responses": { "200": { "description": "Logged in", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthTokenResponse" } } } }, "401": { "$ref": "#/components/responses/Error" } }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Current user",
+        "responses": { "200": { "description": "Current user", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthenticatedUser" } } } }, "401": { "$ref": "#/components/responses/Error" } }
+      }
+    },
+    "/api/v1/accounts": {
+      "post": {
+        "tags": ["Accounts"],
+        "summary": "Create account",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateAccountRequest" } } } },
+        "responses": { "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccountResponse" } } } } }
+      },
+      "get": {
+        "tags": ["Accounts"],
+        "summary": "List accounts",
+        "parameters": [{ "$ref": "#/components/parameters/page" }, { "$ref": "#/components/parameters/size" }],
+        "responses": { "200": { "description": "Page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccountPage" } } } } }
+      }
+    },
+    "/api/v1/accounts/{accountId}": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }],
+      "get": { "tags": ["Accounts"], "summary": "Get account", "responses": { "200": { "description": "Account", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccountResponse" } } } }, "404": { "$ref": "#/components/responses/Error" } } },
+      "put": { "tags": ["Accounts"], "summary": "Update account", "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateAccountRequest" } } } }, "responses": { "200": { "description": "Updated", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccountResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/archive": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }],
+      "patch": { "tags": ["Accounts"], "summary": "Archive account", "responses": { "200": { "description": "Archived", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccountResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/members": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }],
+      "get": { "tags": ["Accounts"], "summary": "List members", "responses": { "200": { "description": "Members", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/AccountMemberResponse" } } } } } } },
+      "post": { "tags": ["Accounts"], "summary": "Add member", "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AddAccountMemberRequest" } } } }, "responses": { "201": { "description": "Member", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccountMemberResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/members/{participantId}/role": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }, { "$ref": "#/components/parameters/participantId" }],
+      "patch": { "tags": ["Accounts"], "summary": "Change member role", "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ChangeAccountMemberRoleRequest" } } } }, "responses": { "200": { "description": "Member", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccountMemberResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/members/{participantId}": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }, { "$ref": "#/components/parameters/participantId" }],
+      "delete": { "tags": ["Accounts"], "summary": "Remove member", "responses": { "204": { "description": "Removed" } } }
+    },
+    "/api/v1/accounts/{accountId}/categories": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }],
+      "post": { "tags": ["Catalogs"], "summary": "Create category", "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateCategoryRequest" } } } }, "responses": { "201": { "description": "Category", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CategoryResponse" } } } } } },
+      "get": { "tags": ["Catalogs"], "summary": "List categories", "parameters": [{ "name": "search", "in": "query", "schema": { "type": "string" } }, { "name": "type", "in": "query", "schema": { "$ref": "#/components/schemas/CategoryType" } }, { "name": "status", "in": "query", "schema": { "$ref": "#/components/schemas/CatalogStatus" } }, { "$ref": "#/components/parameters/page" }, { "$ref": "#/components/parameters/size" }, { "$ref": "#/components/parameters/sort" }], "responses": { "200": { "description": "Page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CategoryPage" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/categories/{categoryId}": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }, { "$ref": "#/components/parameters/categoryId" }],
+      "get": { "tags": ["Catalogs"], "summary": "Get category", "responses": { "200": { "description": "Category", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CategoryResponse" } } } } } },
+      "put": { "tags": ["Catalogs"], "summary": "Update category", "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateCategoryRequest" } } } }, "responses": { "200": { "description": "Category", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CategoryResponse" } } } } } },
+      "delete": { "tags": ["Catalogs"], "summary": "Deactivate category", "responses": { "204": { "description": "Deactivated" } } }
+    },
+    "/api/v1/accounts/{accountId}/payment-methods": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }],
+      "post": { "tags": ["Catalogs"], "summary": "Create payment method", "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreatePaymentMethodRequest" } } } }, "responses": { "201": { "description": "Payment method", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PaymentMethodResponse" } } } } } },
+      "get": { "tags": ["Catalogs"], "summary": "List payment methods", "parameters": [{ "name": "search", "in": "query", "schema": { "type": "string" } }, { "name": "type", "in": "query", "schema": { "$ref": "#/components/schemas/PaymentMethodType" } }, { "name": "status", "in": "query", "schema": { "$ref": "#/components/schemas/CatalogStatus" } }, { "$ref": "#/components/parameters/page" }, { "$ref": "#/components/parameters/size" }, { "$ref": "#/components/parameters/sort" }], "responses": { "200": { "description": "Page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PaymentMethodPage" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/payment-methods/{paymentMethodId}": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }, { "$ref": "#/components/parameters/paymentMethodId" }],
+      "get": { "tags": ["Catalogs"], "summary": "Get payment method", "responses": { "200": { "description": "Payment method", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PaymentMethodResponse" } } } } } },
+      "put": { "tags": ["Catalogs"], "summary": "Update payment method", "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdatePaymentMethodRequest" } } } }, "responses": { "200": { "description": "Payment method", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PaymentMethodResponse" } } } } } },
+      "delete": { "tags": ["Catalogs"], "summary": "Deactivate payment method", "responses": { "204": { "description": "Deactivated" } } }
+    },
+    "/api/v1/accounts/{accountId}/expenses": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }],
+      "post": { "tags": ["Expenses"], "summary": "Create simple expense", "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateExpenseRequest" } } } }, "responses": { "201": { "description": "Expense", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ExpenseResponse" } } } } } },
+      "get": { "tags": ["Expenses"], "summary": "List expenses", "parameters": [{ "$ref": "#/components/parameters/from" }, { "$ref": "#/components/parameters/to" }, { "name": "categoryId", "in": "query", "schema": { "type": "integer", "format": "int64" } }, { "name": "paymentMethodId", "in": "query", "schema": { "type": "integer", "format": "int64" } }, { "name": "participantId", "in": "query", "schema": { "type": "integer", "format": "int64" } }, { "name": "paymentState", "in": "query", "schema": { "$ref": "#/components/schemas/ExpensePaymentState" } }, { "name": "status", "in": "query", "schema": { "$ref": "#/components/schemas/ExpenseStatus" } }, { "name": "search", "in": "query", "schema": { "type": "string" } }, { "$ref": "#/components/parameters/page" }, { "$ref": "#/components/parameters/size" }, { "$ref": "#/components/parameters/sort" }], "responses": { "200": { "description": "Page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ExpensePage" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/expenses/installments": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }],
+      "post": { "tags": ["Expenses"], "summary": "Create installment expense", "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateInstallmentExpenseRequest" } } } }, "responses": { "201": { "description": "Expense", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ExpenseResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/expenses/{expenseId}": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }, { "$ref": "#/components/parameters/expenseId" }],
+      "get": { "tags": ["Expenses"], "summary": "Get expense", "responses": { "200": { "description": "Expense", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ExpenseResponse" } } } } } },
+      "put": { "tags": ["Expenses"], "summary": "Update simple expense", "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateExpenseRequest" } } } }, "responses": { "200": { "description": "Expense", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ExpenseResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/expenses/{expenseId}/cancel": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }, { "$ref": "#/components/parameters/expenseId" }],
+      "patch": { "tags": ["Expenses"], "summary": "Cancel simple expense", "responses": { "204": { "description": "Cancelled" } } }
+    },
+    "/api/v1/accounts/{accountId}/expenses/{expenseId}/duplicate": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }, { "$ref": "#/components/parameters/expenseId" }],
+      "post": { "tags": ["Expenses"], "summary": "Duplicate simple expense", "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DuplicateExpenseRequest" } } } }, "responses": { "201": { "description": "Expense", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ExpenseResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/debts": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }],
+      "post": { "tags": ["Debts"], "summary": "Create manual debt", "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateManualDebtRequest" } } } }, "responses": { "201": { "description": "Debt", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DebtResponse" } } } } } },
+      "get": { "tags": ["Debts"], "summary": "List debts", "parameters": [{ "name": "state", "in": "query", "schema": { "$ref": "#/components/schemas/DebtState" } }, { "name": "sourceType", "in": "query", "schema": { "$ref": "#/components/schemas/DebtSourceType" } }, { "name": "participantId", "in": "query", "schema": { "type": "integer", "format": "int64" } }, { "$ref": "#/components/parameters/from" }, { "$ref": "#/components/parameters/to" }, { "$ref": "#/components/parameters/page" }, { "$ref": "#/components/parameters/size" }, { "$ref": "#/components/parameters/sort" }], "responses": { "200": { "description": "Page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DebtPage" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/debts/{debtId}": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }, { "$ref": "#/components/parameters/debtId" }],
+      "get": { "tags": ["Debts"], "summary": "Get debt", "responses": { "200": { "description": "Debt", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DebtResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/debts/{debtId}/cancel": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }, { "$ref": "#/components/parameters/debtId" }],
+      "patch": { "tags": ["Debts"], "summary": "Cancel manual debt", "responses": { "204": { "description": "Cancelled" } } }
+    },
+    "/api/v1/accounts/{accountId}/debts/{debtId}/payments": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }, { "$ref": "#/components/parameters/debtId" }],
+      "post": { "tags": ["Debts"], "summary": "Register debt payment", "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RegisterDebtPaymentRequest" } } } }, "responses": { "201": { "description": "Registered", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RegisterDebtPaymentResponse" } } } } } },
+      "get": { "tags": ["Debts"], "summary": "List debt payments", "parameters": [{ "$ref": "#/components/parameters/from" }, { "$ref": "#/components/parameters/to" }, { "name": "paymentType", "in": "query", "schema": { "$ref": "#/components/schemas/DebtPaymentType" } }, { "name": "status", "in": "query", "schema": { "$ref": "#/components/schemas/DebtPaymentStatus" } }, { "$ref": "#/components/parameters/page" }, { "$ref": "#/components/parameters/size" }, { "$ref": "#/components/parameters/sort" }], "responses": { "200": { "description": "Page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DebtPaymentPage" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/debts/{debtId}/payments/{paymentId}": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }, { "$ref": "#/components/parameters/debtId" }, { "$ref": "#/components/parameters/paymentId" }],
+      "get": { "tags": ["Debts"], "summary": "Get debt payment", "responses": { "200": { "description": "Debt payment", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DebtPaymentResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/budgets": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }],
+      "get": { "tags": ["Budgets"], "summary": "List budgets", "parameters": [{ "name": "year", "in": "query", "schema": { "type": "integer" } }, { "name": "status", "in": "query", "schema": { "$ref": "#/components/schemas/BudgetStatus" } }, { "$ref": "#/components/parameters/sort" }, { "$ref": "#/components/parameters/page" }, { "$ref": "#/components/parameters/size" }], "responses": { "200": { "description": "Page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BudgetPage" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/budgets/{year}/{month}": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }, { "$ref": "#/components/parameters/year" }, { "$ref": "#/components/parameters/month" }],
+      "put": { "tags": ["Budgets"], "summary": "Upsert budget", "requestBody": { "required": false, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpsertBudgetRequest" } } } }, "responses": { "200": { "description": "Budget", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BudgetResponse" } } } } } },
+      "get": { "tags": ["Budgets"], "summary": "Get budget detail", "responses": { "200": { "description": "Budget detail", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BudgetDetailResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/budgets/{sourceYear}/{sourceMonth}/duplicate": {
+      "parameters": [
+        { "$ref": "#/components/parameters/accountId" },
+        { "name": "sourceYear", "in": "path", "required": true, "schema": { "type": "integer", "minimum": 2000, "maximum": 2100 } },
+        { "name": "sourceMonth", "in": "path", "required": true, "schema": { "type": "integer", "minimum": 1, "maximum": 12 } }
+      ],
+      "post": {
+        "tags": ["Budgets"],
+        "summary": "Duplicate monthly budget",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DuplicateBudgetRequest" } } } },
+        "responses": { "200": { "description": "Duplicated budget detail", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BudgetDetailResponse" } } } } }
+      }
+    },
+    "/api/v1/accounts/{accountId}/budgets/{budgetId}/sub-budgets": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }, { "$ref": "#/components/parameters/budgetId" }],
+      "post": { "tags": ["Budgets"], "summary": "Create manual sub-budget", "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateSubBudgetRequest" } } } }, "responses": { "201": { "description": "Sub-budget", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SubBudgetResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/budgets/{budgetId}/sub-budgets/{subBudgetId}": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }, { "$ref": "#/components/parameters/budgetId" }, { "$ref": "#/components/parameters/subBudgetId" }],
+      "put": { "tags": ["Budgets"], "summary": "Update manual sub-budget", "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateSubBudgetRequest" } } } }, "responses": { "200": { "description": "Sub-budget", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SubBudgetResponse" } } } } } },
+      "delete": { "tags": ["Budgets"], "summary": "Deactivate manual sub-budget", "responses": { "204": { "description": "Deactivated" } } }
+    },
+    "/api/v1/accounts/{accountId}/incomes": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }],
+      "post": { "tags": ["Income"], "summary": "Create income", "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateIncomeRequest" } } } }, "responses": { "201": { "description": "Income", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/IncomeResponse" } } } } } },
+      "get": { "tags": ["Income"], "summary": "List incomes", "parameters": [{ "$ref": "#/components/parameters/from" }, { "$ref": "#/components/parameters/to" }, { "name": "categoryId", "in": "query", "schema": { "type": "integer", "format": "int64" } }, { "name": "participantId", "in": "query", "schema": { "type": "integer", "format": "int64" } }, { "name": "status", "in": "query", "schema": { "$ref": "#/components/schemas/IncomeStatus" } }, { "name": "search", "in": "query", "schema": { "type": "string" } }, { "$ref": "#/components/parameters/page" }, { "$ref": "#/components/parameters/size" }, { "$ref": "#/components/parameters/sort" }], "responses": { "200": { "description": "Page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/IncomePage" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/incomes/{incomeId}": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }, { "$ref": "#/components/parameters/incomeId" }],
+      "get": { "tags": ["Income"], "summary": "Get income", "responses": { "200": { "description": "Income", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/IncomeResponse" } } } } } },
+      "put": { "tags": ["Income"], "summary": "Update income", "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateIncomeRequest" } } } }, "responses": { "200": { "description": "Income", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/IncomeResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/incomes/{incomeId}/cancel": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }, { "$ref": "#/components/parameters/incomeId" }],
+      "patch": { "tags": ["Income"], "summary": "Cancel income", "responses": { "204": { "description": "Cancelled" } } }
+    },
+    "/api/v1/accounts/{accountId}/incomes/{incomeId}/duplicate": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }, { "$ref": "#/components/parameters/incomeId" }],
+      "post": { "tags": ["Income"], "summary": "Duplicate income", "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DuplicateIncomeRequest" } } } }, "responses": { "201": { "description": "Income", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/IncomeResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/analytics/monthly-summary": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }, { "$ref": "#/components/parameters/yearQuery" }, { "$ref": "#/components/parameters/monthQuery" }],
+      "get": { "tags": ["Analytics"], "summary": "Monthly summary", "responses": { "200": { "description": "Summary", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MonthlySummaryResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/analytics/cashflow-summary": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }, { "$ref": "#/components/parameters/fromRequired" }, { "$ref": "#/components/parameters/toRequired" }, { "name": "participantId", "in": "query", "required": false, "schema": { "type": "integer", "format": "int64" } }, { "name": "categoryId", "in": "query", "required": false, "schema": { "type": "integer", "format": "int64" } }, { "name": "paymentMethodId", "in": "query", "required": false, "schema": { "type": "integer", "format": "int64" } }],
+      "get": { "tags": ["Analytics"], "summary": "Cashflow summary", "responses": { "200": { "description": "Cashflow summary", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CashflowSummaryResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/analytics/expense-summary": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }, { "$ref": "#/components/parameters/fromRequired" }, { "$ref": "#/components/parameters/toRequired" }, { "name": "categoryId", "in": "query", "required": false, "schema": { "type": "integer", "format": "int64" } }, { "name": "paymentMethodId", "in": "query", "required": false, "schema": { "type": "integer", "format": "int64" } }, { "name": "participantId", "in": "query", "required": false, "schema": { "type": "integer", "format": "int64" } }, { "name": "status", "in": "query", "required": false, "schema": { "$ref": "#/components/schemas/ExpenseStatus" } }, { "name": "paymentState", "in": "query", "required": false, "schema": { "$ref": "#/components/schemas/ExpensePaymentState" } }, { "name": "expenseType", "in": "query", "required": false, "schema": { "$ref": "#/components/schemas/ExpenseType" } }],
+      "get": { "tags": ["Analytics"], "summary": "Expense conceptual summary", "responses": { "200": { "description": "Expense summary", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ExpenseSummaryResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/analytics/cashflow": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }, { "$ref": "#/components/parameters/fromRequired" }, { "$ref": "#/components/parameters/toRequired" }, { "name": "groupBy", "in": "query", "required": true, "schema": { "$ref": "#/components/schemas/CashflowGroupBy" } }, { "name": "participantId", "in": "query", "required": false, "schema": { "type": "integer", "format": "int64" } }],
+      "get": { "tags": ["Analytics"], "summary": "Cashflow series", "responses": { "200": { "description": "Cashflow", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CashflowResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/analytics/expenses-by-category": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }, { "$ref": "#/components/parameters/fromRequired" }, { "$ref": "#/components/parameters/toRequired" }, { "name": "categoryId", "in": "query", "required": false, "schema": { "type": "integer", "format": "int64" } }, { "name": "paymentMethodId", "in": "query", "required": false, "schema": { "type": "integer", "format": "int64" } }, { "name": "participantId", "in": "query", "required": false, "schema": { "type": "integer", "format": "int64" } }, { "name": "status", "in": "query", "required": false, "schema": { "$ref": "#/components/schemas/ExpenseStatus" } }, { "name": "paymentState", "in": "query", "required": false, "schema": { "$ref": "#/components/schemas/ExpensePaymentState" } }, { "name": "expenseType", "in": "query", "required": false, "schema": { "$ref": "#/components/schemas/ExpenseType" } }],
+      "get": { "tags": ["Analytics"], "summary": "Expenses by category", "responses": { "200": { "description": "Breakdown", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CategoryBreakdownResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/analytics/expenses-by-payment-method": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }, { "$ref": "#/components/parameters/fromRequired" }, { "$ref": "#/components/parameters/toRequired" }, { "name": "categoryId", "in": "query", "required": false, "schema": { "type": "integer", "format": "int64" } }, { "name": "paymentMethodId", "in": "query", "required": false, "schema": { "type": "integer", "format": "int64" } }, { "name": "participantId", "in": "query", "required": false, "schema": { "type": "integer", "format": "int64" } }, { "name": "status", "in": "query", "required": false, "schema": { "$ref": "#/components/schemas/ExpenseStatus" } }, { "name": "paymentState", "in": "query", "required": false, "schema": { "$ref": "#/components/schemas/ExpensePaymentState" } }, { "name": "expenseType", "in": "query", "required": false, "schema": { "$ref": "#/components/schemas/ExpenseType" } }],
+      "get": { "tags": ["Analytics"], "summary": "Expenses by payment method", "responses": { "200": { "description": "Payment method breakdown", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PaymentMethodBreakdownResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/analytics/incomes-by-category": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }, { "$ref": "#/components/parameters/fromRequired" }, { "$ref": "#/components/parameters/toRequired" }, { "name": "categoryId", "in": "query", "required": false, "schema": { "type": "integer", "format": "int64" } }, { "name": "participantId", "in": "query", "required": false, "schema": { "type": "integer", "format": "int64" } }, { "name": "status", "in": "query", "required": false, "schema": { "$ref": "#/components/schemas/IncomeStatus" } }],
+      "get": { "tags": ["Analytics"], "summary": "Incomes by category", "responses": { "200": { "description": "Breakdown", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CategoryBreakdownResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/analytics/debt-summary": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }],
+      "get": { "tags": ["Analytics"], "summary": "Debt summary", "responses": { "200": { "description": "Debt summary", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DebtSummaryResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/analytics/budget-summary": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }, { "$ref": "#/components/parameters/yearQuery" }, { "$ref": "#/components/parameters/monthQuery" }],
+      "get": { "tags": ["Analytics"], "summary": "Budget summary", "responses": { "200": { "description": "Budget summary", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BudgetSummaryResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/analytics/budget-vs-expenses-by-category": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }, { "$ref": "#/components/parameters/yearQuery" }, { "$ref": "#/components/parameters/monthQuery" }],
+      "get": { "tags": ["Analytics"], "summary": "Budget vs expenses by category", "responses": { "200": { "description": "Budget vs expenses by category", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BudgetVsExpensesByCategoryResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/imports/expenses/preview": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }],
+      "post": {
+        "tags": ["Imports"],
+        "summary": "Preview expense import",
+        "requestBody": { "required": true, "content": { "multipart/form-data": { "schema": { "type": "object", "properties": { "file": { "type": "string", "format": "binary" } }, "required": ["file"] } } } },
+        "responses": { "200": { "description": "Batch preview", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ExpenseImportBatchResponse" } } } } }
+      }
+    },
+    "/api/v1/accounts/{accountId}/imports/expenses/template": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }],
+      "get": {
+        "tags": ["Imports"],
+        "summary": "Download expense import template",
+        "responses": {
+          "200": {
+            "description": "Excel expense import template",
+            "headers": {
+              "Content-Disposition": {
+                "schema": { "type": "string" },
+                "description": "attachment; filename=\"easy-finance-expense-import-template.xlsx\""
+              }
+            },
+            "content": {
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                "schema": { "type": "string", "format": "binary" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/accounts/{accountId}/imports/expenses/{batchId}": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }, { "$ref": "#/components/parameters/batchId" }],
+      "get": { "tags": ["Imports"], "summary": "Get import batch", "responses": { "200": { "description": "Batch", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ExpenseImportBatchResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/imports/expenses/{batchId}/confirm": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }, { "$ref": "#/components/parameters/batchId" }],
+      "post": { "tags": ["Imports"], "summary": "Confirm import batch", "responses": { "200": { "description": "Confirmed batch", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ExpenseImportBatchResponse" } } } } } }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    },
+    "responses": {
+      "Error": { "description": "API error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiErrorResponse" } } } }
+    },
+    "parameters": {
+      "accountId": { "name": "accountId", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } },
+      "participantId": { "name": "participantId", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } },
+      "categoryId": { "name": "categoryId", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } },
+      "paymentMethodId": { "name": "paymentMethodId", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } },
+      "expenseId": { "name": "expenseId", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } },
+      "debtId": { "name": "debtId", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } },
+      "paymentId": { "name": "paymentId", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } },
+      "budgetId": { "name": "budgetId", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } },
+      "subBudgetId": { "name": "subBudgetId", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } },
+      "incomeId": { "name": "incomeId", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } },
+      "batchId": { "name": "batchId", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } },
+      "year": { "name": "year", "in": "path", "required": true, "schema": { "type": "integer", "minimum": 2000, "maximum": 2100 } },
+      "month": { "name": "month", "in": "path", "required": true, "schema": { "type": "integer", "minimum": 1, "maximum": 12 } },
+      "yearQuery": { "name": "year", "in": "query", "required": true, "schema": { "type": "integer", "minimum": 2000, "maximum": 2100 } },
+      "monthQuery": { "name": "month", "in": "query", "required": true, "schema": { "type": "integer", "minimum": 1, "maximum": 12 } },
+      "from": { "name": "from", "in": "query", "required": false, "schema": { "type": "string", "format": "date" } },
+      "to": { "name": "to", "in": "query", "required": false, "schema": { "type": "string", "format": "date" } },
+      "fromRequired": { "name": "from", "in": "query", "required": true, "schema": { "type": "string", "format": "date" } },
+      "toRequired": { "name": "to", "in": "query", "required": true, "schema": { "type": "string", "format": "date" } },
+      "page": { "name": "page", "in": "query", "required": false, "schema": { "type": "integer", "default": 0 } },
+      "size": { "name": "size", "in": "query", "required": false, "schema": { "type": "integer", "default": 20 } },
+      "sort": { "name": "sort", "in": "query", "required": false, "schema": { "type": "string" } }
+    },
+    "schemas": {
+      "Money": { "type": "number", "format": "decimal", "minimum": 0 },
+      "RegisterRequest": { "type": "object", "required": ["email", "password", "fullName"], "properties": { "email": { "type": "string", "format": "email" }, "password": { "type": "string", "minLength": 8 }, "fullName": { "type": "string" } } },
+      "LoginRequest": { "type": "object", "required": ["email", "password"], "properties": { "email": { "type": "string", "format": "email" }, "password": { "type": "string" } } },
+      "AuthenticatedUser": { "type": "object", "properties": { "userId": { "type": "integer", "format": "int64" }, "participantId": { "type": "integer", "format": "int64" }, "email": { "type": "string" }, "fullName": { "type": "string" }, "globalRoles": { "type": "array", "items": { "type": "string" } } } },
+      "AuthTokenResponse": { "type": "object", "properties": { "accessToken": { "type": "string" }, "tokenType": { "type": "string", "example": "Bearer" }, "expiresIn": { "type": "integer", "format": "int64" }, "user": { "$ref": "#/components/schemas/AuthenticatedUser" } } },
+      "CreateAccountRequest": { "type": "object", "required": ["name"], "properties": { "name": { "type": "string", "maxLength": 120 }, "description": { "type": "string", "maxLength": 500, "nullable": true } } },
+      "UpdateAccountRequest": { "$ref": "#/components/schemas/CreateAccountRequest" },
+      "AccountResponse": { "type": "object", "properties": { "id": { "type": "integer", "format": "int64" }, "name": { "type": "string" }, "description": { "type": "string", "nullable": true }, "status": { "$ref": "#/components/schemas/AccountStatus" }, "currentUserRole": { "$ref": "#/components/schemas/AccountRole" }, "createdAt": { "type": "string", "format": "date-time" }, "updatedAt": { "type": "string", "format": "date-time" } } },
+      "AddAccountMemberRequest": { "type": "object", "required": ["email", "role"], "properties": { "email": { "type": "string", "format": "email" }, "role": { "$ref": "#/components/schemas/AccountRole" } } },
+      "ChangeAccountMemberRoleRequest": { "type": "object", "required": ["role"], "properties": { "role": { "$ref": "#/components/schemas/AccountRole" } } },
+      "AccountMemberResponse": { "type": "object", "properties": { "participantId": { "type": "integer", "format": "int64" }, "email": { "type": "string" }, "displayName": { "type": "string" }, "role": { "$ref": "#/components/schemas/AccountRole" }, "status": { "$ref": "#/components/schemas/AccountParticipantStatus" }, "joinedAt": { "type": "string", "format": "date-time" } } },
+      "CreateCategoryRequest": { "type": "object", "required": ["name", "type"], "properties": { "name": { "type": "string", "maxLength": 120 }, "description": { "type": "string", "maxLength": 500, "nullable": true }, "type": { "$ref": "#/components/schemas/CategoryType" } } },
+      "UpdateCategoryRequest": { "type": "object", "required": ["name"], "properties": { "name": { "type": "string", "maxLength": 120 }, "description": { "type": "string", "maxLength": 500, "nullable": true }, "type": { "$ref": "#/components/schemas/CategoryType" } } },
+      "CategoryResponse": { "type": "object", "properties": { "id": { "type": "integer", "format": "int64" }, "accountId": { "type": "integer", "format": "int64" }, "name": { "type": "string" }, "description": { "type": "string", "nullable": true }, "type": { "$ref": "#/components/schemas/CategoryType" }, "status": { "$ref": "#/components/schemas/CatalogStatus" }, "createdAt": { "type": "string", "format": "date-time" }, "updatedAt": { "type": "string", "format": "date-time" } } },
+      "CreatePaymentMethodRequest": { "type": "object", "required": ["name", "type"], "properties": { "name": { "type": "string", "maxLength": 120 }, "description": { "type": "string", "maxLength": 500, "nullable": true }, "type": { "$ref": "#/components/schemas/PaymentMethodType" } } },
+      "UpdatePaymentMethodRequest": { "type": "object", "required": ["name"], "properties": { "name": { "type": "string", "maxLength": 120 }, "description": { "type": "string", "maxLength": 500, "nullable": true }, "type": { "$ref": "#/components/schemas/PaymentMethodType" } } },
+      "PaymentMethodResponse": { "type": "object", "properties": { "id": { "type": "integer", "format": "int64" }, "accountId": { "type": "integer", "format": "int64" }, "name": { "type": "string" }, "description": { "type": "string", "nullable": true }, "type": { "$ref": "#/components/schemas/PaymentMethodType" }, "status": { "$ref": "#/components/schemas/CatalogStatus" }, "createdAt": { "type": "string", "format": "date-time" }, "updatedAt": { "type": "string", "format": "date-time" } } },
+      "CreateExpenseRequest": { "type": "object", "required": ["categoryId", "paymentMethodId", "description", "amount", "expenseDate"], "properties": { "categoryId": { "type": "integer", "format": "int64" }, "paymentMethodId": { "type": "integer", "format": "int64" }, "description": { "type": "string", "maxLength": 500 }, "amount": { "$ref": "#/components/schemas/Money" }, "expenseDate": { "type": "string", "format": "date" }, "paymentState": { "$ref": "#/components/schemas/ExpensePaymentState" } } },
+      "UpdateExpenseRequest": { "type": "object", "required": ["categoryId", "paymentMethodId", "description", "amount", "expenseDate", "paymentState"], "properties": { "categoryId": { "type": "integer", "format": "int64" }, "paymentMethodId": { "type": "integer", "format": "int64" }, "description": { "type": "string", "maxLength": 500 }, "amount": { "$ref": "#/components/schemas/Money" }, "expenseDate": { "type": "string", "format": "date" }, "paymentState": { "$ref": "#/components/schemas/ExpensePaymentState" } } },
+      "DuplicateExpenseRequest": { "type": "object", "required": ["expenseDate"], "properties": { "expenseDate": { "type": "string", "format": "date" }, "amount": { "$ref": "#/components/schemas/Money" }, "description": { "type": "string", "maxLength": 500 }, "paymentState": { "$ref": "#/components/schemas/ExpensePaymentState" } } },
+      "CreateInstallmentExpenseRequest": { "type": "object", "required": ["categoryId", "paymentMethodId", "description", "totalAmount", "expenseDate", "installmentCount", "installmentAmount", "firstInstallmentDate"], "properties": { "categoryId": { "type": "integer", "format": "int64" }, "paymentMethodId": { "type": "integer", "format": "int64" }, "description": { "type": "string", "maxLength": 500 }, "totalAmount": { "$ref": "#/components/schemas/Money" }, "expenseDate": { "type": "string", "format": "date" }, "installmentCount": { "type": "integer", "minimum": 1 }, "installmentAmount": { "$ref": "#/components/schemas/Money" }, "firstInstallmentDate": { "type": "string", "format": "date" }, "debtName": { "type": "string", "maxLength": 150, "nullable": true }, "notes": { "type": "string", "maxLength": 1000, "nullable": true } } },
+      "ExpenseResponse": { "type": "object", "properties": { "id": { "type": "integer", "format": "int64" }, "accountId": { "type": "integer", "format": "int64" }, "categoryId": { "type": "integer", "format": "int64" }, "paymentMethodId": { "type": "integer", "format": "int64" }, "participantId": { "type": "integer", "format": "int64" }, "description": { "type": "string" }, "amount": { "type": "number" }, "currency": { "type": "string", "example": "COP" }, "expenseDate": { "type": "string", "format": "date" }, "paymentState": { "$ref": "#/components/schemas/ExpensePaymentState" }, "status": { "$ref": "#/components/schemas/ExpenseStatus" }, "expenseType": { "$ref": "#/components/schemas/ExpenseType" }, "createdAt": { "type": "string", "format": "date-time" }, "updatedAt": { "type": "string", "format": "date-time" } } },
+      "CreateManualDebtRequest": { "type": "object", "required": ["name", "totalAmount", "startDate"], "properties": { "name": { "type": "string", "maxLength": 150 }, "description": { "type": "string", "maxLength": 500, "nullable": true }, "totalAmount": { "$ref": "#/components/schemas/Money" }, "installmentCount": { "type": "integer", "minimum": 1, "nullable": true }, "installmentAmount": { "$ref": "#/components/schemas/Money" }, "startDate": { "type": "string", "format": "date" }, "dueDate": { "type": "string", "format": "date", "nullable": true }, "notes": { "type": "string", "maxLength": 1000, "nullable": true } } },
+      "RegisterDebtPaymentRequest": { "type": "object", "required": ["paymentType", "amount", "paymentDate"], "properties": { "paymentType": { "$ref": "#/components/schemas/DebtPaymentType" }, "amount": { "$ref": "#/components/schemas/Money" }, "paymentDate": { "type": "string", "format": "date" }, "notes": { "type": "string", "maxLength": 1000, "nullable": true } } },
+      "DebtResponse": { "type": "object", "properties": { "id": { "type": "integer", "format": "int64" }, "accountId": { "type": "integer", "format": "int64" }, "participantId": { "type": "integer", "format": "int64" }, "originExpenseId": { "type": "integer", "format": "int64", "nullable": true }, "sourceType": { "$ref": "#/components/schemas/DebtSourceType" }, "name": { "type": "string" }, "description": { "type": "string", "nullable": true }, "totalAmount": { "type": "number" }, "totalCurrency": { "type": "string", "example": "COP" }, "remainingAmount": { "type": "number" }, "remainingCurrency": { "type": "string", "example": "COP" }, "installmentCount": { "type": "integer", "nullable": true }, "installmentAmount": { "type": "number", "nullable": true }, "installmentCurrency": { "type": "string", "nullable": true }, "startDate": { "type": "string", "format": "date" }, "endDate": { "type": "string", "format": "date", "nullable": true }, "state": { "$ref": "#/components/schemas/DebtState" }, "notes": { "type": "string", "nullable": true }, "createdAt": { "type": "string", "format": "date-time" }, "updatedAt": { "type": "string", "format": "date-time" } } },
+      "DebtPaymentResponse": { "type": "object", "properties": { "id": { "type": "integer", "format": "int64" }, "accountId": { "type": "integer", "format": "int64" }, "debtId": { "type": "integer", "format": "int64" }, "participantId": { "type": "integer", "format": "int64" }, "paymentType": { "$ref": "#/components/schemas/DebtPaymentType" }, "amount": { "type": "number" }, "currency": { "type": "string", "example": "COP" }, "paymentDate": { "type": "string", "format": "date" }, "notes": { "type": "string", "nullable": true }, "status": { "$ref": "#/components/schemas/DebtPaymentStatus" }, "createdAt": { "type": "string", "format": "date-time" }, "updatedAt": { "type": "string", "format": "date-time" } } },
+      "RegisterDebtPaymentResponse": { "type": "object", "properties": { "payment": { "$ref": "#/components/schemas/DebtPaymentResponse" }, "debt": { "$ref": "#/components/schemas/DebtResponse" } } },
+      "UpsertBudgetRequest": { "type": "object", "properties": { "name": { "type": "string", "nullable": true }, "status": { "$ref": "#/components/schemas/BudgetStatus" } } },
+      "DuplicateBudgetRequest": { "type": "object", "required": ["targetYear", "targetMonth"], "properties": { "targetYear": { "type": "integer", "minimum": 2000, "maximum": 2100 }, "targetMonth": { "type": "integer", "minimum": 1, "maximum": 12 }, "name": { "type": "string", "nullable": true } } },
+      "CreateSubBudgetRequest": { "type": "object", "required": ["name", "plannedAmount"], "properties": { "categoryId": { "type": "integer", "format": "int64", "nullable": true }, "name": { "type": "string" }, "plannedAmount": { "type": "number", "minimum": 0 } } },
+      "UpdateSubBudgetRequest": { "$ref": "#/components/schemas/CreateSubBudgetRequest" },
+      "BudgetResponse": { "type": "object", "properties": { "id": { "type": "integer", "format": "int64" }, "accountId": { "type": "integer", "format": "int64" }, "year": { "type": "integer" }, "month": { "type": "integer" }, "name": { "type": "string", "nullable": true }, "status": { "$ref": "#/components/schemas/BudgetStatus" }, "createdAt": { "type": "string", "format": "date-time" }, "updatedAt": { "type": "string", "format": "date-time" } } },
+      "SubBudgetResponse": { "type": "object", "properties": { "id": { "type": "integer", "format": "int64" }, "accountId": { "type": "integer", "format": "int64" }, "budgetId": { "type": "integer", "format": "int64" }, "categoryId": { "type": "integer", "format": "int64", "nullable": true }, "debtId": { "type": "integer", "format": "int64", "nullable": true }, "name": { "type": "string" }, "plannedAmount": { "type": "number" }, "plannedCurrency": { "type": "string" }, "spentAmount": { "type": "number" }, "spentCurrency": { "type": "string" }, "status": { "$ref": "#/components/schemas/SubBudgetStatus" }, "sourceType": { "$ref": "#/components/schemas/SubBudgetSourceType" }, "createdAt": { "type": "string", "format": "date-time" }, "updatedAt": { "type": "string", "format": "date-time" } } },
+      "BudgetImpactResponse": { "type": "object", "properties": { "id": { "type": "integer", "format": "int64" }, "accountId": { "type": "integer", "format": "int64" }, "budgetId": { "type": "integer", "format": "int64" }, "subBudgetId": { "type": "integer", "format": "int64" }, "debtId": { "type": "integer", "format": "int64" }, "expenseId": { "type": "integer", "format": "int64", "nullable": true }, "periodYear": { "type": "integer" }, "periodMonth": { "type": "integer" }, "expectedAmount": { "type": "number" }, "expectedCurrency": { "type": "string" }, "paidAmount": { "type": "number" }, "paidCurrency": { "type": "string" }, "status": { "$ref": "#/components/schemas/BudgetImpactStatus" }, "sourceType": { "$ref": "#/components/schemas/BudgetImpactSourceType" }, "createdAt": { "type": "string", "format": "date-time" }, "updatedAt": { "type": "string", "format": "date-time" } } },
+      "BudgetDetailResponse": { "type": "object", "properties": { "budget": { "$ref": "#/components/schemas/BudgetResponse" }, "subBudgets": { "type": "array", "items": { "$ref": "#/components/schemas/SubBudgetResponse" } }, "impacts": { "type": "array", "items": { "$ref": "#/components/schemas/BudgetImpactResponse" } } } },
+      "CreateIncomeRequest": { "type": "object", "required": ["categoryId", "description", "amount", "incomeDate"], "properties": { "categoryId": { "type": "integer", "format": "int64" }, "description": { "type": "string" }, "amount": { "$ref": "#/components/schemas/Money" }, "incomeDate": { "type": "string", "format": "date" } } },
+      "UpdateIncomeRequest": { "$ref": "#/components/schemas/CreateIncomeRequest" },
+      "DuplicateIncomeRequest": { "type": "object", "required": ["incomeDate"], "properties": { "incomeDate": { "type": "string", "format": "date" }, "amount": { "$ref": "#/components/schemas/Money" }, "description": { "type": "string" } } },
+      "IncomeResponse": { "type": "object", "properties": { "id": { "type": "integer", "format": "int64" }, "accountId": { "type": "integer", "format": "int64" }, "categoryId": { "type": "integer", "format": "int64" }, "participantId": { "type": "integer", "format": "int64" }, "description": { "type": "string" }, "amount": { "type": "number" }, "currency": { "type": "string" }, "incomeDate": { "type": "string", "format": "date" }, "status": { "$ref": "#/components/schemas/IncomeStatus" }, "createdAt": { "type": "string", "format": "date-time" }, "updatedAt": { "type": "string", "format": "date-time" } } },
+      "MonthlySummaryResponse": { "type": "object", "properties": { "accountId": { "type": "integer", "format": "int64" }, "year": { "type": "integer" }, "month": { "type": "integer" }, "totalIncome": { "type": "number" }, "totalExpenses": { "type": "number" }, "netBalance": { "type": "number" }, "totalDebtRemaining": { "type": "number" }, "totalDebtPaidInMonth": { "type": "number" }, "activeDebtsCount": { "type": "integer", "format": "int64" }, "paidDebtsCount": { "type": "integer", "format": "int64" }, "budgetExpected": { "type": "number" }, "budgetPaid": { "type": "number" }, "budgetPending": { "type": "number" }, "generatedAt": { "type": "string", "format": "date-time" } } },
+      "CashflowSummaryResponse": { "type": "object", "properties": { "accountId": { "type": "integer", "format": "int64" }, "from": { "type": "string", "format": "date" }, "to": { "type": "string", "format": "date" }, "totalIncome": { "type": "number" }, "totalSimpleExpenseOutflow": { "type": "number" }, "totalDebtPaymentOutflow": { "type": "number" }, "totalOutflow": { "type": "number" }, "netCashflow": { "type": "number" }, "generatedAt": { "type": "string", "format": "date-time" } } },
+      "ExpenseSummaryResponse": { "type": "object", "properties": { "accountId": { "type": "integer", "format": "int64" }, "from": { "type": "string", "format": "date" }, "to": { "type": "string", "format": "date" }, "totalSimpleExpenses": { "type": "number" }, "totalInstallmentPurchases": { "type": "number" }, "totalExpensesConceptual": { "type": "number" }, "expensesCount": { "type": "integer", "format": "int64" }, "generatedAt": { "type": "string", "format": "date-time" } } },
+      "CashflowItem": { "type": "object", "properties": { "period": { "type": "string" }, "totalIncome": { "type": "number" }, "simpleExpenseOutflow": { "type": "number" }, "debtPaymentOutflow": { "type": "number" }, "totalOutflow": { "type": "number" }, "netCashflow": { "type": "number" } } },
+      "CashflowResponse": { "type": "object", "properties": { "accountId": { "type": "integer", "format": "int64" }, "from": { "type": "string", "format": "date" }, "to": { "type": "string", "format": "date" }, "groupBy": { "$ref": "#/components/schemas/CashflowGroupBy" }, "items": { "type": "array", "items": { "$ref": "#/components/schemas/CashflowItem" } } } },
+      "CategoryAmountItem": { "type": "object", "properties": { "categoryId": { "type": "integer", "format": "int64" }, "categoryName": { "type": "string" }, "amount": { "type": "number" }, "count": { "type": "integer", "format": "int64" } } },
+      "CategoryBreakdownResponse": { "type": "object", "properties": { "accountId": { "type": "integer", "format": "int64" }, "from": { "type": "string", "format": "date" }, "to": { "type": "string", "format": "date" }, "items": { "type": "array", "items": { "$ref": "#/components/schemas/CategoryAmountItem" } } } },
+      "PaymentMethodAmountItem": { "type": "object", "properties": { "paymentMethodId": { "type": "integer", "format": "int64", "nullable": true }, "paymentMethodName": { "type": "string" }, "amount": { "type": "number" }, "count": { "type": "integer", "format": "int64" } } },
+      "PaymentMethodBreakdownResponse": { "type": "object", "properties": { "accountId": { "type": "integer", "format": "int64" }, "from": { "type": "string", "format": "date" }, "to": { "type": "string", "format": "date" }, "items": { "type": "array", "items": { "$ref": "#/components/schemas/PaymentMethodAmountItem" } } } },
+      "DebtSummaryResponse": { "type": "object", "properties": { "accountId": { "type": "integer", "format": "int64" }, "activeDebtsCount": { "type": "integer", "format": "int64" }, "paidDebtsCount": { "type": "integer", "format": "int64" }, "cancelledDebtsCount": { "type": "integer", "format": "int64" }, "totalDebtAmount": { "type": "number" }, "totalRemainingBalance": { "type": "number" }, "totalPaidAmount": { "type": "number" }, "manualDebtsCount": { "type": "integer", "format": "int64" }, "installmentExpenseDebtsCount": { "type": "integer", "format": "int64" } } },
+      "BudgetSummaryResponse": { "type": "object", "properties": { "accountId": { "type": "integer", "format": "int64" }, "year": { "type": "integer" }, "month": { "type": "integer" }, "budgetId": { "type": "integer", "format": "int64", "nullable": true }, "expectedAmount": { "type": "number" }, "paidAmount": { "type": "number" }, "pendingAmount": { "type": "number" }, "impactsCount": { "type": "integer", "format": "int64" }, "paidImpactsCount": { "type": "integer", "format": "int64" }, "activeImpactsCount": { "type": "integer", "format": "int64" }, "subBudgetsCount": { "type": "integer", "format": "int64" } } },
+      "BudgetVsExpensesCategoryItem": { "type": "object", "properties": { "categoryId": { "type": "integer", "format": "int64" }, "categoryName": { "type": "string" }, "budgetedAmount": { "type": "number" }, "spentAmount": { "type": "number" }, "remainingAmount": { "type": "number" }, "executionPercentage": { "type": "number", "nullable": true } } },
+      "BudgetVsExpensesByCategoryResponse": { "type": "object", "properties": { "accountId": { "type": "integer", "format": "int64" }, "year": { "type": "integer" }, "month": { "type": "integer" }, "from": { "type": "string", "format": "date" }, "to": { "type": "string", "format": "date" }, "items": { "type": "array", "items": { "$ref": "#/components/schemas/BudgetVsExpensesCategoryItem" } } } },
+      "ImportRowError": { "type": "object", "properties": { "column": { "type": "string" }, "code": { "type": "string" }, "message": { "type": "string" } } },
+      "ExpenseImportRowResponse": { "type": "object", "properties": { "id": { "type": "integer", "format": "int64" }, "rowNumber": { "type": "integer" }, "expenseDate": { "type": "string", "format": "date", "nullable": true }, "description": { "type": "string", "nullable": true }, "amount": { "type": "number", "nullable": true }, "currency": { "type": "string", "nullable": true }, "categoryName": { "type": "string", "nullable": true }, "categoryId": { "type": "integer", "format": "int64", "nullable": true }, "paymentMethodName": { "type": "string", "nullable": true }, "paymentMethodId": { "type": "integer", "format": "int64", "nullable": true }, "paymentState": { "$ref": "#/components/schemas/ExpensePaymentState" }, "valid": { "type": "boolean" }, "errors": { "type": "array", "items": { "$ref": "#/components/schemas/ImportRowError" } }, "createdExpenseId": { "type": "integer", "format": "int64", "nullable": true } } },
+      "ExpenseImportBatchResponse": { "type": "object", "properties": { "batchId": { "type": "integer", "format": "int64" }, "accountId": { "type": "integer", "format": "int64" }, "participantId": { "type": "integer", "format": "int64" }, "originalFilename": { "type": "string" }, "status": { "$ref": "#/components/schemas/ExpenseImportStatus" }, "totalRows": { "type": "integer" }, "validRows": { "type": "integer" }, "invalidRows": { "type": "integer" }, "confirmedAt": { "type": "string", "format": "date-time", "nullable": true }, "rows": { "type": "array", "items": { "$ref": "#/components/schemas/ExpenseImportRowResponse" } } } },
+      "ApiErrorResponse": { "type": "object", "properties": { "timestamp": { "type": "string", "format": "date-time" }, "status": { "type": "integer" }, "error": { "type": "string" }, "code": { "type": "string" }, "message": { "type": "string" }, "path": { "type": "string" }, "correlationId": { "type": "string", "nullable": true }, "details": { "type": "array", "items": { "$ref": "#/components/schemas/FieldErrorResponse" } } } },
+      "FieldErrorResponse": { "type": "object", "properties": { "field": { "type": "string" }, "message": { "type": "string" } } },
+      "AccountPage": { "allOf": [{ "$ref": "#/components/schemas/Page" }, { "type": "object", "properties": { "content": { "type": "array", "items": { "$ref": "#/components/schemas/AccountResponse" } } } }] },
+      "CategoryPage": { "allOf": [{ "$ref": "#/components/schemas/Page" }, { "type": "object", "properties": { "content": { "type": "array", "items": { "$ref": "#/components/schemas/CategoryResponse" } } } }] },
+      "PaymentMethodPage": { "allOf": [{ "$ref": "#/components/schemas/Page" }, { "type": "object", "properties": { "content": { "type": "array", "items": { "$ref": "#/components/schemas/PaymentMethodResponse" } } } }] },
+      "ExpensePage": { "allOf": [{ "$ref": "#/components/schemas/Page" }, { "type": "object", "properties": { "content": { "type": "array", "items": { "$ref": "#/components/schemas/ExpenseResponse" } } } }] },
+      "DebtPage": { "allOf": [{ "$ref": "#/components/schemas/Page" }, { "type": "object", "properties": { "content": { "type": "array", "items": { "$ref": "#/components/schemas/DebtResponse" } } } }] },
+      "DebtPaymentPage": { "allOf": [{ "$ref": "#/components/schemas/Page" }, { "type": "object", "properties": { "content": { "type": "array", "items": { "$ref": "#/components/schemas/DebtPaymentResponse" } } } }] },
+      "BudgetPage": { "allOf": [{ "$ref": "#/components/schemas/Page" }, { "type": "object", "properties": { "content": { "type": "array", "items": { "$ref": "#/components/schemas/BudgetResponse" } } } }] },
+      "IncomePage": { "allOf": [{ "$ref": "#/components/schemas/Page" }, { "type": "object", "properties": { "content": { "type": "array", "items": { "$ref": "#/components/schemas/IncomeResponse" } } } }] },
+      "Page": { "type": "object", "properties": { "content": { "type": "array", "items": {} }, "page": { "type": "integer" }, "size": { "type": "integer" }, "totalElements": { "type": "integer", "format": "int64" }, "totalPages": { "type": "integer" } } },
+      "AccountStatus": { "type": "string", "enum": ["ACTIVE", "INACTIVE", "ARCHIVED"] },
+      "AccountRole": { "type": "string", "enum": ["ACCOUNT_ADMIN", "ACCOUNT_MEMBER"] },
+      "AccountParticipantStatus": { "type": "string", "enum": ["ACTIVE", "INACTIVE"] },
+      "CatalogStatus": { "type": "string", "enum": ["ACTIVE", "INACTIVE"] },
+      "CategoryType": { "type": "string", "enum": ["EXPENSE", "INCOME"] },
+      "PaymentMethodType": { "type": "string", "enum": ["CASH", "BANK_ACCOUNT", "CREDIT_CARD", "DEBIT_CARD", "DIGITAL_WALLET", "OTHER"] },
+      "ExpensePaymentState": { "type": "string", "enum": ["PENDING", "PARTIAL", "PAID"] },
+      "ExpenseStatus": { "type": "string", "enum": ["ACTIVE", "CANCELLED"] },
+      "ExpenseType": { "type": "string", "enum": ["SIMPLE", "INSTALLMENT"] },
+      "CashflowGroupBy": { "type": "string", "enum": ["DAY", "WEEK", "MONTH"] },
+      "DebtState": { "type": "string", "enum": ["ACTIVE", "PAID", "CANCELLED"] },
+      "DebtSourceType": { "type": "string", "enum": ["MANUAL", "INSTALLMENT_EXPENSE"] },
+      "DebtPaymentType": { "type": "string", "enum": ["INSTALLMENT", "CAPITAL_PAYMENT"] },
+      "DebtPaymentStatus": { "type": "string", "enum": ["ACTIVE", "CANCELLED"] },
+      "BudgetStatus": { "type": "string", "enum": ["ACTIVE", "CLOSED", "ARCHIVED"] },
+      "SubBudgetStatus": { "type": "string", "enum": ["ACTIVE", "INACTIVE"] },
+      "SubBudgetSourceType": { "type": "string", "enum": ["MANUAL", "DEBT_DERIVED"] },
+      "BudgetImpactStatus": { "type": "string", "enum": ["ACTIVE", "PAID", "CANCELLED"] },
+      "BudgetImpactSourceType": { "type": "string", "enum": ["DEBT_INSTALLMENT"] },
+      "IncomeStatus": { "type": "string", "enum": ["ACTIVE", "CANCELLED"] },
+      "ExpenseImportStatus": { "type": "string", "enum": ["PREVIEW", "CONFIRMED", "CANCELLED"] }
+    }
+  }
+}

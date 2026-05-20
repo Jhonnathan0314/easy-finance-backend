@@ -1,0 +1,12 @@
+.git
+.m2
+target
+
+.idea
+.vscode
+
+*.iml
+*.log
+
+docs
+

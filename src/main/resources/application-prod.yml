@@ -1,0 +1,22 @@
+spring:
+  config:
+    activate:
+      on-profile: prod
+  jpa:
+    show-sql: false
+
+management:
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    root: INFO
+    com.easyfinance: INFO
+    org.springframework.security: WARN
+
+easy-finance:
+  security:
+    jwt:
+      secret: ${JWT_SECRET:}

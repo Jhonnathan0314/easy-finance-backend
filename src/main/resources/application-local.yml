@@ -1,0 +1,11 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+  jpa:
+    show-sql: false
+
+logging:
+  level:
+    com.easyfinance: DEBUG
+

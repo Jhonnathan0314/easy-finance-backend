@@ -1,0 +1,80 @@
+{
+  "info": {
+    "name": "Easy Finance MVP API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{token}}", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/auth/register",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"Password123!\",\n  \"fullName\": \"Demo User\"\n}" }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"Password123!\"\n}" }
+          }
+        },
+        { "name": "Me", "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/auth/me" } }
+      ]
+    },
+    {
+      "name": "Accounts",
+      "item": [
+        { "name": "Create Account", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/api/v1/accounts", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Personal\",\n  \"description\": \"Main household account\"\n}" } } },
+        { "name": "List My Accounts", "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/accounts?page=0&size=20" } },
+        { "name": "Get Account", "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/accounts/{{accountId}}" } },
+        { "name": "Update Account", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/api/v1/accounts/{{accountId}}", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Personal Updated\",\n  \"description\": \"Updated description\"\n}" } } },
+        { "name": "Archive Account", "request": { "method": "PATCH", "url": "{{baseUrl}}/api/v1/accounts/{{accountId}}/archive" } },
+        { "name": "List Members", "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/accounts/{{accountId}}/members" } },
+        { "name": "Add Member", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/api/v1/accounts/{{accountId}}/members", "body": { "mode": "raw", "raw": "{\n  \"email\": \"member@example.com\",\n  \"role\": \"ACCOUNT_MEMBER\"\n}" } } }
+      ]
+    },
+    {
+      "name": "Catalogs",
+      "item": [
+        { "name": "Create Expense Category", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/api/v1/accounts/{{accountId}}/categories", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Food\",\n  \"description\": \"Meals and groceries\",\n  \"type\": \"EXPENSE\"\n}" } } },
+        { "name": "Create Income Category", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/api/v1/accounts/{{accountId}}/categories", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Salary\",\n  \"description\": \"Job income\",\n  \"type\": \"INCOME\"\n}" } } },
+        { "name": "List Categories", "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/accounts/{{accountId}}/categories?status=ACTIVE&page=0&size=20" } },
+        { "name": "Create Payment Method", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/api/v1/accounts/{{accountId}}/payment-methods", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Cash\",\n  \"description\": \"Cash wallet\",\n  \"type\": \"CASH\"\n}" } } },
+        { "name": "List Payment Methods", "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/accounts/{{accountId}}/payment-methods?status=ACTIVE&page=0&size=20" } }
+      ]
+    },
+    {
+      "name": "Expenses Debts Budgets Income Analytics Imports",
+      "item": [
+        { "name": "Create Simple Expense", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/api/v1/accounts/{{accountId}}/expenses", "body": { "mode": "raw", "raw": "{\n  \"categoryId\": {{categoryExpenseId}},\n  \"paymentMethodId\": {{paymentMethodId}},\n  \"description\": \"Lunch\",\n  \"amount\": 45000,\n  \"expenseDate\": \"2026-05-12\",\n  \"paymentState\": \"PAID\"\n}" } } },
+        { "name": "Create Installment Expense", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/api/v1/accounts/{{accountId}}/expenses/installments", "body": { "mode": "raw", "raw": "{\n  \"categoryId\": {{categoryExpenseId}},\n  \"paymentMethodId\": {{paymentMethodId}},\n  \"description\": \"Laptop\",\n  \"totalAmount\": 1200000,\n  \"expenseDate\": \"2026-05-12\",\n  \"installmentCount\": 12,\n  \"installmentAmount\": 100000,\n  \"firstInstallmentDate\": \"2026-06-01\",\n  \"debtName\": \"Laptop installments\",\n  \"notes\": \"Store purchase\"\n}" } } },
+        { "name": "List Debts", "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/accounts/{{accountId}}/debts?state=ACTIVE&page=0&size=20" } },
+        { "name": "Register Debt Payment", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/api/v1/accounts/{{accountId}}/debts/{{debtId}}/payments", "body": { "mode": "raw", "raw": "{\n  \"paymentType\": \"INSTALLMENT\",\n  \"amount\": 100000,\n  \"paymentDate\": \"2026-06-05\",\n  \"notes\": \"First payment\"\n}" } } },
+        { "name": "Get Budget", "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/accounts/{{accountId}}/budgets/2026/6" } },
+        { "name": "Create Income", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/api/v1/accounts/{{accountId}}/incomes", "body": { "mode": "raw", "raw": "{\n  \"categoryId\": {{categoryIncomeId}},\n  \"description\": \"Monthly salary\",\n  \"amount\": 5000000,\n  \"incomeDate\": \"2026-05-30\"\n}" } } },
+        { "name": "Monthly Summary", "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/accounts/{{accountId}}/analytics/monthly-summary?year=2026&month=5" } },
+        { "name": "Get Import Batch", "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/accounts/{{accountId}}/imports/expenses/{{importBatchId}}" } },
+        { "name": "Confirm Import Batch", "request": { "method": "POST", "url": "{{baseUrl}}/api/v1/accounts/{{accountId}}/imports/expenses/{{importBatchId}}/confirm" } }
+      ]
+    }
+  ]
+}
+

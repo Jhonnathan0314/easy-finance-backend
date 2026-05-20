@@ -1,0 +1,20 @@
+{
+  "id": "easy-finance-local",
+  "name": "Easy Finance Local",
+  "values": [
+    { "key": "baseUrl", "value": "http://localhost:8080", "type": "default", "enabled": true },
+    { "key": "token", "value": "", "type": "secret", "enabled": true },
+    { "key": "accountId", "value": "", "type": "default", "enabled": true },
+    { "key": "categoryExpenseId", "value": "", "type": "default", "enabled": true },
+    { "key": "categoryIncomeId", "value": "", "type": "default", "enabled": true },
+    { "key": "paymentMethodId", "value": "", "type": "default", "enabled": true },
+    { "key": "expenseId", "value": "", "type": "default", "enabled": true },
+    { "key": "debtId", "value": "", "type": "default", "enabled": true },
+    { "key": "paymentId", "value": "", "type": "default", "enabled": true },
+    { "key": "budgetId", "value": "", "type": "default", "enabled": true },
+    { "key": "incomeId", "value": "", "type": "default", "enabled": true },
+    { "key": "importBatchId", "value": "", "type": "default", "enabled": true }
+  ],
+  "_postman_variable_scope": "environment"
+}
+
