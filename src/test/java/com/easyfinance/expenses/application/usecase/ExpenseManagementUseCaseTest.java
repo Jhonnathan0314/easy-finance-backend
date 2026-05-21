@@ -15,6 +15,7 @@ import com.easyfinance.catalogs.domain.model.CatalogStatus;
 import com.easyfinance.catalogs.domain.model.CategoryType;
 import com.easyfinance.catalogs.domain.model.PaymentMethodType;
 import com.easyfinance.debts.application.port.in.CreateInstallmentExpenseDebtPort;
+import com.easyfinance.expenses.application.command.CreateDebtPaymentExpenseCommand;
 import com.easyfinance.expenses.application.command.CreateExpenseCommand;
 import com.easyfinance.expenses.application.command.CreateInstallmentExpenseCommand;
 import com.easyfinance.expenses.application.command.DuplicateExpenseCommand;
@@ -22,6 +23,7 @@ import com.easyfinance.expenses.application.command.UpdateExpenseCommand;
 import com.easyfinance.expenses.application.port.out.ExpenseRepositoryPort;
 import com.easyfinance.expenses.domain.model.Expense;
 import com.easyfinance.expenses.domain.model.ExpensePaymentState;
+import com.easyfinance.expenses.domain.model.ExpenseSourceType;
 import com.easyfinance.expenses.domain.model.ExpenseStatus;
 import com.easyfinance.expenses.domain.model.ExpenseType;
 import com.easyfinance.shared.application.CurrentUser;
@@ -76,6 +78,50 @@ class ExpenseManagementUseCaseTest {
         assertThat(response.participantId()).isEqualTo(10L);
         assertThat(response.paymentState()).isEqualTo("PAID");
         assertThat(response.expenseType()).isEqualTo("SIMPLE");
+        assertThat(response.sourceType()).isEqualTo("MANUAL");
+        assertThat(response.sourceDebtPaymentId()).isNull();
+    }
+
+    @Test
+    void createImportedExpenseMarksSourceTypeImport() {
+        givenValidCatalogs();
+        when(expenseRepository.save(any(Expense.class))).thenAnswer(invocation -> persisted(invocation.getArgument(0)));
+
+        var response = useCase.createImportedExpense(new com.easyfinance.expenses.application.command.CreateImportedExpenseCommand(
+                1L,
+                2L,
+                3L,
+                10L,
+                "Imported lunch",
+                Money.cop(new BigDecimal("12000")),
+                LocalDate.of(2026, 5, 11),
+                ExpensePaymentState.PAID
+        ));
+
+        assertThat(response.sourceType()).isEqualTo("IMPORT");
+        assertThat(response.sourceDebtPaymentId()).isNull();
+    }
+
+    @Test
+    void createDebtPaymentExpenseMarksDebtPaymentSource() {
+        givenValidCatalogs();
+        when(expenseRepository.save(any(Expense.class))).thenAnswer(invocation -> persisted(invocation.getArgument(0)));
+
+        var response = useCase.createDebtPaymentExpense(new CreateDebtPaymentExpenseCommand(
+                1L,
+                2L,
+                3L,
+                10L,
+                50L,
+                "Debt payment",
+                Money.cop(new BigDecimal("40000")),
+                LocalDate.of(2026, 5, 11)
+        ));
+
+        assertThat(response.paymentState()).isEqualTo("PAID");
+        assertThat(response.expenseType()).isEqualTo("SIMPLE");
+        assertThat(response.sourceType()).isEqualTo("DEBT_PAYMENT");
+        assertThat(response.sourceDebtPaymentId()).isEqualTo(50L);
     }
 
     @Test
@@ -487,11 +533,11 @@ class ExpenseManagementUseCaseTest {
     }
 
     private static Expense persisted(Expense expense) {
-        return Expense.restore(5L, expense.accountId(), expense.categoryId(), expense.paymentMethodId(), expense.participantId(), expense.description(), expense.amount(), expense.expenseDate(), expense.paymentState(), expense.status(), expense.expenseType(), Instant.now(), Instant.now());
+        return Expense.restore(5L, expense.accountId(), expense.categoryId(), expense.paymentMethodId(), expense.participantId(), expense.description(), expense.amount(), expense.expenseDate(), expense.paymentState(), expense.status(), expense.expenseType(), expense.sourceType(), expense.sourceDebtPaymentId(), Instant.now(), Instant.now());
     }
 
     private static Expense persistedWithId(Expense expense, Long id) {
-        return Expense.restore(id, expense.accountId(), expense.categoryId(), expense.paymentMethodId(), expense.participantId(), expense.description(), expense.amount(), expense.expenseDate(), expense.paymentState(), expense.status(), expense.expenseType(), Instant.now(), Instant.now());
+        return Expense.restore(id, expense.accountId(), expense.categoryId(), expense.paymentMethodId(), expense.participantId(), expense.description(), expense.amount(), expense.expenseDate(), expense.paymentState(), expense.status(), expense.expenseType(), expense.sourceType(), expense.sourceDebtPaymentId(), Instant.now(), Instant.now());
     }
 
     private static Expense expense(Long id, Long participantId, ExpenseStatus status) {

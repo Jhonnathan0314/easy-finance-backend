@@ -3,9 +3,11 @@ package com.easyfinance.expenses.infrastructure.mapper;
 import com.easyfinance.expenses.domain.model.Expense;
 import com.easyfinance.expenses.domain.model.ExpensePaymentState;
 import com.easyfinance.expenses.domain.model.ExpenseStatus;
+import com.easyfinance.expenses.domain.model.ExpenseSourceType;
 import com.easyfinance.expenses.domain.model.ExpenseType;
 import com.easyfinance.expenses.infrastructure.persistence.jpa.ExpenseJpaEntity;
 import com.easyfinance.expenses.infrastructure.persistence.jpa.ExpensePaymentStateJpa;
+import com.easyfinance.expenses.infrastructure.persistence.jpa.ExpenseSourceTypeJpa;
 import com.easyfinance.expenses.infrastructure.persistence.jpa.ExpenseStatusJpa;
 import com.easyfinance.expenses.infrastructure.persistence.jpa.ExpenseTypeJpa;
 import com.easyfinance.shared.domain.CurrencyCode;
@@ -26,6 +28,8 @@ public class ExpensePersistenceMapper {
                 ExpensePaymentState.valueOf(entity.getPaymentState().name()),
                 ExpenseStatus.valueOf(entity.getStatus().name()),
                 ExpenseType.valueOf(entity.getExpenseType().name()),
+                entity.getSourceType() == null ? ExpenseSourceType.MANUAL : ExpenseSourceType.valueOf(entity.getSourceType().name()),
+                entity.getSourceDebtPaymentId(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );
@@ -50,5 +54,7 @@ public class ExpensePersistenceMapper {
         entity.setPaymentState(ExpensePaymentStateJpa.valueOf(expense.paymentState().name()));
         entity.setStatus(ExpenseStatusJpa.valueOf(expense.status().name()));
         entity.setExpenseType(ExpenseTypeJpa.valueOf(expense.expenseType().name()));
+        entity.setSourceType(ExpenseSourceTypeJpa.valueOf(expense.sourceType().name()));
+        entity.setSourceDebtPaymentId(expense.sourceDebtPaymentId());
     }
 }

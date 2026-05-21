@@ -11,6 +11,24 @@ public record RegisterDebtPaymentCommand(
         DebtPaymentType paymentType,
         Money amount,
         LocalDate paymentDate,
-        String notes
+        String notes,
+        Boolean createExpense,
+        Long categoryId,
+        Long paymentMethodId,
+        String expenseDescription
 ) {
+    public RegisterDebtPaymentCommand(
+            Long accountId,
+            Long debtId,
+            DebtPaymentType paymentType,
+            Money amount,
+            LocalDate paymentDate,
+            String notes
+    ) {
+        this(accountId, debtId, paymentType, amount, paymentDate, notes, false, null, null, null);
+    }
+
+    public boolean shouldCreateExpense() {
+        return Boolean.TRUE.equals(createExpense);
+    }
 }

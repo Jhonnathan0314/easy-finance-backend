@@ -456,7 +456,8 @@ public class JpaAnalyticsQueryAdapter implements AnalyticsQueryPort {
                 .append(".expense_date BETWEEN :from AND :to")
                 .append(" AND ").append(alias).append(".status = 'ACTIVE'")
                 .append(" AND ").append(alias).append(".expense_type = 'SIMPLE'")
-                .append(" AND ").append(alias).append(".payment_state = 'PAID'");
+                .append(" AND ").append(alias).append(".payment_state = 'PAID'")
+                .append(" AND ").append(alias).append(".source_type <> 'DEBT_PAYMENT'");
         if (categoryId != null) {
             filter.append(" AND ").append(alias).append(".category_id = :categoryId");
         }

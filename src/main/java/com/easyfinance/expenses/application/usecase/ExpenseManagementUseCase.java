@@ -10,12 +10,14 @@ import com.easyfinance.catalogs.domain.model.CatalogStatus;
 import com.easyfinance.catalogs.domain.model.CategoryType;
 import com.easyfinance.debts.application.command.CreateInstallmentExpenseDebtCommand;
 import com.easyfinance.debts.application.port.in.CreateInstallmentExpenseDebtPort;
-import com.easyfinance.expenses.application.command.CreateInstallmentExpenseCommand;
-import com.easyfinance.expenses.application.command.CreateImportedExpenseCommand;
+import com.easyfinance.expenses.application.command.CreateDebtPaymentExpenseCommand;
 import com.easyfinance.expenses.application.command.CreateExpenseCommand;
+import com.easyfinance.expenses.application.command.CreateImportedExpenseCommand;
+import com.easyfinance.expenses.application.command.CreateInstallmentExpenseCommand;
 import com.easyfinance.expenses.application.command.DuplicateExpenseCommand;
 import com.easyfinance.expenses.application.command.UpdateExpenseCommand;
 import com.easyfinance.expenses.application.port.in.CancelExpensePort;
+import com.easyfinance.expenses.application.port.in.CreateDebtPaymentExpensePort;
 import com.easyfinance.expenses.application.port.in.CreateInstallmentExpensePort;
 import com.easyfinance.expenses.application.port.in.CreateImportedExpensePort;
 import com.easyfinance.expenses.application.port.in.CreateExpensePort;
@@ -44,6 +46,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ExpenseManagementUseCase implements
         CreateExpensePort,
+        CreateDebtPaymentExpensePort,
         CreateImportedExpensePort,
         CreateInstallmentExpensePort,
         ListExpensesPort,
@@ -97,7 +100,7 @@ public class ExpenseManagementUseCase implements
     public ExpenseResponse createImportedExpense(CreateImportedExpenseCommand command) {
         validateCategory(command.accountId(), command.categoryId());
         validatePaymentMethod(command.accountId(), command.paymentMethodId());
-        Expense expense = Expense.createSimple(
+        Expense expense = Expense.createImported(
                 command.accountId(),
                 command.categoryId(),
                 command.paymentMethodId(),
@@ -106,6 +109,24 @@ public class ExpenseManagementUseCase implements
                 command.amount(),
                 command.expenseDate(),
                 command.paymentState()
+        );
+        return toResponse(expenseRepository.save(expense));
+    }
+
+    @Override
+    @Transactional
+    public ExpenseResponse createDebtPaymentExpense(CreateDebtPaymentExpenseCommand command) {
+        validateCategory(command.accountId(), command.categoryId());
+        validatePaymentMethod(command.accountId(), command.paymentMethodId());
+        Expense expense = Expense.createDebtPayment(
+                command.accountId(),
+                command.categoryId(),
+                command.paymentMethodId(),
+                command.participantId(),
+                command.debtPaymentId(),
+                command.description(),
+                command.amount(),
+                command.expenseDate()
         );
         return toResponse(expenseRepository.save(expense));
     }
@@ -310,6 +331,8 @@ public class ExpenseManagementUseCase implements
                 expense.paymentState().name(),
                 expense.status().name(),
                 expense.expenseType().name(),
+                expense.sourceType().name(),
+                expense.sourceDebtPaymentId(),
                 expense.createdAt(),
                 expense.updatedAt()
         );

@@ -57,6 +57,13 @@ public class ExpenseJpaEntity extends AuditableJpaEntity {
     @Column(name = "expense_type", nullable = false, length = 30)
     private ExpenseTypeJpa expenseType;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "source_type", nullable = false, length = 30)
+    private ExpenseSourceTypeJpa sourceType;
+
+    @Column(name = "source_debt_payment_id")
+    private Long sourceDebtPaymentId;
+
     public Long getId() {
         return id;
     }
@@ -151,5 +158,21 @@ public class ExpenseJpaEntity extends AuditableJpaEntity {
 
     public void setExpenseType(ExpenseTypeJpa expenseType) {
         this.expenseType = expenseType;
+    }
+
+    public ExpenseSourceTypeJpa getSourceType() {
+        return sourceType;
+    }
+
+    public void setSourceType(ExpenseSourceTypeJpa sourceType) {
+        this.sourceType = sourceType;
+    }
+
+    public Long getSourceDebtPaymentId() {
+        return sourceDebtPaymentId;
+    }
+
+    public void setSourceDebtPaymentId(Long sourceDebtPaymentId) {
+        this.sourceDebtPaymentId = sourceDebtPaymentId;
     }
 }

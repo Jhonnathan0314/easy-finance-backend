@@ -268,8 +268,14 @@ Expense import rows expose debt-payment metadata in preview/confirm responses:
 `appliesDebtPayment`, `debtId`, `debtLabel`, `debtPaymentType`, `debtPaymentNotes`, and
 `createdDebtPaymentId`. Current Excel files without debt-payment columns remain valid. The generated
 template includes `AplicaPagoDeuda`, `Deuda`, `TipoPagoDeuda`, and `NotasPagoDeuda`; preview validates
-and persists those fields. Confirm creates the simple expense and registers the debt payment through
-the debt-payment use case for rows with `appliesDebtPayment = true`.
+and persists those fields. Confirm registers the debt payment through the debt-payment use case, creates
+an associated expense with `sourceType = DEBT_PAYMENT`, and persists both trace ids for rows with
+`appliesDebtPayment = true`.
+
+Debt payment registration keeps `createExpense = false` by default. When callers send `createExpense = true`,
+the request also requires `categoryId`, `paymentMethodId`, and `expenseDescription`; the response includes
+`createdExpenseId`. These associated expenses remain conceptual expenses but are excluded from cashflow
+simple outflow because the debt payment already represents the real cash movement.
 
 Analytics:
 

@@ -21,6 +21,8 @@ public final class Expense {
     private final ExpensePaymentState paymentState;
     private final ExpenseStatus status;
     private final ExpenseType expenseType;
+    private final ExpenseSourceType sourceType;
+    private final Long sourceDebtPaymentId;
     private final Instant createdAt;
     private final Instant updatedAt;
 
@@ -36,6 +38,8 @@ public final class Expense {
             ExpensePaymentState paymentState,
             ExpenseStatus status,
             ExpenseType expenseType,
+            ExpenseSourceType sourceType,
+            Long sourceDebtPaymentId,
             Instant createdAt,
             Instant updatedAt
     ) {
@@ -50,8 +54,11 @@ public final class Expense {
         this.paymentState = paymentState == null ? ExpensePaymentState.PAID : paymentState;
         this.status = requireStatus(status);
         this.expenseType = requireType(expenseType);
+        this.sourceType = sourceType == null ? ExpenseSourceType.MANUAL : sourceType;
+        this.sourceDebtPaymentId = sourceDebtPaymentId;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
+        validateSourceConsistency();
     }
 
     public static Expense createSimple(
@@ -76,6 +83,66 @@ public final class Expense {
                 paymentState,
                 ExpenseStatus.ACTIVE,
                 ExpenseType.SIMPLE,
+                ExpenseSourceType.MANUAL,
+                null,
+                null,
+                null
+        );
+    }
+
+    public static Expense createImported(
+            Long accountId,
+            Long categoryId,
+            Long paymentMethodId,
+            Long participantId,
+            String description,
+            Money amount,
+            LocalDate expenseDate,
+            ExpensePaymentState paymentState
+    ) {
+        return new Expense(
+                null,
+                accountId,
+                categoryId,
+                paymentMethodId,
+                participantId,
+                description,
+                amount,
+                expenseDate,
+                paymentState,
+                ExpenseStatus.ACTIVE,
+                ExpenseType.SIMPLE,
+                ExpenseSourceType.IMPORT,
+                null,
+                null,
+                null
+        );
+    }
+
+    public static Expense createDebtPayment(
+            Long accountId,
+            Long categoryId,
+            Long paymentMethodId,
+            Long participantId,
+            Long debtPaymentId,
+            String description,
+            Money amount,
+            LocalDate expenseDate
+    ) {
+        return new Expense(
+                null,
+                accountId,
+                categoryId,
+                paymentMethodId,
+                participantId,
+                description,
+                amount,
+                expenseDate,
+                ExpensePaymentState.PAID,
+                ExpenseStatus.ACTIVE,
+                ExpenseType.SIMPLE,
+                ExpenseSourceType.DEBT_PAYMENT,
+                requireId(debtPaymentId, "EXPENSE_SOURCE_DEBT_PAYMENT_REQUIRED", "Source debt payment id is required."),
                 null,
                 null
         );
@@ -102,6 +169,8 @@ public final class Expense {
                 ExpensePaymentState.PENDING,
                 ExpenseStatus.ACTIVE,
                 ExpenseType.INSTALLMENT,
+                ExpenseSourceType.MANUAL,
+                null,
                 null,
                 null
         );
@@ -119,20 +188,40 @@ public final class Expense {
             ExpensePaymentState paymentState,
             ExpenseStatus status,
             ExpenseType expenseType,
+            ExpenseSourceType sourceType,
+            Long sourceDebtPaymentId,
             Instant createdAt,
             Instant updatedAt
     ) {
-        return new Expense(id, accountId, categoryId, paymentMethodId, participantId, description, amount, expenseDate, paymentState, status, expenseType, createdAt, updatedAt);
+        return new Expense(id, accountId, categoryId, paymentMethodId, participantId, description, amount, expenseDate, paymentState, status, expenseType, sourceType, sourceDebtPaymentId, createdAt, updatedAt);
+    }
+
+    public static Expense restore(
+            Long id,
+            Long accountId,
+            Long categoryId,
+            Long paymentMethodId,
+            Long participantId,
+            String description,
+            Money amount,
+            LocalDate expenseDate,
+            ExpensePaymentState paymentState,
+            ExpenseStatus status,
+            ExpenseType expenseType,
+            Instant createdAt,
+            Instant updatedAt
+    ) {
+        return restore(id, accountId, categoryId, paymentMethodId, participantId, description, amount, expenseDate, paymentState, status, expenseType, ExpenseSourceType.MANUAL, null, createdAt, updatedAt);
     }
 
     public Expense update(Long categoryId, Long paymentMethodId, String description, Money amount, LocalDate expenseDate, ExpensePaymentState paymentState) {
         ensureActive();
-        return new Expense(id, accountId, categoryId, paymentMethodId, participantId, description, amount, expenseDate, paymentState, status, expenseType, createdAt, updatedAt);
+        return new Expense(id, accountId, categoryId, paymentMethodId, participantId, description, amount, expenseDate, paymentState, status, expenseType, sourceType, sourceDebtPaymentId, createdAt, updatedAt);
     }
 
     public Expense cancel() {
         ensureActive();
-        return new Expense(id, accountId, categoryId, paymentMethodId, participantId, description, amount, expenseDate, paymentState, ExpenseStatus.CANCELLED, expenseType, createdAt, updatedAt);
+        return new Expense(id, accountId, categoryId, paymentMethodId, participantId, description, amount, expenseDate, paymentState, ExpenseStatus.CANCELLED, expenseType, sourceType, sourceDebtPaymentId, createdAt, updatedAt);
     }
 
     public void ensureActive() {
@@ -188,6 +277,14 @@ public final class Expense {
         return expenseType;
     }
 
+    public ExpenseSourceType sourceType() {
+        return sourceType;
+    }
+
+    public Long sourceDebtPaymentId() {
+        return sourceDebtPaymentId;
+    }
+
     public Instant createdAt() {
         return createdAt;
     }
@@ -229,5 +326,14 @@ public final class Expense {
             throw new BusinessRuleViolationException("EXPENSE_TYPE_NOT_SUPPORTED", "Expense type is not supported.");
         }
         return value;
+    }
+
+    private void validateSourceConsistency() {
+        if (sourceType == ExpenseSourceType.DEBT_PAYMENT && sourceDebtPaymentId == null) {
+            throw new BusinessRuleViolationException("EXPENSE_SOURCE_DEBT_PAYMENT_REQUIRED", "Source debt payment id is required.");
+        }
+        if (sourceType != ExpenseSourceType.DEBT_PAYMENT && sourceDebtPaymentId != null) {
+            throw new BusinessRuleViolationException("EXPENSE_SOURCE_INVALID", "Only debt payment expenses can reference a debt payment.");
+        }
     }
 }

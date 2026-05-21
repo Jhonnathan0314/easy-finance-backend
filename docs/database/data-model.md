@@ -168,6 +168,8 @@ Columns:
 - `expense_date DATE NOT NULL`
 - `payment_type VARCHAR(30) NOT NULL`
 - `payment_state VARCHAR(30) NOT NULL`
+- `source_type VARCHAR(30) NOT NULL DEFAULT 'MANUAL'`
+- `source_debt_payment_id BIGINT NULL`
 - audit fields
 
 Constraints:
@@ -175,7 +177,10 @@ Constraints:
 - `total_amount > 0`
 - allowed payment types: `SINGLE`, `INSTALLMENTS`
 - allowed payment states: `PENDING`, `PARTIAL`, `PAID`
+- allowed source types: `MANUAL`, `IMPORT`, `DEBT_PAYMENT`
+- `source_debt_payment_id` is required only when `source_type = DEBT_PAYMENT`
 - foreign keys to account, category, participant, and payment method
+- composite foreign key `(account_id, source_debt_payment_id)` to `debt_payments(account_id, id)`
 
 Indexes:
 
@@ -415,4 +420,3 @@ No mutual debt tables.
 - Whether `created_by` and `updated_by` reference `users(id)` or are nullable denormalized actor ids for operational resilience. Recommended default: reference `users(id)` when possible.
 - Whether `budget_impacts.sub_budget_id` is mandatory for debt-derived impacts.
 - Exact state values for archival behavior.
-

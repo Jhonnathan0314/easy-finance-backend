@@ -20,6 +20,8 @@ import com.easyfinance.debts.domain.model.DebtPaymentStatus;
 import com.easyfinance.debts.domain.model.DebtPaymentType;
 import com.easyfinance.debts.domain.model.DebtSourceType;
 import com.easyfinance.debts.domain.model.DebtState;
+import com.easyfinance.expenses.application.port.in.CreateDebtPaymentExpensePort;
+import com.easyfinance.expenses.application.response.ExpenseResponse;
 import com.easyfinance.shared.application.CurrentUser;
 import com.easyfinance.shared.application.CurrentUserProvider;
 import com.easyfinance.shared.application.PageQuery;
@@ -29,6 +31,7 @@ import com.easyfinance.shared.domain.Money;
 import com.easyfinance.shared.domain.NotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -54,8 +57,9 @@ class DebtPaymentManagementUseCaseTest {
     private final DebtRepositoryPort debtRepository = mock(DebtRepositoryPort.class);
     private final DebtPaymentRepositoryPort paymentRepository = mock(DebtPaymentRepositoryPort.class);
     private final BudgetDebtImpactPort budgetDebtImpactPort = mock(BudgetDebtImpactPort.class);
+    private final CreateDebtPaymentExpensePort createDebtPaymentExpensePort = mock(CreateDebtPaymentExpensePort.class);
     private final AccountAuthorizationService authorizationService = new AccountAuthorizationService(accountRepository, accountParticipantRepository);
-    private final DebtPaymentManagementUseCase useCase = new DebtPaymentManagementUseCase(currentUserProvider, authorizationService, debtRepository, paymentRepository, budgetDebtImpactPort);
+    private final DebtPaymentManagementUseCase useCase = new DebtPaymentManagementUseCase(currentUserProvider, authorizationService, debtRepository, paymentRepository, budgetDebtImpactPort, createDebtPaymentExpensePort);
 
     @BeforeEach
     void setUp() {
@@ -74,7 +78,75 @@ class DebtPaymentManagementUseCaseTest {
         assertThat(response.payment().amount()).isEqualByComparingTo("40000.00");
         assertThat(response.debt().remainingAmount()).isEqualByComparingTo("60000.00");
         assertThat(response.debt().state()).isEqualTo("ACTIVE");
+        assertThat(response.createdExpenseId()).isNull();
         verify(debtRepository).findByAccountIdAndIdForUpdate(1L, 5L);
+        verify(createDebtPaymentExpensePort, never()).createDebtPaymentExpense(any());
+    }
+
+    @Test
+    void paymentWithAssociatedExpenseCreatesDebtPaymentExpense() {
+        givenMemberAccess(AccountStatus.ACTIVE, 10L);
+        when(debtRepository.findByAccountIdAndIdForUpdate(1L, 5L)).thenReturn(Optional.of(debt(Money.cop(new BigDecimal("100000")), DebtState.ACTIVE)));
+        when(paymentRepository.save(any(DebtPayment.class))).thenAnswer(invocation -> persistedPayment(invocation.getArgument(0)));
+        when(debtRepository.save(any(Debt.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(createDebtPaymentExpensePort.createDebtPaymentExpense(any())).thenReturn(expenseResponse(700L));
+
+        var response = useCase.registerDebtPayment(commandWithExpense(new BigDecimal("40000")));
+
+        ArgumentCaptor<com.easyfinance.expenses.application.command.CreateDebtPaymentExpenseCommand> captor =
+                ArgumentCaptor.forClass(com.easyfinance.expenses.application.command.CreateDebtPaymentExpenseCommand.class);
+        verify(createDebtPaymentExpensePort).createDebtPaymentExpense(captor.capture());
+        assertThat(response.createdExpenseId()).isEqualTo(700L);
+        assertThat(captor.getValue().accountId()).isEqualTo(1L);
+        assertThat(captor.getValue().categoryId()).isEqualTo(2L);
+        assertThat(captor.getValue().paymentMethodId()).isEqualTo(3L);
+        assertThat(captor.getValue().participantId()).isEqualTo(10L);
+        assertThat(captor.getValue().debtPaymentId()).isEqualTo(50L);
+        assertThat(captor.getValue().description()).isEqualTo("Debt payment expense");
+        assertThat(captor.getValue().amount().amount()).isEqualByComparingTo("40000");
+        assertThat(captor.getValue().expenseDate()).isEqualTo(LocalDate.of(2026, 5, 11));
+    }
+
+    @Test
+    void paymentWithAssociatedExpenseRequiresCategory() {
+        givenMemberAccess(AccountStatus.ACTIVE, 10L);
+        when(debtRepository.findByAccountIdAndIdForUpdate(1L, 5L)).thenReturn(Optional.of(debt(Money.cop(new BigDecimal("100000")), DebtState.ACTIVE)));
+        when(paymentRepository.save(any(DebtPayment.class))).thenAnswer(invocation -> persistedPayment(invocation.getArgument(0)));
+        when(debtRepository.save(any(Debt.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatThrownBy(() -> useCase.registerDebtPayment(new RegisterDebtPaymentCommand(
+                1L, 5L, DebtPaymentType.INSTALLMENT, Money.cop(new BigDecimal("40000")),
+                LocalDate.of(2026, 5, 11), null, true, null, 3L, "Debt payment expense"
+        ))).isInstanceOfSatisfying(BusinessRuleViolationException.class, ex -> assertThat(ex.code()).isEqualTo("DEBT_PAYMENT_EXPENSE_CATEGORY_REQUIRED"));
+        verify(createDebtPaymentExpensePort, never()).createDebtPaymentExpense(any());
+    }
+
+    @Test
+    void paymentWithAssociatedExpenseRequiresPaymentMethod() {
+        givenMemberAccess(AccountStatus.ACTIVE, 10L);
+        when(debtRepository.findByAccountIdAndIdForUpdate(1L, 5L)).thenReturn(Optional.of(debt(Money.cop(new BigDecimal("100000")), DebtState.ACTIVE)));
+        when(paymentRepository.save(any(DebtPayment.class))).thenAnswer(invocation -> persistedPayment(invocation.getArgument(0)));
+        when(debtRepository.save(any(Debt.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatThrownBy(() -> useCase.registerDebtPayment(new RegisterDebtPaymentCommand(
+                1L, 5L, DebtPaymentType.INSTALLMENT, Money.cop(new BigDecimal("40000")),
+                LocalDate.of(2026, 5, 11), null, true, 2L, null, "Debt payment expense"
+        ))).isInstanceOfSatisfying(BusinessRuleViolationException.class, ex -> assertThat(ex.code()).isEqualTo("DEBT_PAYMENT_EXPENSE_PAYMENT_METHOD_REQUIRED"));
+        verify(createDebtPaymentExpensePort, never()).createDebtPaymentExpense(any());
+    }
+
+    @Test
+    void paymentWithAssociatedExpenseRequiresDescription() {
+        givenMemberAccess(AccountStatus.ACTIVE, 10L);
+        when(debtRepository.findByAccountIdAndIdForUpdate(1L, 5L)).thenReturn(Optional.of(debt(Money.cop(new BigDecimal("100000")), DebtState.ACTIVE)));
+        when(paymentRepository.save(any(DebtPayment.class))).thenAnswer(invocation -> persistedPayment(invocation.getArgument(0)));
+        when(debtRepository.save(any(Debt.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatThrownBy(() -> useCase.registerDebtPayment(new RegisterDebtPaymentCommand(
+                1L, 5L, DebtPaymentType.INSTALLMENT, Money.cop(new BigDecimal("40000")),
+                LocalDate.of(2026, 5, 11), null, true, 2L, 3L, " "
+        ))).isInstanceOfSatisfying(BusinessRuleViolationException.class, ex -> assertThat(ex.code()).isEqualTo("DEBT_PAYMENT_EXPENSE_DESCRIPTION_REQUIRED"));
+        verify(createDebtPaymentExpensePort, never()).createDebtPaymentExpense(any());
     }
 
     @Test
@@ -187,6 +259,42 @@ class DebtPaymentManagementUseCaseTest {
 
     private static RegisterDebtPaymentCommand command(BigDecimal amount) {
         return new RegisterDebtPaymentCommand(1L, 5L, DebtPaymentType.INSTALLMENT, Money.cop(amount), LocalDate.of(2026, 5, 11), null);
+    }
+
+    private static RegisterDebtPaymentCommand commandWithExpense(BigDecimal amount) {
+        return new RegisterDebtPaymentCommand(
+                1L,
+                5L,
+                DebtPaymentType.INSTALLMENT,
+                Money.cop(amount),
+                LocalDate.of(2026, 5, 11),
+                null,
+                true,
+                2L,
+                3L,
+                "Debt payment expense"
+        );
+    }
+
+    private static ExpenseResponse expenseResponse(Long id) {
+        return new ExpenseResponse(
+                id,
+                1L,
+                2L,
+                3L,
+                10L,
+                "Debt payment expense",
+                new BigDecimal("40000.00"),
+                "COP",
+                LocalDate.of(2026, 5, 11),
+                "PAID",
+                "ACTIVE",
+                "SIMPLE",
+                "DEBT_PAYMENT",
+                50L,
+                Instant.now(),
+                Instant.now()
+        );
     }
 
     private static Debt debt(Money remainingBalance, DebtState state) {

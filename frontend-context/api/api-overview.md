@@ -129,4 +129,6 @@ Authorization: Bearer <accessToken>
 | GET | `/api/v1/accounts/{accountId}/imports/expenses/template` | Download account-scoped `.xlsx` template with valid categories, payment methods, payment states, and active debt options for preview. |
 | POST | `/api/v1/accounts/{accountId}/imports/expenses/preview` | Multipart `.xlsx` preview; field name `file`. |
 | POST | `/api/v1/accounts/{accountId}/imports/expenses/{batchId}/confirm` | Confirm valid rows, create expenses, and register debt payments for rows marked as debt payments. |
+
+Debt payment registration accepts optional `createExpense`, `categoryId`, `paymentMethodId`, and `expenseDescription`. When `createExpense=true`, backend creates a conceptual expense with `sourceType=DEBT_PAYMENT`; cashflow still counts only the debt payment outflow.
 | GET | `/api/v1/accounts/{accountId}/imports/expenses/{batchId}` | Get import batch and row errors. |

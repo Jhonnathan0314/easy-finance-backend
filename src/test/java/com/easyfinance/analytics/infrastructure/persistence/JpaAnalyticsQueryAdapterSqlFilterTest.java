@@ -77,6 +77,24 @@ class JpaAnalyticsQueryAdapterSqlFilterTest {
         assertThat(sql).doesNotContain(" OR ");
     }
 
+    @Test
+    void cashSimpleExpenseFilterExcludesDebtPaymentSourceToAvoidDoubleCounting() throws Exception {
+        Method method = JpaAnalyticsQueryAdapter.class.getDeclaredMethod(
+                "cashSimpleExpenseFilter",
+                String.class,
+                Long.class,
+                Long.class,
+                Long.class
+        );
+        method.setAccessible(true);
+
+        String sql = (String) method.invoke(null, "e", null, null, null);
+
+        assertThat(sql).contains("e.source_type <> 'DEBT_PAYMENT'");
+        assertThat(sql).contains("e.payment_state = 'PAID'");
+        assertThat(sql).contains("e.expense_type = 'SIMPLE'");
+    }
+
     private static String invokeIncomeFilter(IncomeStatus status) throws Exception {
         Method method = JpaAnalyticsQueryAdapter.class.getDeclaredMethod(
                 "incomeFilter",

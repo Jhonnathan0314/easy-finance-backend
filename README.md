@@ -442,6 +442,15 @@ curl -X POST http://localhost:8080/api/v1/accounts/1/debts/50/payments \
   -d "{\"paymentType\":\"INSTALLMENT\",\"amount\":100000,\"paymentDate\":\"2026-06-01\",\"notes\":\"Primera cuota\"}"
 ```
 
+Register debt payment and create an associated conceptual expense:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/accounts/1/debts/50/payments \
+  -H "Authorization: Bearer <accessToken>" \
+  -H "Content-Type: application/json" \
+  -d "{\"paymentType\":\"INSTALLMENT\",\"amount\":100000,\"paymentDate\":\"2026-06-01\",\"notes\":\"Primera cuota\",\"createExpense\":true,\"categoryId\":10,\"paymentMethodId\":20,\"expenseDescription\":\"Pago deuda banco\"}"
+```
+
 List debt payments:
 
 ```bash
@@ -471,13 +480,15 @@ Debt rules:
 - Debt payments reduce `remainingBalance`; a partial payment keeps the debt `ACTIVE`, and a payment that reaches zero marks it `PAID`.
 - Debt payment registration locks the debt row before validating balance, preventing concurrent overpayment.
 - Debt payments cannot exceed `remainingBalance`.
+- `createExpense` defaults to `false`. When `true`, the request must include active account-scoped `categoryId`, active `paymentMethodId`, and non-blank `expenseDescription`.
+- Associated expenses are created as `SIMPLE`, `ACTIVE`, `PAID`, with `sourceType = DEBT_PAYMENT` and `sourceDebtPaymentId` pointing to the created payment.
 - Debt payments are not cancelled or reversed in this phase.
 - Installment debts require `installmentAmount * installmentCount == totalAmount` so budget impacts match the debt total exactly.
 - Debt payments on installment-derived debts are distributed chronologically across active budget impacts. A full impact becomes `PAID`; partial payment keeps it `ACTIVE`.
 
 Main debt error codes include `DEBT_NOT_FOUND`, `DEBT_NOT_ACTIVE`, `DEBT_ALREADY_CANCELLED`, `DEBT_AMOUNT_INVALID`, `DEBT_INSTALLMENT_COUNT_INVALID`, `DEBT_INSTALLMENT_AMOUNT_INVALID`, `DEBT_SOURCE_INVALID`, `DEBT_CANCEL_NOT_ALLOWED`, `DEBT_ORIGIN_EXPENSE_NOT_FOUND`, `DEBT_ORIGIN_EXPENSE_INVALID_TYPE`, `INSTALLMENT_EXPENSE_INVALID`, and `INSTALLMENT_EXPENSE_DEBT_CREATION_FAILED`.
 
-Main debt payment error codes include `DEBT_PAYMENT_NOT_FOUND`, `DEBT_PAYMENT_AMOUNT_INVALID`, `DEBT_PAYMENT_EXCEEDS_REMAINING_BALANCE`, `DEBT_PAYMENT_DATE_INVALID`, `DEBT_PAYMENT_TYPE_INVALID`, `DEBT_ALREADY_PAID`, and `DEBT_CANCELLED`.
+Main debt payment error codes include `DEBT_PAYMENT_NOT_FOUND`, `DEBT_PAYMENT_AMOUNT_INVALID`, `DEBT_PAYMENT_EXCEEDS_REMAINING_BALANCE`, `DEBT_PAYMENT_DATE_INVALID`, `DEBT_PAYMENT_TYPE_INVALID`, `DEBT_ALREADY_PAID`, `DEBT_CANCELLED`, `DEBT_PAYMENT_EXPENSE_CATEGORY_REQUIRED`, `DEBT_PAYMENT_EXPENSE_PAYMENT_METHOD_REQUIRED`, and `DEBT_PAYMENT_EXPENSE_DESCRIPTION_REQUIRED`.
 
 ## Budgets API
 
@@ -718,6 +729,7 @@ Analytics definitions:
 - `netBalance`: `totalIncome - totalExpenses`.
 - `cashflow-summary` and `cashflow` represent real cash movements only.
 - Cashflow includes active incomes, active simple expenses with `paymentState = PAID`, and active debt payments for non-cancelled debts.
+- Cashflow excludes expenses with `sourceType = DEBT_PAYMENT` because the real outflow is already represented by the debt payment.
 - Cashflow excludes full `INSTALLMENT` expense purchase amounts from the purchase date and excludes `SIMPLE` expenses with `PENDING` or `PARTIAL` payment state until partial payment amounts exist in the model.
 - `expense-summary`, `expenses-by-category`, and `expenses-by-payment-method` are conceptual purchase/gasto analytics; they can include `SIMPLE` and `INSTALLMENT` expenses according to filters and do not represent real cash outflow.
 - `totalDebtRemaining`: remaining balance of active debts.
@@ -794,7 +806,7 @@ Debt payment import preview contract:
 - Debt IDs are not exposed in the main Excel sheet. The selected debt is resolved through a backend-generated hidden mapping.
 - Preview validates that the selected debt exists, belongs to the account, is `ACTIVE`, and that `Monto` does not exceed the debt remaining balance.
 - Row response fields are `appliesDebtPayment`, `debtId`, `debtLabel`, `debtPaymentType`, `debtPaymentNotes`, and `createdDebtPaymentId`.
-- Import confirmation creates the simple expense first and then registers the debt payment through the debt-payment use case.
+- Import confirmation registers the debt payment, creates the associated `DEBT_PAYMENT` expense for conceptual analytics, and stores both trace ids.
 
 Import rules:
 

@@ -28,14 +28,19 @@ public final class DebtPaymentRestMapper {
                 DebtPaymentType.valueOf(request.paymentType().name()),
                 toPositiveCop(request.amount()),
                 request.paymentDate(),
-                request.notes()
+                request.notes(),
+                request.createExpense(),
+                request.categoryId(),
+                request.paymentMethodId(),
+                request.expenseDescription()
         );
     }
 
     public static RegisterDebtPaymentResponseDto toDto(RegisterDebtPaymentResponse response) {
         return new RegisterDebtPaymentResponseDto(
                 toDto(response.payment()),
-                DebtRestMapper.toDto(response.debt())
+                DebtRestMapper.toDto(response.debt()),
+                response.createdExpenseId()
         );
     }
 

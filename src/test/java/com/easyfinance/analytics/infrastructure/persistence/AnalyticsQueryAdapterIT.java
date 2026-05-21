@@ -244,7 +244,8 @@ class AnalyticsQueryAdapterIT {
         insertExpense(fixture.accountId(), fixture.expenseCategoryId(), fixture.paymentMethodId(), fixture.participantId(), 300, "2026-05-12", "PENDING", "ACTIVE", "SIMPLE");
         insertExpense(fixture.accountId(), fixture.expenseCategoryId(), fixture.paymentMethodId(), fixture.participantId(), 400, "2026-05-13", "PARTIAL", "ACTIVE", "SIMPLE");
         Long activeInstallmentDebt = insertInstallmentDebt(fixture, "ACTIVE", 900, 750);
-        insertDebtPayment(fixture.accountId(), activeInstallmentDebt, fixture.participantId(), 150, "2026-05-14");
+        Long debtPaymentId = insertDebtPaymentReturningId(fixture.accountId(), activeInstallmentDebt, fixture.participantId(), 150, "2026-05-14");
+        insertExpense(fixture.accountId(), fixture.expenseCategoryId(), fixture.paymentMethodId(), fixture.participantId(), 150, "2026-05-14", "PAID", "ACTIVE", "SIMPLE", "DEBT_PAYMENT", debtPaymentId);
         Long cancelledDebt = insertDebt(fixture.accountId(), fixture.participantId(), "CANCELLED", "MANUAL", 500, 500);
         insertDebtPayment(fixture.accountId(), cancelledDebt, fixture.participantId(), 500, "2026-05-15");
         seedMonthlyData(other, 9000, 8000, 7000, 6000);
@@ -265,6 +266,9 @@ class AnalyticsQueryAdapterIT {
         Fixture fixture = createFixture("expense-summary");
         insertExpense(fixture.accountId(), fixture.expenseCategoryId(), fixture.paymentMethodId(), fixture.participantId(), 200, "2026-05-11", "PAID", "ACTIVE", "SIMPLE");
         insertExpense(fixture.accountId(), fixture.expenseCategoryId(), fixture.paymentMethodId(), fixture.participantId(), 300, "2026-05-12", "PENDING", "ACTIVE", "SIMPLE");
+        Long debtId = insertDebt(fixture.accountId(), fixture.participantId(), "ACTIVE", "MANUAL", 500, 350);
+        Long debtPaymentId = insertDebtPaymentReturningId(fixture.accountId(), debtId, fixture.participantId(), 150, "2026-05-13");
+        insertExpense(fixture.accountId(), fixture.expenseCategoryId(), fixture.paymentMethodId(), fixture.participantId(), 150, "2026-05-13", "PAID", "ACTIVE", "SIMPLE", "DEBT_PAYMENT", debtPaymentId);
         insertInstallmentDebt(fixture, "ACTIVE", 900, 900);
 
         var summary = analyticsQueryPort.getExpenseSummary(new ExpenseSummaryQuery(
@@ -277,13 +281,13 @@ class AnalyticsQueryAdapterIT {
                 fixture.accountId(), LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 31),
                 null, null, null, null, ExpensePaymentState.PAID, null));
 
-        assertThat(summary.totalSimpleExpenses()).isEqualByComparingTo("500.00");
+        assertThat(summary.totalSimpleExpenses()).isEqualByComparingTo("650.00");
         assertThat(summary.totalInstallmentPurchases()).isEqualByComparingTo("900.00");
-        assertThat(summary.totalExpensesConceptual()).isEqualByComparingTo("1400.00");
-        assertThat(summary.expensesCount()).isEqualTo(3L);
+        assertThat(summary.totalExpensesConceptual()).isEqualByComparingTo("1550.00");
+        assertThat(summary.expensesCount()).isEqualTo(4L);
         assertThat(installmentOnly.totalInstallmentPurchases()).isEqualByComparingTo("900.00");
         assertThat(installmentOnly.expensesCount()).isEqualTo(1L);
-        assertThat(paidOnly.totalExpensesConceptual()).isEqualByComparingTo("200.00");
+        assertThat(paidOnly.totalExpensesConceptual()).isEqualByComparingTo("350.00");
     }
 
     @Test
@@ -442,6 +446,27 @@ class AnalyticsQueryAdapterIT {
         );
     }
 
+    private Long insertExpense(Long accountId, Long categoryId, Long paymentMethodId, Long participantId, int amount, String date,
+                               String paymentState, String status, String expenseType, String sourceType, Long sourceDebtPaymentId) {
+        return jdbcTemplate.queryForObject(
+                "INSERT INTO expenses (account_id, category_id, payment_method_id, participant_id, description, amount, currency, expense_date, payment_state, status, expense_type, source_type, source_debt_payment_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+                Long.class,
+                accountId,
+                categoryId,
+                paymentMethodId,
+                participantId,
+                "Expense",
+                amount,
+                "COP",
+                date,
+                paymentState,
+                status,
+                expenseType,
+                sourceType,
+                sourceDebtPaymentId
+        );
+    }
+
     private Long insertPaymentMethod(Long accountId, String name) {
         return jdbcTemplate.queryForObject(
                 "INSERT INTO payment_methods (account_id, name, normalized_name, type, status) VALUES (?, ?, ?, ?, ?) RETURNING id",
@@ -510,6 +535,21 @@ class AnalyticsQueryAdapterIT {
     private void insertDebtPayment(Long accountId, Long debtId, Long participantId, int amount, String date) {
         jdbcTemplate.update(
                 "INSERT INTO debt_payments (account_id, debt_id, participant_id, payment_type, amount, currency, payment_date, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                accountId,
+                debtId,
+                participantId,
+                "INSTALLMENT",
+                amount,
+                "COP",
+                date,
+                "ACTIVE"
+        );
+    }
+
+    private Long insertDebtPaymentReturningId(Long accountId, Long debtId, Long participantId, int amount, String date) {
+        return jdbcTemplate.queryForObject(
+                "INSERT INTO debt_payments (account_id, debt_id, participant_id, payment_type, amount, currency, payment_date, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+                Long.class,
                 accountId,
                 debtId,
                 participantId,

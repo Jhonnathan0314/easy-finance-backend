@@ -20,6 +20,7 @@ import com.easyfinance.debts.domain.model.Debt;
 import com.easyfinance.debts.domain.model.DebtPaymentType;
 import com.easyfinance.debts.domain.model.DebtSourceType;
 import com.easyfinance.debts.domain.model.DebtState;
+import com.easyfinance.expenses.application.port.in.CreateDebtPaymentExpensePort;
 import com.easyfinance.expenses.application.port.in.CreateImportedExpensePort;
 import com.easyfinance.expenses.application.response.ExpenseResponse;
 import com.easyfinance.expenses.domain.model.ExpensePaymentState;
@@ -66,6 +67,7 @@ class ExpenseImportManagementUseCaseTest {
     private final ExpenseImportTemplateGeneratorPort templateGeneratorPort = mock(ExpenseImportTemplateGeneratorPort.class);
     private final ExpenseImportRepositoryPort repository = mock(ExpenseImportRepositoryPort.class);
     private final CreateImportedExpensePort createImportedExpensePort = mock(CreateImportedExpensePort.class);
+    private final CreateDebtPaymentExpensePort createDebtPaymentExpensePort = mock(CreateDebtPaymentExpensePort.class);
     private final RegisterDebtPaymentPort registerDebtPaymentPort = mock(RegisterDebtPaymentPort.class);
     private final ExpenseImportManagementUseCase useCase = new ExpenseImportManagementUseCase(
             currentUserProvider,
@@ -78,6 +80,7 @@ class ExpenseImportManagementUseCaseTest {
             templateGeneratorPort,
             repository,
             createImportedExpensePort,
+            createDebtPaymentExpensePort,
             registerDebtPaymentPort,
             5_242_880
     );
@@ -196,8 +199,8 @@ class ExpenseImportManagementUseCaseTest {
         givenCurrentUser();
         ExpenseImportBatch batch = new ExpenseImportBatch(77L, 1L, 10L, "expenses.xlsx", ExpenseImportStatus.PREVIEW, 1, 1, 0, null, null, null, List.of(storedDebtPaymentRow(101L, "  Imported payment  ")));
         when(repository.findByAccountIdAndIdForUpdate(1L, 77L)).thenReturn(Optional.of(batch));
-        when(createImportedExpensePort.createImportedExpense(any())).thenReturn(new ExpenseResponse(500L, 1L, 10L, 20L, 10L, "Lunch", new BigDecimal("120.00"), "COP", LocalDate.of(2026, 5, 1), "PAID", "ACTIVE", "SIMPLE", Instant.now(), Instant.now()));
         when(registerDebtPaymentPort.registerDebtPayment(any())).thenReturn(debtPaymentResponse(900L));
+        when(createDebtPaymentExpensePort.createDebtPaymentExpense(any())).thenReturn(new ExpenseResponse(500L, 1L, 10L, 20L, 10L, "Lunch", new BigDecimal("120.00"), "COP", LocalDate.of(2026, 5, 1), "PAID", "ACTIVE", "SIMPLE", "DEBT_PAYMENT", 900L, Instant.now(), Instant.now()));
         when(repository.saveBatch(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         var response = useCase.confirm(1L, 77L);
@@ -210,6 +213,7 @@ class ExpenseImportManagementUseCaseTest {
                         && command.amount().amount().compareTo(new BigDecimal("120.00")) == 0
                         && command.paymentDate().equals(LocalDate.of(2026, 5, 1))
                         && command.notes().equals("Imported payment")
+                        && !command.shouldCreateExpense()
         ));
         verify(repository).updateCreatedExpenseId(1L, 101L, 500L);
         verify(repository).updateCreatedDebtPaymentId(1L, 101L, 900L);
@@ -220,8 +224,8 @@ class ExpenseImportManagementUseCaseTest {
         givenCurrentUser();
         ExpenseImportBatch batch = new ExpenseImportBatch(77L, 1L, 10L, "expenses.xlsx", ExpenseImportStatus.PREVIEW, 1, 1, 0, null, null, null, List.of(storedDebtPaymentRow(101L, " ")));
         when(repository.findByAccountIdAndIdForUpdate(1L, 77L)).thenReturn(Optional.of(batch));
-        when(createImportedExpensePort.createImportedExpense(any())).thenReturn(new ExpenseResponse(500L, 1L, 10L, 20L, 10L, "Lunch", new BigDecimal("120.00"), "COP", LocalDate.of(2026, 5, 1), "PAID", "ACTIVE", "SIMPLE", Instant.now(), Instant.now()));
         when(registerDebtPaymentPort.registerDebtPayment(any())).thenReturn(debtPaymentResponse(900L));
+        when(createDebtPaymentExpensePort.createDebtPaymentExpense(any())).thenReturn(new ExpenseResponse(500L, 1L, 10L, 20L, 10L, "Lunch", new BigDecimal("120.00"), "COP", LocalDate.of(2026, 5, 1), "PAID", "ACTIVE", "SIMPLE", "DEBT_PAYMENT", 900L, Instant.now(), Instant.now()));
         when(repository.saveBatch(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         useCase.confirm(1L, 77L);

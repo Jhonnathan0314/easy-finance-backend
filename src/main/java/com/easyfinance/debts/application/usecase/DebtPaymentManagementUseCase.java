@@ -16,8 +16,12 @@ import com.easyfinance.debts.application.response.PageResponse;
 import com.easyfinance.debts.application.response.RegisterDebtPaymentResponse;
 import com.easyfinance.debts.domain.model.Debt;
 import com.easyfinance.debts.domain.model.DebtPayment;
+import com.easyfinance.expenses.application.command.CreateDebtPaymentExpenseCommand;
+import com.easyfinance.expenses.application.port.in.CreateDebtPaymentExpensePort;
+import com.easyfinance.expenses.application.response.ExpenseResponse;
 import com.easyfinance.shared.application.CurrentUser;
 import com.easyfinance.shared.application.CurrentUserProvider;
+import com.easyfinance.shared.domain.BusinessRuleViolationException;
 import com.easyfinance.shared.domain.NotFoundException;
 import com.easyfinance.shared.domain.UnauthorizedOperationException;
 import org.springframework.stereotype.Service;
@@ -34,19 +38,22 @@ public class DebtPaymentManagementUseCase implements
     private final DebtRepositoryPort debtRepository;
     private final DebtPaymentRepositoryPort paymentRepository;
     private final BudgetDebtImpactPort budgetDebtImpactPort;
+    private final CreateDebtPaymentExpensePort createDebtPaymentExpensePort;
 
     public DebtPaymentManagementUseCase(
             CurrentUserProvider currentUserProvider,
             AccountAuthorizationService accountAuthorizationService,
             DebtRepositoryPort debtRepository,
             DebtPaymentRepositoryPort paymentRepository,
-            BudgetDebtImpactPort budgetDebtImpactPort
+            BudgetDebtImpactPort budgetDebtImpactPort,
+            CreateDebtPaymentExpensePort createDebtPaymentExpensePort
     ) {
         this.currentUserProvider = currentUserProvider;
         this.accountAuthorizationService = accountAuthorizationService;
         this.debtRepository = debtRepository;
         this.paymentRepository = paymentRepository;
         this.budgetDebtImpactPort = budgetDebtImpactPort;
+        this.createDebtPaymentExpensePort = createDebtPaymentExpensePort;
     }
 
     @Override
@@ -71,7 +78,22 @@ public class DebtPaymentManagementUseCase implements
         if (savedDebt.originExpenseId() != null) {
             budgetDebtImpactPort.applyDebtPaymentToImpacts(new ApplyDebtPaymentImpactCommand(savedDebt.accountId(), savedDebt.id(), savedPayment.amount()));
         }
-        return new RegisterDebtPaymentResponse(toPaymentResponse(savedPayment), toDebtResponse(savedDebt));
+        Long createdExpenseId = null;
+        if (command.shouldCreateExpense()) {
+            validateAssociatedExpenseRequest(command);
+            ExpenseResponse expense = createDebtPaymentExpensePort.createDebtPaymentExpense(new CreateDebtPaymentExpenseCommand(
+                    command.accountId(),
+                    command.categoryId(),
+                    command.paymentMethodId(),
+                    currentUser.participantId(),
+                    savedPayment.id(),
+                    command.expenseDescription(),
+                    command.amount(),
+                    command.paymentDate()
+            ));
+            createdExpenseId = expense.id();
+        }
+        return new RegisterDebtPaymentResponse(toPaymentResponse(savedPayment), toDebtResponse(savedDebt), createdExpenseId);
     }
 
     @Override
@@ -109,6 +131,18 @@ public class DebtPaymentManagementUseCase implements
 
     private Long currentParticipantId() {
         return currentUser().participantId();
+    }
+
+    private static void validateAssociatedExpenseRequest(RegisterDebtPaymentCommand command) {
+        if (command.categoryId() == null) {
+            throw new BusinessRuleViolationException("DEBT_PAYMENT_EXPENSE_CATEGORY_REQUIRED", "Category is required when creating an associated expense.");
+        }
+        if (command.paymentMethodId() == null) {
+            throw new BusinessRuleViolationException("DEBT_PAYMENT_EXPENSE_PAYMENT_METHOD_REQUIRED", "Payment method is required when creating an associated expense.");
+        }
+        if (command.expenseDescription() == null || command.expenseDescription().isBlank()) {
+            throw new BusinessRuleViolationException("DEBT_PAYMENT_EXPENSE_DESCRIPTION_REQUIRED", "Expense description is required when creating an associated expense.");
+        }
     }
 
     private DebtPaymentResponse toPaymentResponse(DebtPayment payment) {

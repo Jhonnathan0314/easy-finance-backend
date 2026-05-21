@@ -73,7 +73,7 @@ interface CreateExpenseRequest { categoryId: number; paymentMethodId: number; de
 interface UpdateExpenseRequest { categoryId: number; paymentMethodId: number; description: string; amount: number; expenseDate: string; paymentState: "PENDING" | "PARTIAL" | "PAID"; }
 interface DuplicateExpenseRequest { expenseDate: string; amount?: number | null; description?: string | null; paymentState?: "PENDING" | "PARTIAL" | "PAID" | null; }
 interface CreateInstallmentExpenseRequest { categoryId: number; paymentMethodId: number; description: string; totalAmount: number; expenseDate: string; installmentCount: number; installmentAmount: number; firstInstallmentDate: string; debtName?: string | null; notes?: string | null; }
-interface ExpenseResponse { id: number; accountId: number; categoryId: number; paymentMethodId: number; participantId: number; description: string; amount: number; currency: "COP"; expenseDate: string; paymentState: string; status: string; expenseType: string; createdAt: string; updatedAt: string; }
+interface ExpenseResponse { id: number; accountId: number; categoryId: number; paymentMethodId: number; participantId: number; description: string; amount: number; currency: "COP"; expenseDate: string; paymentState: string; status: string; expenseType: string; sourceType: "MANUAL" | "IMPORT" | "DEBT_PAYMENT"; sourceDebtPaymentId?: number | null; createdAt: string; updatedAt: string; }
 ```
 
 Validation:
@@ -87,10 +87,10 @@ Validation:
 
 ```ts
 interface CreateManualDebtRequest { name: string; description?: string | null; totalAmount: number; installmentCount?: number | null; installmentAmount?: number | null; startDate: string; dueDate?: string | null; notes?: string | null; }
-interface RegisterDebtPaymentRequest { paymentType: "INSTALLMENT" | "CAPITAL_PAYMENT"; amount: number; paymentDate: string; notes?: string | null; }
+interface RegisterDebtPaymentRequest { paymentType: "INSTALLMENT" | "CAPITAL_PAYMENT"; amount: number; paymentDate: string; notes?: string | null; createExpense?: boolean | null; categoryId?: number | null; paymentMethodId?: number | null; expenseDescription?: string | null; }
 interface DebtResponse { id: number; accountId: number; participantId: number; originExpenseId?: number | null; sourceType: string; name: string; description?: string | null; totalAmount: number; totalCurrency: "COP"; remainingAmount: number; remainingCurrency: "COP"; installmentCount?: number | null; installmentAmount?: number | null; installmentCurrency?: "COP" | null; startDate: string; endDate?: string | null; state: string; notes?: string | null; createdAt: string; updatedAt: string; }
 interface DebtPaymentResponse { id: number; accountId: number; debtId: number; participantId: number; paymentType: string; amount: number; currency: "COP"; paymentDate: string; notes?: string | null; status: string; createdAt: string; updatedAt: string; }
-interface RegisterDebtPaymentResponse { payment: DebtPaymentResponse; debt: DebtResponse; }
+interface RegisterDebtPaymentResponse { payment: DebtPaymentResponse; debt: DebtResponse; createdExpenseId?: number | null; }
 ```
 
 ## Budgets
@@ -130,7 +130,7 @@ interface DebtSummaryResponse { accountId: number; activeDebtsCount: number; pai
 interface BudgetSummaryResponse { accountId: number; year: number; month: number; budgetId?: number | null; expectedAmount: number; paidAmount: number; pendingAmount: number; impactsCount: number; paidImpactsCount: number; activeImpactsCount: number; subBudgetsCount: number; }
 ```
 
-Analytics cashflow represents real money only: active incomes, active simple expenses with `paymentState = "PAID"`, and active debt payments for non-cancelled debts. Conceptual expense analytics can include full `INSTALLMENT` purchase amounts and should not be displayed as cash outflow.
+Analytics cashflow represents real money only: active incomes, active simple expenses with `paymentState = "PAID"`, and active debt payments for non-cancelled debts. Expenses with `sourceType = "DEBT_PAYMENT"` are excluded from simple cashflow outflow because the debt payment already counts the real cash movement. Conceptual expense analytics can include full `INSTALLMENT` purchase amounts and debt-payment associated expenses, and should not be displayed as cash outflow.
 
 ## Expense Imports
 

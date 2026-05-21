@@ -67,7 +67,7 @@ This documentation describes the backend technical baseline before implementatio
 - Currency is COP only for now.
 - `Money` exists as a domain value object for future currency evolution.
 - Technical and functional audit are required.
-- Analytics separates real cashflow from conceptual expense analytics: cashflow counts active incomes, paid simple expenses, and active debt payments; conceptual expense views can include full installment purchases.
+- Analytics separates real cashflow from conceptual expense analytics: cashflow counts active incomes, paid simple expenses, and active debt payments; expenses associated to debt payments are excluded from simple cashflow to avoid double counting, while conceptual expense views can still include them and full installment purchases.
 
 ## Outside the MVP
 

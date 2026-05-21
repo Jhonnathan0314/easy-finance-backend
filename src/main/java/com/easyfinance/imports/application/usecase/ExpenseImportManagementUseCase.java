@@ -13,7 +13,9 @@ import com.easyfinance.debts.application.port.in.RegisterDebtPaymentPort;
 import com.easyfinance.debts.application.port.out.DebtRepositoryPort;
 import com.easyfinance.debts.domain.model.Debt;
 import com.easyfinance.debts.domain.model.DebtState;
+import com.easyfinance.expenses.application.command.CreateDebtPaymentExpenseCommand;
 import com.easyfinance.expenses.application.command.CreateImportedExpenseCommand;
+import com.easyfinance.expenses.application.port.in.CreateDebtPaymentExpensePort;
 import com.easyfinance.expenses.application.port.in.CreateImportedExpensePort;
 import com.easyfinance.expenses.domain.model.ExpensePaymentState;
 import com.easyfinance.imports.application.command.PreviewExpenseImportCommand;
@@ -64,6 +66,7 @@ public class ExpenseImportManagementUseCase implements PreviewExpenseImportPort,
     private final ExpenseImportTemplateGeneratorPort templateGeneratorPort;
     private final ExpenseImportRepositoryPort importRepository;
     private final CreateImportedExpensePort createImportedExpensePort;
+    private final CreateDebtPaymentExpensePort createDebtPaymentExpensePort;
     private final RegisterDebtPaymentPort registerDebtPaymentPort;
     private final long maxFileSizeBytes;
 
@@ -78,6 +81,7 @@ public class ExpenseImportManagementUseCase implements PreviewExpenseImportPort,
             ExpenseImportTemplateGeneratorPort templateGeneratorPort,
             ExpenseImportRepositoryPort importRepository,
             CreateImportedExpensePort createImportedExpensePort,
+            CreateDebtPaymentExpensePort createDebtPaymentExpensePort,
             RegisterDebtPaymentPort registerDebtPaymentPort,
             @Value("${easy-finance.imports.expenses.max-file-size-bytes:5242880}") long maxFileSizeBytes
     ) {
@@ -91,6 +95,7 @@ public class ExpenseImportManagementUseCase implements PreviewExpenseImportPort,
         this.templateGeneratorPort = templateGeneratorPort;
         this.importRepository = importRepository;
         this.createImportedExpensePort = createImportedExpensePort;
+        this.createDebtPaymentExpensePort = createDebtPaymentExpensePort;
         this.registerDebtPaymentPort = registerDebtPaymentPort;
         this.maxFileSizeBytes = maxFileSizeBytes;
     }
@@ -121,17 +126,6 @@ public class ExpenseImportManagementUseCase implements PreviewExpenseImportPort,
         List<ExpenseImportRow> validRows = batch.rows().stream().filter(ExpenseImportRow::valid).toList();
         try {
             for (ExpenseImportRow row : validRows) {
-                var expense = createImportedExpensePort.createImportedExpense(new CreateImportedExpenseCommand(
-                        accountId,
-                        row.categoryId(),
-                        row.paymentMethodId(),
-                        batch.participantId(),
-                        row.description(),
-                        row.amount(),
-                        row.expenseDate(),
-                        row.paymentState()
-                ));
-                importRepository.updateCreatedExpenseId(accountId, row.id(), expense.id());
                 if (row.appliesDebtPayment()) {
                     var debtPayment = registerDebtPaymentPort.registerDebtPayment(new RegisterDebtPaymentCommand(
                             accountId,
@@ -139,9 +133,36 @@ public class ExpenseImportManagementUseCase implements PreviewExpenseImportPort,
                             row.debtPaymentType(),
                             row.amount(),
                             row.expenseDate(),
-                            debtPaymentNotes(row)
+                            debtPaymentNotes(row),
+                            false,
+                            null,
+                            null,
+                            null
                     ));
+                    var expense = createDebtPaymentExpensePort.createDebtPaymentExpense(new CreateDebtPaymentExpenseCommand(
+                            accountId,
+                            row.categoryId(),
+                            row.paymentMethodId(),
+                            batch.participantId(),
+                            debtPayment.payment().id(),
+                            row.description(),
+                            row.amount(),
+                            row.expenseDate()
+                    ));
+                    importRepository.updateCreatedExpenseId(accountId, row.id(), expense.id());
                     importRepository.updateCreatedDebtPaymentId(accountId, row.id(), debtPayment.payment().id());
+                } else {
+                    var expense = createImportedExpensePort.createImportedExpense(new CreateImportedExpenseCommand(
+                            accountId,
+                            row.categoryId(),
+                            row.paymentMethodId(),
+                            batch.participantId(),
+                            row.description(),
+                            row.amount(),
+                            row.expenseDate(),
+                            row.paymentState()
+                    ));
+                    importRepository.updateCreatedExpenseId(accountId, row.id(), expense.id());
                 }
             }
             return toResponse(importRepository.saveBatch(confirmed));
