@@ -26,6 +26,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -313,23 +314,85 @@ public class JpaAnalyticsQueryAdapter implements AnalyticsQueryPort {
 
     @Override
     public BudgetSummaryResponse getBudgetSummary(Long accountId, Integer year, Integer month) {
-        return jdbcTemplate.query(
+        YearMonth period = YearMonth.of(year, month);
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("accountId", accountId)
+                .addValue("year", year)
+                .addValue("month", month)
+                .addValue("from", period.atDay(1))
+                .addValue("to", period.atEndOfMonth());
+        return namedJdbcTemplate.query(
                 """
+                WITH budget_row AS (
+                    SELECT b.id
+                    FROM budgets b
+                    WHERE b.account_id = :accountId
+                      AND b.year = :year
+                      AND b.month = :month
+                ),
+                manual_categories AS (
+                    SELECT DISTINCT sb.category_id
+                    FROM sub_budgets sb
+                    JOIN budget_row b ON b.id = sb.budget_id
+                    WHERE sb.account_id = :accountId
+                      AND sb.status = 'ACTIVE'
+                      AND sb.source_type = 'MANUAL'
+                      AND sb.category_id IS NOT NULL
+                ),
+                manual_budget AS (
+                    SELECT COALESCE(SUM(sb.planned_amount), 0) AS expected_amount
+                    FROM sub_budgets sb
+                    JOIN budget_row b ON b.id = sb.budget_id
+                    WHERE sb.account_id = :accountId
+                      AND sb.status = 'ACTIVE'
+                      AND sb.source_type = 'MANUAL'
+                ),
+                manual_execution AS (
+                    SELECT COALESCE(SUM(e.amount), 0) AS paid_amount
+                    FROM expenses e
+                    WHERE e.account_id = :accountId
+                      AND e.expense_date BETWEEN :from AND :to
+                      AND e.status = 'ACTIVE'
+                      AND e.expense_type = 'SIMPLE'
+                      AND e.source_type IN ('MANUAL', 'IMPORT')
+                      AND EXISTS (
+                          SELECT 1
+                          FROM manual_categories mc
+                          WHERE mc.category_id = e.category_id
+                      )
+                ),
+                impact_budget AS (
+                    SELECT
+                        COALESCE(SUM(CASE WHEN bi.status IN ('ACTIVE', 'PAID') THEN bi.expected_amount ELSE 0 END), 0) AS expected_amount,
+                        COALESCE(SUM(CASE WHEN bi.status IN ('ACTIVE', 'PAID') THEN bi.paid_amount ELSE 0 END), 0) AS paid_amount,
+                        COALESCE(COUNT(bi.id), 0) AS impacts_count,
+                        COALESCE(SUM(CASE WHEN bi.status = 'PAID' THEN 1 ELSE 0 END), 0) AS paid_impacts_count,
+                        COALESCE(SUM(CASE WHEN bi.status = 'ACTIVE' THEN 1 ELSE 0 END), 0) AS active_impacts_count
+                    FROM budget_impacts bi
+                    JOIN budget_row b ON b.id = bi.budget_id
+                    WHERE bi.account_id = :accountId
+                ),
+                sub_budget_count AS (
+                    SELECT COALESCE(COUNT(sb.id), 0) AS sub_budgets_count
+                    FROM sub_budgets sb
+                    JOIN budget_row b ON b.id = sb.budget_id
+                    WHERE sb.account_id = :accountId
+                )
                 SELECT
                     b.id AS budget_id,
-                    COALESCE(SUM(CASE WHEN bi.status IN ('ACTIVE', 'PAID') THEN bi.expected_amount ELSE 0 END), 0) AS expected_amount,
-                    COALESCE(SUM(CASE WHEN bi.status IN ('ACTIVE', 'PAID') THEN bi.paid_amount ELSE 0 END), 0) AS paid_amount,
-                    COALESCE(COUNT(bi.id), 0) AS impacts_count,
-                    COALESCE(SUM(CASE WHEN bi.status = 'PAID' THEN 1 ELSE 0 END), 0) AS paid_impacts_count,
-                    COALESCE(SUM(CASE WHEN bi.status = 'ACTIVE' THEN 1 ELSE 0 END), 0) AS active_impacts_count,
-                    COALESCE((SELECT COUNT(*) FROM sub_budgets sb WHERE sb.account_id = ? AND sb.budget_id = b.id), 0) AS sub_budgets_count
-                FROM budgets b
-                LEFT JOIN budget_impacts bi ON bi.account_id = b.account_id AND bi.budget_id = b.id
-                WHERE b.account_id = ?
-                  AND b.year = ?
-                  AND b.month = ?
-                GROUP BY b.id
+                    COALESCE(mb.expected_amount, 0) + COALESCE(ib.expected_amount, 0) AS expected_amount,
+                    COALESCE(me.paid_amount, 0) + COALESCE(ib.paid_amount, 0) AS paid_amount,
+                    COALESCE(ib.impacts_count, 0) AS impacts_count,
+                    COALESCE(ib.paid_impacts_count, 0) AS paid_impacts_count,
+                    COALESCE(ib.active_impacts_count, 0) AS active_impacts_count,
+                    COALESCE(sbc.sub_budgets_count, 0) AS sub_budgets_count
+                FROM budget_row b
+                CROSS JOIN manual_budget mb
+                CROSS JOIN manual_execution me
+                CROSS JOIN impact_budget ib
+                CROSS JOIN sub_budget_count sbc
                 """,
+                params,
                 rs -> {
                     if (!rs.next()) {
                         return zeroBudgetSummary(accountId, year, month);
@@ -349,11 +412,7 @@ public class JpaAnalyticsQueryAdapter implements AnalyticsQueryPort {
                             count(rs, "active_impacts_count"),
                             count(rs, "sub_budgets_count")
                     );
-                },
-                accountId,
-                accountId,
-                year,
-                month
+                }
         );
     }
 

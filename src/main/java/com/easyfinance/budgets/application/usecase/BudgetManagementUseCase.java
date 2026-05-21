@@ -16,6 +16,7 @@ import com.easyfinance.budgets.application.port.in.ListBudgetsPort;
 import com.easyfinance.budgets.application.port.in.UpdateSubBudgetPort;
 import com.easyfinance.budgets.application.port.in.UpsertBudgetPort;
 import com.easyfinance.budgets.application.port.out.BudgetImpactRepositoryPort;
+import com.easyfinance.budgets.application.port.out.BudgetExpenseExecutionQueryPort;
 import com.easyfinance.budgets.application.port.out.BudgetRepositoryPort;
 import com.easyfinance.budgets.application.port.out.SubBudgetRepositoryPort;
 import com.easyfinance.budgets.application.query.ListBudgetsQuery;
@@ -43,8 +44,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Service
 public class BudgetManagementUseCase implements
@@ -63,6 +71,7 @@ public class BudgetManagementUseCase implements
     private final BudgetRepositoryPort budgetRepository;
     private final SubBudgetRepositoryPort subBudgetRepository;
     private final BudgetImpactRepositoryPort impactRepository;
+    private final BudgetExpenseExecutionQueryPort expenseExecutionQueryPort;
 
     public BudgetManagementUseCase(
             CurrentUserProvider currentUserProvider,
@@ -70,7 +79,8 @@ public class BudgetManagementUseCase implements
             CatalogValidationPort catalogValidationPort,
             BudgetRepositoryPort budgetRepository,
             SubBudgetRepositoryPort subBudgetRepository,
-            BudgetImpactRepositoryPort impactRepository
+            BudgetImpactRepositoryPort impactRepository,
+            BudgetExpenseExecutionQueryPort expenseExecutionQueryPort
     ) {
         this.currentUserProvider = currentUserProvider;
         this.accountAuthorizationService = accountAuthorizationService;
@@ -78,6 +88,7 @@ public class BudgetManagementUseCase implements
         this.budgetRepository = budgetRepository;
         this.subBudgetRepository = subBudgetRepository;
         this.impactRepository = impactRepository;
+        this.expenseExecutionQueryPort = expenseExecutionQueryPort;
     }
 
     @Override
@@ -238,11 +249,20 @@ public class BudgetManagementUseCase implements
     }
 
     private BudgetDetailResponse detailResponse(Budget budget) {
-        List<SubBudgetResponse> subBudgets = subBudgetRepository.findByAccountIdAndBudgetId(budget.accountId(), budget.id())
-                .stream().map(this::toSubBudgetResponse).toList();
-        List<BudgetImpactResponse> impacts = impactRepository.findByAccountIdAndBudgetId(budget.accountId(), budget.id())
-                .stream().map(this::toImpactResponse).toList();
-        return new BudgetDetailResponse(toBudgetResponse(budget), subBudgets, impacts);
+        List<SubBudget> subBudgets = subBudgetRepository.findByAccountIdAndBudgetId(budget.accountId(), budget.id());
+        List<BudgetImpact> budgetImpacts = impactRepository.findByAccountIdAndBudgetId(budget.accountId(), budget.id());
+        Map<Long, BigDecimal> manualSpentBySubBudget = manualSpentBySubBudget(subBudgets, manualSpentByCategory(budget, subBudgets));
+        Map<Long, BigDecimal> debtPaidBySubBudget = budgetImpacts.stream()
+                .filter(impact -> impact.status() != com.easyfinance.budgets.domain.model.BudgetImpactStatus.CANCELLED)
+                .collect(Collectors.groupingBy(
+                        BudgetImpact::subBudgetId,
+                        Collectors.reducing(BigDecimal.ZERO, impact -> impact.paidAmount().amount(), BigDecimal::add)
+        ));
+        List<SubBudgetResponse> subBudgetResponses = subBudgets.stream()
+                .map(subBudget -> toSubBudgetResponse(subBudget, spentAmount(subBudget, manualSpentBySubBudget, debtPaidBySubBudget)))
+                .toList();
+        List<BudgetImpactResponse> impacts = budgetImpacts.stream().map(this::toImpactResponse).toList();
+        return new BudgetDetailResponse(toBudgetResponse(budget), subBudgetResponses, impacts);
     }
 
     private Budget findBudget(Long accountId, Long budgetId) {
@@ -281,6 +301,10 @@ public class BudgetManagementUseCase implements
     }
 
     private SubBudgetResponse toSubBudgetResponse(SubBudget subBudget) {
+        return toSubBudgetResponse(subBudget, subBudget.spentAmount().amount());
+    }
+
+    private SubBudgetResponse toSubBudgetResponse(SubBudget subBudget, BigDecimal spentAmount) {
         return new SubBudgetResponse(
                 subBudget.id(),
                 subBudget.accountId(),
@@ -290,7 +314,7 @@ public class BudgetManagementUseCase implements
                 subBudget.name(),
                 subBudget.plannedAmount().amount(),
                 subBudget.plannedAmount().currency().name(),
-                subBudget.spentAmount().amount(),
+                spentAmount.setScale(2, RoundingMode.HALF_UP),
                 subBudget.spentAmount().currency().name(),
                 subBudget.status().name(),
                 subBudget.sourceType().name(),
@@ -318,5 +342,93 @@ public class BudgetManagementUseCase implements
                 impact.createdAt(),
                 impact.updatedAt()
         );
+    }
+
+    private Map<Long, BigDecimal> manualSpentByCategory(Budget budget, List<SubBudget> subBudgets) {
+        List<Long> categoryIds = subBudgets.stream()
+                .filter(subBudget -> subBudget.status() == SubBudgetStatus.ACTIVE)
+                .filter(subBudget -> subBudget.sourceType() == SubBudgetSourceType.MANUAL)
+                .map(SubBudget::categoryId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (categoryIds.isEmpty()) {
+            return Map.of();
+        }
+        YearMonth period = YearMonth.of(budget.year(), budget.month());
+        return expenseExecutionQueryPort.sumManualExecutionByCategory(
+                budget.accountId(),
+                period.atDay(1),
+                period.atEndOfMonth(),
+                categoryIds
+        );
+    }
+
+    private Map<Long, BigDecimal> manualSpentBySubBudget(List<SubBudget> subBudgets, Map<Long, BigDecimal> manualSpentByCategory) {
+        if (manualSpentByCategory.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, List<SubBudget>> activeManualByCategory = subBudgets.stream()
+                .filter(subBudget -> subBudget.status() == SubBudgetStatus.ACTIVE)
+                .filter(subBudget -> subBudget.sourceType() == SubBudgetSourceType.MANUAL)
+                .filter(subBudget -> subBudget.categoryId() != null)
+                .collect(Collectors.groupingBy(SubBudget::categoryId));
+        return activeManualByCategory.entrySet().stream()
+                .flatMap(entry -> allocateCategorySpent(entry.getValue(), manualSpentByCategory.getOrDefault(entry.getKey(), BigDecimal.ZERO)).entrySet().stream())
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    }
+
+    private Map<Long, BigDecimal> allocateCategorySpent(List<SubBudget> subBudgets, BigDecimal categorySpent) {
+        if (subBudgets.isEmpty() || categorySpent.compareTo(BigDecimal.ZERO) == 0) {
+            return Map.of();
+        }
+        List<SubBudget> ordered = new ArrayList<>(subBudgets);
+        ordered.sort(Comparator.comparing(SubBudget::id, Comparator.nullsLast(Long::compareTo)));
+        if (ordered.size() == 1) {
+            return Map.of(ordered.getFirst().id(), categorySpent);
+        }
+        BigDecimal totalPlanned = ordered.stream()
+                .map(subBudget -> subBudget.plannedAmount().amount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (totalPlanned.compareTo(BigDecimal.ZERO) <= 0) {
+            return allocateEvenly(ordered, categorySpent);
+        }
+        Map<Long, BigDecimal> allocated = new java.util.LinkedHashMap<>();
+        BigDecimal assigned = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        for (int index = 0; index < ordered.size(); index++) {
+            SubBudget subBudget = ordered.get(index);
+            BigDecimal amount = index == ordered.size() - 1
+                    ? categorySpent.subtract(assigned)
+                    : categorySpent.multiply(subBudget.plannedAmount().amount()).divide(totalPlanned, 2, RoundingMode.HALF_UP);
+            allocated.put(subBudget.id(), amount);
+            assigned = assigned.add(amount);
+        }
+        return allocated;
+    }
+
+    private Map<Long, BigDecimal> allocateEvenly(List<SubBudget> subBudgets, BigDecimal categorySpent) {
+        Map<Long, BigDecimal> allocated = new java.util.LinkedHashMap<>();
+        BigDecimal assigned = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        for (int index = 0; index < subBudgets.size(); index++) {
+            BigDecimal amount = index == subBudgets.size() - 1
+                    ? categorySpent.subtract(assigned)
+                    : categorySpent.divide(BigDecimal.valueOf(subBudgets.size()), 2, RoundingMode.HALF_UP);
+            allocated.put(subBudgets.get(index).id(), amount);
+            assigned = assigned.add(amount);
+        }
+        return allocated;
+    }
+
+    private BigDecimal spentAmount(SubBudget subBudget, Map<Long, BigDecimal> manualSpentBySubBudget, Map<Long, BigDecimal> debtPaidBySubBudget) {
+        if (subBudget.status() != SubBudgetStatus.ACTIVE) {
+            return subBudget.spentAmount().amount();
+        }
+        if (subBudget.sourceType() == SubBudgetSourceType.DEBT_DERIVED) {
+            return debtPaidBySubBudget.getOrDefault(subBudget.id(), BigDecimal.ZERO);
+        }
+        if (subBudget.sourceType() != SubBudgetSourceType.MANUAL || subBudget.categoryId() == null) {
+            return subBudget.spentAmount().amount();
+        }
+        return manualSpentBySubBudget.getOrDefault(subBudget.id(), BigDecimal.ZERO);
     }
 }

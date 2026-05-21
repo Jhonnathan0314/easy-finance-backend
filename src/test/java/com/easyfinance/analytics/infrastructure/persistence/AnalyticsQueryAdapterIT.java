@@ -153,6 +153,45 @@ class AnalyticsQueryAdapterIT {
     }
 
     @Test
+    void budgetSummaryCombinesManualBudgetsDynamicExpensesAndDebtImpacts() {
+        Fixture fixture = createFixture("budget-summary");
+        Fixture other = createFixture("budget-summary-other");
+        Long transportCategoryId = insertCategory(fixture.accountId(), "Transport " + System.nanoTime(), "EXPENSE");
+        Long budgetId = insertBudget(fixture.accountId(), 2026, 5);
+        Long otherBudgetId = insertBudget(other.accountId(), 2026, 5);
+
+        insertManualSubBudget(fixture.accountId(), budgetId, fixture.expenseCategoryId(), "Food", 500, "ACTIVE", "MANUAL");
+        insertManualSubBudget(fixture.accountId(), budgetId, transportCategoryId, "Transport", 300, "ACTIVE", "MANUAL");
+        insertManualSubBudget(fixture.accountId(), budgetId, null, "General", 50, "ACTIVE", "MANUAL");
+        insertManualSubBudget(fixture.accountId(), budgetId, transportCategoryId, "Inactive", 999, "INACTIVE", "MANUAL");
+        insertManualSubBudget(other.accountId(), otherBudgetId, other.expenseCategoryId(), "Other", 999, "ACTIVE", "MANUAL");
+
+        Long debtId = insertDebt(fixture.accountId(), fixture.participantId(), "ACTIVE", "MANUAL", 100, 40);
+        Long debtPaymentId = insertDebtPaymentReturningId(fixture.accountId(), debtId, fixture.participantId(), 60, "2026-05-16");
+        Long debtSubBudgetId = insertDerivedSubBudget(fixture.accountId(), budgetId, debtId, 100);
+        insertBudgetImpact(fixture.accountId(), budgetId, debtSubBudgetId, debtId, 2026, 5, 100, 60);
+
+        insertExpense(fixture.accountId(), fixture.expenseCategoryId(), fixture.paymentMethodId(), fixture.participantId(), 200, "2026-05-12", "PAID", "ACTIVE", "SIMPLE");
+        insertExpense(fixture.accountId(), transportCategoryId, fixture.paymentMethodId(), fixture.participantId(), 125, "2026-05-13", "PAID", "ACTIVE", "SIMPLE", "IMPORT", null);
+        insertExpense(fixture.accountId(), fixture.expenseCategoryId(), fixture.paymentMethodId(), fixture.participantId(), 999, "2026-05-14", "PAID", "ACTIVE", "SIMPLE", "DEBT_PAYMENT", debtPaymentId);
+        insertExpense(fixture.accountId(), fixture.expenseCategoryId(), fixture.paymentMethodId(), fixture.participantId(), 999, "2026-05-15", "PAID", "CANCELLED", "SIMPLE");
+        insertExpense(fixture.accountId(), fixture.expenseCategoryId(), fixture.paymentMethodId(), fixture.participantId(), 999, "2026-06-01", "PAID", "ACTIVE", "SIMPLE");
+        insertExpense(fixture.accountId(), fixture.expenseCategoryId(), fixture.paymentMethodId(), fixture.participantId(), 999, "2026-05-17", "PENDING", "ACTIVE", "INSTALLMENT");
+        insertExpense(other.accountId(), other.expenseCategoryId(), other.paymentMethodId(), other.participantId(), 999, "2026-05-12", "PAID", "ACTIVE", "SIMPLE");
+
+        var summary = analyticsQueryPort.getBudgetSummary(fixture.accountId(), 2026, 5);
+
+        assertThat(summary.budgetId()).isEqualTo(budgetId);
+        assertThat(summary.expectedAmount()).isEqualByComparingTo("950.00");
+        assertThat(summary.paidAmount()).isEqualByComparingTo("385.00");
+        assertThat(summary.pendingAmount()).isEqualByComparingTo("565.00");
+        assertThat(summary.impactsCount()).isEqualTo(1L);
+        assertThat(summary.paidImpactsCount()).isZero();
+        assertThat(summary.activeImpactsCount()).isEqualTo(1L);
+        assertThat(summary.subBudgetsCount()).isEqualTo(5L);
+    }
+
+    @Test
     void budgetVsExpensesByCategoryReturnsSpentCategoryWhenMonthlyBudgetDoesNotExist() {
         Fixture fixture = createFixture("budget-vs-no-budget");
         Fixture other = createFixture("budget-vs-no-budget-other");

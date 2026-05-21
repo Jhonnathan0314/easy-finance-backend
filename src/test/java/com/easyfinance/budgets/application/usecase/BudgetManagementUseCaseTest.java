@@ -14,6 +14,7 @@ import com.easyfinance.budgets.application.command.CreateSubBudgetCommand;
 import com.easyfinance.budgets.application.command.DuplicateBudgetCommand;
 import com.easyfinance.budgets.application.command.UpsertBudgetCommand;
 import com.easyfinance.budgets.application.port.out.BudgetImpactRepositoryPort;
+import com.easyfinance.budgets.application.port.out.BudgetExpenseExecutionQueryPort;
 import com.easyfinance.budgets.application.port.out.BudgetRepositoryPort;
 import com.easyfinance.budgets.application.port.out.SubBudgetRepositoryPort;
 import com.easyfinance.budgets.domain.model.Budget;
@@ -40,6 +41,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -61,8 +63,9 @@ class BudgetManagementUseCaseTest {
     private final BudgetRepositoryPort budgetRepository = mock(BudgetRepositoryPort.class);
     private final SubBudgetRepositoryPort subBudgetRepository = mock(SubBudgetRepositoryPort.class);
     private final BudgetImpactRepositoryPort impactRepository = mock(BudgetImpactRepositoryPort.class);
+    private final BudgetExpenseExecutionQueryPort expenseExecutionQueryPort = mock(BudgetExpenseExecutionQueryPort.class);
     private final AccountAuthorizationService authorizationService = new AccountAuthorizationService(accountRepository, accountParticipantRepository);
-    private final BudgetManagementUseCase useCase = new BudgetManagementUseCase(currentUserProvider, authorizationService, catalogValidationPort, budgetRepository, subBudgetRepository, impactRepository);
+    private final BudgetManagementUseCase useCase = new BudgetManagementUseCase(currentUserProvider, authorizationService, catalogValidationPort, budgetRepository, subBudgetRepository, impactRepository, expenseExecutionQueryPort);
 
     @BeforeEach
     void setUp() {
@@ -204,6 +207,75 @@ class BudgetManagementUseCaseTest {
 
         assertThat(response.sourceType()).isEqualTo("MANUAL");
         assertThat(response.spentAmount()).isEqualByComparingTo("0.00");
+    }
+
+    @Test
+    void budgetDetailUsesManualExpenseExecutionForManualSubBudget() {
+        givenAccess(AccountParticipantRole.ACCOUNT_MEMBER, AccountStatus.ACTIVE);
+        Budget budget = persistedBudget(Budget.create(1L, 2026, 5, "May"), 50L);
+        SubBudget food = SubBudget.restore(70L, 1L, 50L, 7L, null, "Food", Money.cop(new BigDecimal("100000")), Money.zeroCop(), SubBudgetStatus.ACTIVE, SubBudgetSourceType.MANUAL, Instant.now(), Instant.now());
+        when(budgetRepository.findByAccountIdAndYearAndMonth(1L, 2026, 5)).thenReturn(Optional.of(budget));
+        when(subBudgetRepository.findByAccountIdAndBudgetId(1L, 50L)).thenReturn(List.of(food));
+        when(impactRepository.findByAccountIdAndBudgetId(1L, 50L)).thenReturn(List.of());
+        when(expenseExecutionQueryPort.sumManualExecutionByCategory(1L, LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 31), List.of(7L)))
+                .thenReturn(Map.of(7L, new BigDecimal("45000.00")));
+
+        var response = useCase.getBudget(1L, 2026, 5);
+
+        assertThat(response.subBudgets()).singleElement().satisfies(subBudget ->
+                assertThat(subBudget.spentAmount()).isEqualByComparingTo("45000.00"));
+    }
+
+    @Test
+    void budgetDetailDoesNotAssignManualExecutionToSubBudgetWithoutCategory() {
+        givenAccess(AccountParticipantRole.ACCOUNT_MEMBER, AccountStatus.ACTIVE);
+        Budget budget = persistedBudget(Budget.create(1L, 2026, 5, "May"), 50L);
+        SubBudget uncategorized = SubBudget.restore(70L, 1L, 50L, null, null, "General", Money.cop(new BigDecimal("100000")), Money.zeroCop(), SubBudgetStatus.ACTIVE, SubBudgetSourceType.MANUAL, Instant.now(), Instant.now());
+        when(budgetRepository.findByAccountIdAndYearAndMonth(1L, 2026, 5)).thenReturn(Optional.of(budget));
+        when(subBudgetRepository.findByAccountIdAndBudgetId(1L, 50L)).thenReturn(List.of(uncategorized));
+        when(impactRepository.findByAccountIdAndBudgetId(1L, 50L)).thenReturn(List.of());
+
+        var response = useCase.getBudget(1L, 2026, 5);
+
+        assertThat(response.subBudgets()).singleElement().satisfies(subBudget ->
+                assertThat(subBudget.spentAmount()).isEqualByComparingTo("0.00"));
+        verifyNoInteractions(expenseExecutionQueryPort);
+    }
+
+    @Test
+    void budgetDetailKeepsDebtDerivedExecutionFromImpacts() {
+        givenAccess(AccountParticipantRole.ACCOUNT_MEMBER, AccountStatus.ACTIVE);
+        Budget budget = persistedBudget(Budget.create(1L, 2026, 5, "May"), 50L);
+        SubBudget debt = SubBudget.restore(71L, 1L, 50L, 7L, 5L, "Debt", Money.cop(new BigDecimal("100000")), Money.zeroCop(), SubBudgetStatus.ACTIVE, SubBudgetSourceType.DEBT_DERIVED, Instant.now(), Instant.now());
+        BudgetImpact impact = BudgetImpact.restore(80L, 1L, 50L, 71L, 5L, 9L, 2026, 5, Money.cop(new BigDecimal("100000")), Money.cop(new BigDecimal("60000")), BudgetImpactStatus.ACTIVE, com.easyfinance.budgets.domain.model.BudgetImpactSourceType.DEBT_INSTALLMENT, Instant.now(), Instant.now());
+        when(budgetRepository.findByAccountIdAndYearAndMonth(1L, 2026, 5)).thenReturn(Optional.of(budget));
+        when(subBudgetRepository.findByAccountIdAndBudgetId(1L, 50L)).thenReturn(List.of(debt));
+        when(impactRepository.findByAccountIdAndBudgetId(1L, 50L)).thenReturn(List.of(impact));
+
+        var response = useCase.getBudget(1L, 2026, 5);
+
+        assertThat(response.subBudgets()).singleElement().satisfies(subBudget ->
+                assertThat(subBudget.spentAmount()).isEqualByComparingTo("60000.00"));
+    }
+
+    @Test
+    void budgetDetailDistributesManualExecutionForDuplicatedCategoryWithoutDuplicatingTotal() {
+        givenAccess(AccountParticipantRole.ACCOUNT_MEMBER, AccountStatus.ACTIVE);
+        Budget budget = persistedBudget(Budget.create(1L, 2026, 5, "May"), 50L);
+        SubBudget first = SubBudget.restore(70L, 1L, 50L, 7L, null, "Food", Money.cop(new BigDecimal("100000")), Money.zeroCop(), SubBudgetStatus.ACTIVE, SubBudgetSourceType.MANUAL, Instant.now(), Instant.now());
+        SubBudget second = SubBudget.restore(71L, 1L, 50L, 7L, null, "Market", Money.cop(new BigDecimal("300000")), Money.zeroCop(), SubBudgetStatus.ACTIVE, SubBudgetSourceType.MANUAL, Instant.now(), Instant.now());
+        when(budgetRepository.findByAccountIdAndYearAndMonth(1L, 2026, 5)).thenReturn(Optional.of(budget));
+        when(subBudgetRepository.findByAccountIdAndBudgetId(1L, 50L)).thenReturn(List.of(first, second));
+        when(impactRepository.findByAccountIdAndBudgetId(1L, 50L)).thenReturn(List.of());
+        when(expenseExecutionQueryPort.sumManualExecutionByCategory(1L, LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 31), List.of(7L)))
+                .thenReturn(Map.of(7L, new BigDecimal("80000.00")));
+
+        var response = useCase.getBudget(1L, 2026, 5);
+
+        assertThat(response.subBudgets()).extracting("spentAmount")
+                .containsExactly(new BigDecimal("20000.00"), new BigDecimal("60000.00"));
+        assertThat(response.subBudgets().stream().map(subBudget -> subBudget.spentAmount()).reduce(BigDecimal.ZERO, BigDecimal::add))
+                .isEqualByComparingTo("80000.00");
     }
 
     @Test
