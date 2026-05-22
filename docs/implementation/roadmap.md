@@ -138,8 +138,10 @@ Deliverables:
 Goals:
 
 - Implement income records.
-- Support temporary and recurrent income fields.
+- Keep incomes event-based with a specific `incomeDate`.
+- Support duplication to another date as the incremental UX helper.
 - Add filters by account, participant, and period.
+- Add text search by description.
 
 Deliverables:
 
@@ -151,6 +153,8 @@ Goals:
 
 - Implement Excel expense import preview.
 - Validate categories, responsible participants, payment methods, dates, and amounts.
+- Generate an account-scoped dynamic Excel template.
+- Support optional debt-payment metadata in imported rows.
 - Implement confirmation.
 - Ensure confirmation is transactional.
 
@@ -158,22 +162,26 @@ Deliverables:
 
 - Preview returns row-level validation errors.
 - Confirmation creates expenses.
-- Installment rows create derived debts and budget impacts.
+- Rows marked as debt payments create the imported expense and register the debt payment in one transaction.
 
 ## Phase 11 - Analytics
 
 Goals:
 
-- Implement dashboard summary.
+- Implement monthly summary.
+- Implement cashflow summary and grouped cashflow.
 - Implement expenses by category.
-- Implement paid vs pending.
+- Implement incomes by category.
+- Implement expenses by payment method.
 - Implement debt status.
 - Implement budget execution.
+- Implement budget-vs-expenses by category.
 
 Deliverables:
 
 - Read endpoints for main dashboard.
-- Report filters by date, category, responsible participant, and type.
+- Analytics filters by date range, category, participant, payment method, status, payment state, and type where applicable.
+- Cashflow avoids double counting expenses associated with debt payments.
 
 ## Phase 12 - Hardening
 
@@ -207,4 +215,3 @@ Do not implement:
 - Exact frontend authentication flow.
 - Refresh token strategy.
 - Import batch persistence strategy.
-

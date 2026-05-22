@@ -59,6 +59,8 @@
   "paymentState": "PAID",
   "status": "ACTIVE",
   "expenseType": "SIMPLE",
+  "sourceType": "MANUAL",
+  "sourceDebtPaymentId": null,
   "createdAt": "2026-05-12T17:00:00Z",
   "updatedAt": "2026-05-12T17:00:00Z"
 }
@@ -115,7 +117,7 @@
       "name": "Debt: Laptop installments",
       "plannedAmount": 100000.00,
       "plannedCurrency": "COP",
-      "spentAmount": 0.00,
+      "spentAmount": 100000.00,
       "spentCurrency": "COP",
       "status": "ACTIVE",
       "sourceType": "DEBT_DERIVED",
@@ -145,6 +147,8 @@
   ]
 }
 ```
+
+For manual sub-budgets, `spentAmount` is calculated dynamically from active simple expenses in the same month/category. For debt-derived sub-budgets, it reflects paid budget impacts.
 
 ## Analytics Monthly Summary
 
@@ -193,11 +197,16 @@
       "paymentMethodName": "Cash",
       "paymentMethodId": 20,
       "paymentState": "PAID",
+      "appliesDebtPayment": false,
+      "debtId": null,
+      "debtLabel": null,
+      "debtPaymentType": null,
+      "debtPaymentNotes": null,
       "valid": true,
       "errors": [],
-      "createdExpenseId": null
+      "createdExpenseId": null,
+      "createdDebtPaymentId": null
     }
   ]
 }
 ```
-

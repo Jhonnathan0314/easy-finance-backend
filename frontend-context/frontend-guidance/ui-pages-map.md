@@ -37,8 +37,9 @@
   - `GET /analytics/incomes-by-category`
   - `GET /analytics/debt-summary`
   - `GET /analytics/budget-summary`
+  - `GET /analytics/budget-vs-expenses-by-category`
 - Actions: change month/date range, participant, category, payment method, payment state, expense type, and cashflow grouping.
-- Components: real cashflow metrics, conceptual expense metrics, cashflow series, category/payment-method breakdown tables/charts.
+- Components: real cashflow metrics, conceptual expense metrics, cashflow series, category/payment-method breakdown tables/charts, budget-vs-expense category comparison.
 - Errors: `ANALYTICS_PERIOD_INVALID`, `ANALYTICS_DATE_RANGE_INVALID`, `ANALYTICS_DATE_RANGE_TOO_LARGE`.
 
 ## Catalogs
@@ -82,7 +83,7 @@
   - `GET /debts/{debtId}/payments`
   - `GET /debts/{debtId}/payments/{paymentId}`
 - Actions: register payment, filter payment history.
-- Components: payment form, payment history table.
+- Components: payment form, optional associated-expense fields, payment history table.
 - Errors: overpayment, debt already paid, debt cancelled.
 
 ## Budgets
@@ -94,6 +95,7 @@
   - `POST/PUT/DELETE /budgets/{budgetId}/sub-budgets`
 - Actions: select month, upsert budget, create/update/deactivate manual sub-budget.
 - Components: monthly budget header, sub-budget table, impact table.
+- Notes: manual sub-budget execution is returned by backend from active simple expenses in the same month/category; associated debt-payment expenses are excluded to avoid double counting.
 - Errors: invalid period, derived sub-budget not editable, admin required.
 
 ## Income
@@ -102,7 +104,7 @@
 - Endpoints:
   - `GET/POST /incomes`
   - `GET/PUT/PATCH /incomes/{incomeId}`
-- Actions: create, update, cancel, duplicate to another date, filter.
+- Actions: create, update, cancel, duplicate to another date, filter, search by description.
 - Components: income table, income form.
 - Errors: category invalid type, category inactive, update/cancel not allowed.
 
@@ -110,11 +112,13 @@
 
 - Goal: upload expense Excel, preview validation, confirm valid rows.
 - Endpoints:
+  - `GET /imports/expenses/template`
   - `POST /imports/expenses/preview`
   - `GET /imports/expenses/{batchId}`
   - `POST /imports/expenses/{batchId}/confirm`
-- Actions: upload, inspect row errors, confirm.
-- Components: upload dropzone, preview summary, row error table.
+- Actions: download dynamic template, upload, inspect row errors, confirm.
+- Components: template download action, upload dropzone, preview summary, row error table, debt-payment columns.
+- Notes: rows marked `AplicaPagoDeuda = SI` create both the imported expense and the debt payment during confirm.
 - Errors: file required, invalid type, template invalid, row limit exceeded, already confirmed.
 
 ## Members

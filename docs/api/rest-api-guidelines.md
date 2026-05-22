@@ -179,7 +179,7 @@ Examples:
 
 ```text
 GET /api/v1/accounts/1/expenses?from=2026-01-01&to=2026-01-31&categoryId=10&search=mercado
-GET /api/v1/accounts/1/debts?state=ACTIVE&responsibleParticipantId=5
+GET /api/v1/accounts/1/debts?state=ACTIVE&participantId=5
 ```
 
 Avoid generic query languages in the MVP unless reporting requirements justify them.
@@ -280,10 +280,27 @@ simple outflow because the debt payment already represents the real cash movemen
 Analytics:
 
 ```text
-GET /api/v1/accounts/{accountId}/analytics/dashboard
-GET /api/v1/accounts/{accountId}/reports/expenses
-GET /api/v1/accounts/{accountId}/reports/debts
+GET /api/v1/accounts/{accountId}/analytics/monthly-summary
+GET /api/v1/accounts/{accountId}/analytics/cashflow-summary
+GET /api/v1/accounts/{accountId}/analytics/expense-summary
+GET /api/v1/accounts/{accountId}/analytics/cashflow
+GET /api/v1/accounts/{accountId}/analytics/expenses-by-category
+GET /api/v1/accounts/{accountId}/analytics/expenses-by-payment-method
+GET /api/v1/accounts/{accountId}/analytics/incomes-by-category
+GET /api/v1/accounts/{accountId}/analytics/debt-summary
+GET /api/v1/accounts/{accountId}/analytics/budget-summary
+GET /api/v1/accounts/{accountId}/analytics/budget-vs-expenses-by-category
 ```
+
+Cashflow represents real money movement: active incomes, paid simple expenses, and debt payments.
+Expenses with `sourceType = DEBT_PAYMENT` are excluded from simple expense outflow because the debt
+payment already counts as the real cash movement. Conceptual expense analytics may still include those
+associated expenses.
+
+Budget analytics keep monthly budget semantics. Manual sub-budget execution is calculated from active
+simple expenses in the same month/category with `sourceType = MANUAL` or `IMPORT`; debt-payment
+associated expenses are excluded from manual execution. Debt-derived budget execution continues to come
+from budget impacts and debt payments.
 
 ## Outside the MVP
 

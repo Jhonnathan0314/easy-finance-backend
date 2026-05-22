@@ -53,7 +53,7 @@ Derived debt fields:
 
 - `originExpenseId`: expense id.
 - `accountId`: same account as the expense.
-- `responsibleParticipantId`: same responsible participant unless explicitly changed by future rules.
+- `participantId`: same participant unless explicitly changed by future rules.
 - `paymentMethodId`: same payment method as the expense.
 - `totalAmount`: expense total amount.
 - `installments`: number of installments.
@@ -188,7 +188,15 @@ Transactional behavior:
 2. Reduce debt remaining balance.
 3. Update debt state.
 4. Update related budget impact progress when applicable.
-5. Persist functional audit event.
+5. Optionally create an associated conceptual expense when requested explicitly.
+6. Persist functional audit event.
+
+Associated expense behavior:
+
+- `createExpense` defaults to `false`.
+- When `createExpense = true`, the request must include an active account-scoped expense category, an active account-scoped payment method, and a non-blank expense description.
+- The associated expense uses the debt payment amount and date, is created as `SIMPLE`, `ACTIVE`, `PAID`, and is marked with `sourceType = DEBT_PAYMENT`.
+- Cashflow still counts only the debt payment as real outflow; the associated expense remains available for conceptual expense analytics.
 
 ## Budget Impact Update on Payment
 
@@ -212,6 +220,8 @@ For capital payments:
 - Debt remaining balance cannot be negative.
 - Budget impact paid amount cannot be negative.
 - Budget impact paid amount cannot exceed impact amount.
+- Manual budget execution is not stored as budget impacts. Budget detail and budget summary calculate manual execution dynamically from active simple expenses by category/month.
+- Dynamic manual execution includes expense `sourceType = MANUAL` and `IMPORT`; `DEBT_PAYMENT` is excluded to avoid double counting payments already represented by debt impacts.
 - Financial writes must be transactional.
 
 ## Outside the MVP
@@ -223,4 +233,3 @@ Mutual debts are outside the MVP and must not participate in this flow.
 - Whether `endDate = startDate.plusMonths(installments - 1)` or `startDate.plusMonths(installments)` is preferred by the business wording. This document recommends `installments - 1` because the first installment belongs to the start month.
 - Whether capital payments should reduce future budget impacts automatically.
 - Whether installment amounts must sum exactly to total amount or may exceed total amount due to included financing costs.
-

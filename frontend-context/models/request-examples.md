@@ -104,6 +104,21 @@
 }
 ```
 
+## Register Debt Payment With Associated Expense
+
+```json
+{
+  "paymentType": "INSTALLMENT",
+  "amount": 100000.00,
+  "paymentDate": "2026-06-05",
+  "notes": "First payment",
+  "createExpense": true,
+  "categoryId": 10,
+  "paymentMethodId": 20,
+  "expenseDescription": "Debt payment"
+}
+```
+
 ## Upsert Budget
 
 ```json

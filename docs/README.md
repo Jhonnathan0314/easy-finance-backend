@@ -2,7 +2,7 @@
 
 Easy Finance is a collaborative financial backend for managing accounts, participants, expenses, installment expenses, debts, debt payments, monthly budgets, income, analytics, reports, Excel imports, and auditing.
 
-This documentation describes the backend technical baseline before implementation.
+This documentation describes the current backend MVP and the conventions used to keep future phases aligned.
 
 ## Documentation Index
 

@@ -80,7 +80,7 @@ Authorization: Bearer <accessToken>
 
 | Method | Path | Purpose |
 |---|---|---|
-| POST | `/api/v1/accounts/{accountId}/debts/{debtId}/payments` | Register payment and update debt/budget impacts. |
+| POST | `/api/v1/accounts/{accountId}/debts/{debtId}/payments` | Register payment and update debt/budget impacts. Optional `createExpense=true` creates a conceptual expense with `sourceType=DEBT_PAYMENT`. |
 | GET | `/api/v1/accounts/{accountId}/debts/{debtId}/payments` | List payments. Query: `from`, `to`, `paymentType`, `status`, `page`, `size`, `sort`. |
 | GET | `/api/v1/accounts/{accountId}/debts/{debtId}/payments/{paymentId}` | Get payment detail. |
 
@@ -89,7 +89,7 @@ Authorization: Bearer <accessToken>
 | Method | Path | Purpose |
 |---|---|---|
 | PUT | `/api/v1/accounts/{accountId}/budgets/{year}/{month}` | Create/update monthly budget; admin only. |
-| GET | `/api/v1/accounts/{accountId}/budgets/{year}/{month}` | Get budget detail with sub-budgets and impacts. |
+| GET | `/api/v1/accounts/{accountId}/budgets/{year}/{month}` | Get budget detail with sub-budgets and impacts. Manual sub-budget `spentAmount` is calculated from active simple expenses in the month/category. |
 | POST | `/api/v1/accounts/{accountId}/budgets/{sourceYear}/{sourceMonth}/duplicate` | Duplicate a monthly budget into a target period; admin only. |
 | GET | `/api/v1/accounts/{accountId}/budgets` | List budgets. Query: `year`, `status`, `sort`, `page`, `size`. |
 | POST | `/api/v1/accounts/{accountId}/budgets/{budgetId}/sub-budgets` | Create manual sub-budget; admin only. |
@@ -119,7 +119,7 @@ Authorization: Bearer <accessToken>
 | GET | `/api/v1/accounts/{accountId}/analytics/expenses-by-payment-method?from=&to=` | Expense payment-method breakdown. Query: `categoryId`, `paymentMethodId`, `participantId`, `status`, `paymentState`, `expenseType`. |
 | GET | `/api/v1/accounts/{accountId}/analytics/incomes-by-category?from=&to=` | Income category breakdown. Query: `categoryId`, `participantId`, `status`. |
 | GET | `/api/v1/accounts/{accountId}/analytics/debt-summary` | Debt totals and counts. |
-| GET | `/api/v1/accounts/{accountId}/analytics/budget-summary?year=&month=` | Budget impact summary. |
+| GET | `/api/v1/accounts/{accountId}/analytics/budget-summary?year=&month=` | Monthly budget summary combining manual sub-budgets, dynamic manual expense execution, and debt impacts. |
 | GET | `/api/v1/accounts/{accountId}/analytics/budget-vs-expenses-by-category?year=&month=` | Monthly comparison of active manual sub-budget planned amounts vs active conceptual expenses by category. |
 
 ## Expense Imports
@@ -129,6 +129,6 @@ Authorization: Bearer <accessToken>
 | GET | `/api/v1/accounts/{accountId}/imports/expenses/template` | Download account-scoped `.xlsx` template with valid categories, payment methods, payment states, and active debt options for preview. |
 | POST | `/api/v1/accounts/{accountId}/imports/expenses/preview` | Multipart `.xlsx` preview; field name `file`. |
 | POST | `/api/v1/accounts/{accountId}/imports/expenses/{batchId}/confirm` | Confirm valid rows, create expenses, and register debt payments for rows marked as debt payments. |
+| GET | `/api/v1/accounts/{accountId}/imports/expenses/{batchId}` | Get import batch and row errors. |
 
 Debt payment registration accepts optional `createExpense`, `categoryId`, `paymentMethodId`, and `expenseDescription`. When `createExpense=true`, backend creates a conceptual expense with `sourceType=DEBT_PAYMENT`; cashflow still counts only the debt payment outflow.
-| GET | `/api/v1/accounts/{accountId}/imports/expenses/{batchId}` | Get import batch and row errors. |

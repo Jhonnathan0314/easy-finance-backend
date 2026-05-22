@@ -46,8 +46,9 @@ Owns expenses.
 Main concepts:
 
 - `Expense`
-- `ExpensePaymentType`
+- `ExpenseType`
 - `ExpensePaymentState`
+- `ExpenseSourceType`
 
 ### Debts
 
@@ -78,7 +79,6 @@ Owns income records.
 Main concepts:
 
 - `Income`
-- `IncomePeriodicity`
 
 ### Imports
 
@@ -97,10 +97,14 @@ Owns read models and reporting queries.
 
 Main concepts:
 
-- `DashboardSummary`
-- `ExpenseByCategoryReport`
-- `DebtStatusReport`
-- `BudgetExecutionReport`
+- `MonthlySummary`
+- `CashflowSummary`
+- `ExpenseSummary`
+- `ExpenseByCategory`
+- `IncomeByCategory`
+- `DebtSummary`
+- `BudgetSummary`
+- `BudgetVsExpensesByCategory`
 
 ### Audit
 
@@ -181,7 +185,7 @@ Fields:
 
 - `id`
 - `accountId`
-- `responsibleParticipantId`
+- `participantId`
 - `name`
 - `type`
 - `state`
@@ -195,14 +199,22 @@ Fields:
 - `id`
 - `accountId`
 - `categoryId`
-- `responsibleParticipantId`
+- `participantId`
 - `paymentMethodId`
-- `name`
 - `description`
-- `totalAmount`
-- `date`
-- `paymentType`
+- `amount`
+- `currency`
+- `expenseDate`
+- `expenseType`
 - `paymentState`
+- `status`
+- `sourceType`
+- `sourceDebtPaymentId`
+
+Notes:
+
+- `sourceType` is `MANUAL`, `IMPORT`, or `DEBT_PAYMENT`.
+- Expenses with `sourceType = DEBT_PAYMENT` are conceptual records associated with a debt payment. They remain visible in conceptual expense analytics, but cashflow excludes them to avoid counting the same real payment twice.
 
 ### Debt
 
@@ -212,7 +224,7 @@ Fields:
 
 - `id`
 - `accountId`
-- `responsibleParticipantId`
+- `participantId`
 - `paymentMethodId`
 - `originExpenseId`
 - `name`
@@ -232,10 +244,16 @@ Fields:
 
 - `id`
 - `debtId`
-- `responsibleParticipantId`
-- `date`
+- `participantId`
+- `paymentDate`
 - `amount`
 - `paymentType`
+- `notes`
+
+Notes:
+
+- A manual debt payment may optionally create an associated expense when the caller explicitly requests it.
+- The debt payment remains the source of real cashflow.
 
 ### MonthlyBudget
 
@@ -248,25 +266,33 @@ Fields:
 - `year`
 - `month`
 - `name`
-- `description`
-- `state`
+- `status`
 
 ### SubBudget
 
-Budget line for category, participant, or debt-derived allocation.
+Budget line for a manual category allocation or a debt-derived installment allocation.
 
 Fields:
 
 - `id`
+- `accountId`
 - `budgetId`
 - `categoryId`
-- `responsibleParticipantId`
 - `debtId`
 - `name`
-- `amount`
-- `paymentDate`
+- `plannedAmount`
+- `plannedCurrency`
+- `spentAmount`
+- `spentCurrency`
 - `sourceType`
-- `state`
+- `status`
+
+Notes:
+
+- Manual sub-budget execution is calculated at read time from active simple expenses in the budget month and same category.
+- Manual execution includes expenses with `sourceType = MANUAL` or `IMPORT`.
+- Manual execution excludes `sourceType = DEBT_PAYMENT` to avoid duplicate counting with debt payments.
+- Debt-derived sub-budgets continue to use budget impacts and debt payments.
 
 ### BudgetImpact
 
@@ -278,12 +304,13 @@ Fields:
 - `accountId`
 - `budgetId`
 - `subBudgetId`
-- `expenseId`
 - `debtId`
+- `debtPaymentId`
 - `periodYear`
 - `periodMonth`
-- `amount`
+- `expectedAmount`
 - `paidAmount`
+- `status`
 - `sourceType`
 
 ### Income
@@ -294,13 +321,18 @@ Fields:
 
 - `id`
 - `accountId`
-- `responsibleParticipantId`
-- `name`
+- `categoryId`
+- `participantId`
+- `description`
 - `amount`
-- `periodicity`
-- `startDate`
-- `endDate`
-- `state`
+- `currency`
+- `incomeDate`
+- `status`
+
+Notes:
+
+- Income is event-based in the MVP.
+- Recurring income templates are not implemented yet; the current UX helper is duplication to a new date.
 
 ## Value Objects
 
@@ -387,6 +419,7 @@ Key invariants:
 - Expense belongs to one account.
 - Category, responsible participant, and payment method must belong to the same account.
 - Installment expense must trigger debt creation through the application use case.
+- Associated debt-payment expenses must reference the created debt payment and must not duplicate cashflow.
 
 ### Debt Aggregate
 
@@ -420,6 +453,7 @@ Key invariants:
 - One budget per account and calendar month.
 - Debt-derived impacts must reference the originating debt.
 - Debt-derived sub-budgets must be traceable.
+- Manual sub-budget execution should not be persisted from simple expenses; it is calculated for read models.
 
 ## Candidate Domain Events
 
@@ -444,7 +478,6 @@ Mutual debts are outside the MVP. They should not be modeled as aggregates, enti
 
 ## Pending Decisions
 
-- Whether budget impact and sub-budget should both exist for debt-derived entries, or if `BudgetImpact` becomes the main traceability table while `SubBudget` remains the planning line.
 - Whether manual debts also create monthly budget impacts or only debts derived from installment expenses do.
 - Whether deleting financial entities is allowed or all removals are state transitions.
-
+- Whether full recurring income templates are needed beyond the current income duplication workflow.

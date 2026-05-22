@@ -36,6 +36,11 @@
 - Installment expense creates exactly one derived debt and budget impacts.
 - Expense amount must be greater than zero.
 - Currency is `COP`.
+- Expenses expose `sourceType`:
+  - `MANUAL` for normal API-created expenses.
+  - `IMPORT` for normal imported expenses.
+  - `DEBT_PAYMENT` for conceptual expenses associated with a debt payment.
+- Cashflow excludes `DEBT_PAYMENT` expenses because the debt payment already represents the real cash movement.
 - `INSTALLMENT` expenses cannot be updated or cancelled through the simple expense endpoints in this MVP.
 
 ## Debts And Payments
@@ -47,6 +52,8 @@
 - A total payment marks the debt `PAID`.
 - Payments on `PAID` or `CANCELLED` debts are rejected.
 - Debt payment registration uses pessimistic locking to avoid concurrent overpayment.
+- Manual debt payment registration can optionally create an associated conceptual expense when `createExpense=true`.
+- The associated expense is explicit, account-scoped, and excluded from cashflow simple outflow.
 
 ## Budgets And Impacts
 
@@ -57,6 +64,8 @@
 - Debt payments are applied chronologically to unpaid impacts.
 - Full impact payment marks impact `PAID`; partial payment keeps it `ACTIVE`.
 - Manual sub-budgets can be edited; derived sub-budgets cannot.
+- Manual sub-budget execution is calculated from active simple expenses in the same budget month/category.
+- Manual execution includes `MANUAL` and `IMPORT` expenses and excludes `DEBT_PAYMENT` expenses.
 
 ## Income
 
@@ -69,6 +78,9 @@
 - Analytics endpoints are read-only.
 - Metrics are scoped by account and return zero/empty lists when no data exists.
 - Cancelled debts are excluded from financial totals but counted separately.
+- Cashflow counts real money movement and avoids double counting debt-payment associated expenses.
+- Conceptual expense analytics can include expenses associated with debt payments.
+- Budget summary combines manual planned amounts, dynamic manual execution from expenses, and debt impacts.
 
 ## Imports
 
@@ -76,6 +88,7 @@
 - Flow is preview then confirm.
 - Preview validates rows and does not create expenses.
 - Confirm creates expenses only for valid rows and registers debt payments for valid rows marked with debt payment.
+- A row marked with debt payment creates both the imported expense and the debt payment in one transaction.
 - Invalid rows remain reported in the batch.
 - Confirm is locked per batch to avoid duplicate expenses.
 - Confirm is transactional: if one valid row fails, no partial expenses or partial row updates remain.

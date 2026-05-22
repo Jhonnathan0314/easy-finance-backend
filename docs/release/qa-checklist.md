@@ -86,6 +86,7 @@ Expected result:
 
 - Catalog records are ACTIVE.
 - Names are scoped to the account.
+- Search filters by name/description work for categories and payment methods.
 
 ### 4. Expenses
 
@@ -99,6 +100,7 @@ Expected result:
 
 - Expense is ACTIVE and SIMPLE.
 - Category and payment method belong to the same account.
+- Expense list `search` filters description case-insensitively and remains account-scoped.
 
 ### 5. Installment Expense And Debt
 
@@ -120,12 +122,14 @@ Steps:
 
 1. Register a partial or full debt payment.
 2. Re-read the debt.
+3. Register a payment with `createExpense=true` using an active expense category and payment method.
 
 Expected result:
 
 - Payment is ACTIVE.
 - Remaining balance decreases.
 - Debt becomes PAID only when remaining balance is zero.
+- The optional associated expense is `SIMPLE`, `ACTIVE`, `PAID`, has `sourceType=DEBT_PAYMENT`, and does not duplicate cashflow.
 
 ### 7. Budgets
 
@@ -133,12 +137,15 @@ Steps:
 
 1. Get the monthly budget for the installment period.
 2. Verify sub-budgets and impacts.
+3. Create a manual sub-budget with a category and a simple expense in that month/category.
 
 Expected result:
 
 - Budget exists.
 - Debt-derived sub-budget exists.
 - Budget impacts have expected and paid amounts.
+- Manual sub-budget `spentAmount` reflects active simple expenses with `sourceType=MANUAL` or `IMPORT`.
+- `budget-summary` combines manual budget execution and debt impacts.
 
 ### 8. Income
 
@@ -151,6 +158,7 @@ Expected result:
 
 - Income is ACTIVE.
 - EXPENSE categories are rejected for income.
+- Income list `search` filters description case-insensitively and remains account-scoped.
 
 ### 9. Analytics
 
@@ -161,25 +169,30 @@ Steps:
 3. Call incomes by category.
 4. Call debt summary.
 5. Call budget summary.
+6. Call budget vs expenses by category.
 
 Expected result:
 
 - Totals are account-scoped.
 - Empty periods return zero totals or empty lists.
+- Cashflow excludes `DEBT_PAYMENT` expenses and counts debt payments once.
+- Budget vs expenses includes categories with only budget or only expenses.
 
 ### 10. Expense Import
 
 Steps:
 
-1. Upload `.xlsx` preview with headers: `Fecha`, `Descripción`, `Monto`, `Categoría`, `MedioPago`, `EstadoPago`.
-2. Review valid and invalid row counts.
-3. Confirm the batch.
-4. Reconfirm the same batch.
+1. Download the dynamic `.xlsx` template.
+2. Upload `.xlsx` preview with headers: `Fecha`, `Descripción`, `Monto`, `Categoría`, `MedioPago`, `EstadoPago`.
+3. Review valid and invalid row counts.
+4. Confirm the batch.
+5. Reconfirm the same batch.
 
 Expected result:
 
 - Preview does not create expenses.
 - Confirm creates only valid expenses and debt payments for rows marked as debt payments.
+- Debt-payment rows create both a simple imported expense and a debt payment in one transaction.
 - Second confirm fails with `IMPORT_ALREADY_CONFIRMED`.
 
 ## Approval Criteria

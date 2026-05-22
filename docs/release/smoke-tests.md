@@ -268,12 +268,14 @@ GET /api/v1/accounts/{accountId}/analytics/expenses-by-category?from=2026-05-01&
 GET /api/v1/accounts/{accountId}/analytics/incomes-by-category?from=2026-05-01&to=2026-05-31
 GET /api/v1/accounts/{accountId}/analytics/debt-summary
 GET /api/v1/accounts/{accountId}/analytics/budget-summary?year=2026&month=6
+GET /api/v1/accounts/{accountId}/analytics/budget-vs-expenses-by-category?year=2026&month=6
 ```
 
 Expected:
 
 - Responses are account-scoped.
 - Totals match the smoke data.
+- Budget summary includes manual sub-budget planned amounts, dynamic manual expense execution, and debt impacts without counting `DEBT_PAYMENT` expenses twice.
 
 ## 12. Expense Import Template
 
@@ -318,6 +320,7 @@ Expected:
 
 - Batch status is PREVIEW.
 - Valid and invalid row counts are returned.
+- Rows marked with `AplicaPagoDeuda = SI` resolve an active account debt through the hidden mapping and are rejected if they would overpay.
 - No expenses are created yet.
 
 ## 14. Expense Import Confirm

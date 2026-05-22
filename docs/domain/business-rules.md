@@ -74,6 +74,11 @@ Rules:
 - A simple expense does not generate debt.
 - It impacts reports and budget comparisons.
 - It can be manually marked as pending, partial, or paid.
+- Simple expenses have a `sourceType`:
+  - `MANUAL`: created through the normal expense API.
+  - `IMPORT`: created through Excel import.
+  - `DEBT_PAYMENT`: conceptual expense associated with a debt payment.
+- Cashflow excludes `DEBT_PAYMENT` expenses because the debt payment already represents the real money outflow.
 
 ## Installment Expenses
 
@@ -118,6 +123,8 @@ Rules:
 - If remaining balance becomes zero, debt state becomes `PAID`.
 - If remaining balance is greater than zero, debt state remains `ACTIVE`.
 - Debt payments must be audited functionally.
+- Manual debt payment registration can optionally create an associated conceptual expense when the request explicitly sets `createExpense = true`.
+- Associated debt-payment expenses are `SIMPLE`, `ACTIVE`, `PAID`, use `sourceType = DEBT_PAYMENT`, and keep a reference to the created debt payment.
 
 ## Budgets
 
@@ -134,6 +141,8 @@ Rules:
 - A debt-derived sub-budget must reference the originating debt.
 - Sub-budget amount must be greater than or equal to zero.
 - If a sub-budget references category or responsible participant, they must belong to the same account.
+- Manual sub-budget execution is calculated dynamically for read responses from active simple expenses in the same month and category.
+- Dynamic manual execution includes `MANUAL` and `IMPORT` expenses and excludes `DEBT_PAYMENT` expenses to avoid double counting.
 
 ## Budget Impacts
 
@@ -153,8 +162,7 @@ Rules:
 - Income belongs to one account.
 - Income has one responsible participant.
 - Income amount must be greater than zero.
-- Income can be recurrent or temporary.
-- Temporary income has an end date.
+- Income is currently event-based: each income has a specific `incomeDate`.
 - Income is included in reports and dashboard calculations.
 
 ## Audit
@@ -183,4 +191,4 @@ Mutual debts are outside the MVP.
 - Exact deletion policy: physical delete, soft delete, or state-only archival.
 - Whether manual debts should automatically generate budget impacts.
 - Exact permissions for `ACCOUNT_MEMBER` on update operations.
-
+- Full recurring income templates remain a future phase; current duplication is a UX helper for event-based incomes.

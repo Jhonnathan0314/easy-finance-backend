@@ -163,7 +163,9 @@ Focus areas:
 - Unknown payment method.
 - Preview does not persist financial records.
 - Confirmation persists in one transaction.
-- Installment rows create derived debt and budget impacts.
+- Existing simple-import files remain compatible.
+- Rows marked as debt payments create the imported expense and register the debt payment in one transaction.
+- Debt-payment import rows are rolled back completely if confirmation fails.
 
 Recommended test classes:
 
@@ -213,4 +215,3 @@ Lower priority:
 - Minimum coverage threshold.
 - Whether architecture tests will use ArchUnit.
 - Whether API contract tests are required for frontend integration.
-

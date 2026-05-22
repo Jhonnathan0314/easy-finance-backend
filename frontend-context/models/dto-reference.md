@@ -105,6 +105,8 @@ interface BudgetImpactResponse { id: number; accountId: number; budgetId: number
 interface BudgetDetailResponse { budget: BudgetResponse; subBudgets: SubBudgetResponse[]; impacts: BudgetImpactResponse[]; }
 ```
 
+Budget note: manual sub-budget `spentAmount` is a read-time calculation from active simple expenses in the same month/category with `sourceType = "MANUAL" | "IMPORT"`. `sourceType = "DEBT_PAYMENT"` is excluded to avoid double counting debt payments. Debt-derived sub-budgets use budget impacts.
+
 ## Income
 
 ```ts
@@ -131,6 +133,8 @@ interface BudgetSummaryResponse { accountId: number; year: number; month: number
 ```
 
 Analytics cashflow represents real money only: active incomes, active simple expenses with `paymentState = "PAID"`, and active debt payments for non-cancelled debts. Expenses with `sourceType = "DEBT_PAYMENT"` are excluded from simple cashflow outflow because the debt payment already counts the real cash movement. Conceptual expense analytics can include full `INSTALLMENT` purchase amounts and debt-payment associated expenses, and should not be displayed as cash outflow.
+
+Budget summary combines manual planned amounts, dynamic manual expense execution, and debt impact expected/paid amounts.
 
 ## Expense Imports
 

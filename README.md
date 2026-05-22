@@ -566,7 +566,10 @@ Budget rules:
 - Automatic monthly budget creation uses PostgreSQL upsert on `(accountId, year, month)` to tolerate concurrent installment debt creation.
 - Debt-derived sub-budgets use `sourceType = DEBT_DERIVED`, carry the associated `debtId`, are unique by account/budget/debt, and cannot be edited from manual endpoints.
 - Budget impacts are account-scoped and unique per debt and period.
-- Manual sub-budgets start with `spentAmount = 0`.
+- Manual sub-budgets start with persisted `spentAmount = 0`; budget detail calculates response `spentAmount` dynamically from active `SIMPLE` expenses in the same budget month and category.
+- Dynamic manual execution includes expenses with `sourceType = MANUAL` or `IMPORT` and excludes `sourceType = DEBT_PAYMENT` to avoid double counting debt payments.
+- If more than one active manual sub-budget uses the same category, the dynamic category spent amount is distributed proportionally by planned amount in the budget detail response.
+- Debt-derived sub-budgets continue to use debt budget impacts and debt payments for execution.
 - Category on manual sub-budget is optional; when provided, it must belong to the account, be `ACTIVE`, and have type `EXPENSE`.
 - Budget listing supports safe sort values `year`, `month`, `status`, and `createdAt` with `asc` or `desc`.
 
@@ -639,8 +642,9 @@ Income rules:
 - PostgreSQL enforces that the category and participant referenced by an income belong to the same `accountId`.
 - Cancelling is a soft operation: status becomes `CANCELLED`.
 - Duplicating creates a new `ACTIVE` income with a new id and audit metadata; cancelled incomes cannot be duplicated.
-- Listing defaults to `ACTIVE` incomes and supports filters `from`, `to`, `categoryId`, `participantId`, `status`, `page`, `size`, and safe `sort` values `incomeDate`, `amount`, `createdAt`, and `updatedAt`.
-- Incomes are available for upcoming dashboard/reporting phases, but no dashboard or advanced reports are implemented yet.
+- Listing defaults to `ACTIVE` incomes and supports filters `from`, `to`, `categoryId`, `participantId`, `status`, `search`, `page`, `size`, and safe `sort` values `incomeDate`, `amount`, `createdAt`, and `updatedAt`.
+- `search` is optional, trimmed, ignored when blank, case-insensitive, and currently matches income `description`.
+- Incomes feed monthly summary, cashflow, and incomes-by-category analytics.
 
 Main income error codes include `INCOME_NOT_FOUND`, `INCOME_ALREADY_CANCELLED`, `INCOME_NOT_ACTIVE`, `INCOME_AMOUNT_INVALID`, `INCOME_DATE_INVALID`, `INCOME_UPDATE_NOT_ALLOWED`, `INCOME_CANCEL_NOT_ALLOWED`, `INCOME_DUPLICATE_NOT_ALLOWED`, `INCOME_CATEGORY_NOT_FOUND`, `INCOME_CATEGORY_INACTIVE`, and `INCOME_CATEGORY_INVALID_TYPE`.
 
@@ -735,7 +739,8 @@ Analytics definitions:
 - `totalDebtRemaining`: remaining balance of active debts.
 - `totalDebtPaidInMonth`: active debt payments in the requested month.
 - Debt financial totals exclude `CANCELLED` debts, but cancelled debts are still counted separately.
-- Budget expected/paid/pending use active or paid budget impacts in the requested period.
+- `budget-summary` expected/paid/pending combines active manual sub-budgets with dynamic manual execution from expenses and active/paid debt budget impacts.
+- Manual budget execution includes active `SIMPLE` expenses in the month with `sourceType = MANUAL` or `IMPORT`; `DEBT_PAYMENT` expenses are excluded because debt payment impacts already represent that execution.
 - `budget-vs-expenses-by-category` compares monthly active manual sub-budgets with active conceptual expenses by category. It excludes sub-budgets without category and debt-derived sub-budgets. `executionPercentage` is `null` when there is spending without a planned budget for that category.
 - Category and payment-method breakdowns default to active movements, group by account-scoped catalog records, and sort by amount descending.
 
