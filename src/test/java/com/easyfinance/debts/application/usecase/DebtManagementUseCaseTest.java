@@ -11,6 +11,7 @@ import com.easyfinance.accounts.domain.model.AccountStatus;
 import com.easyfinance.budgets.application.port.in.BudgetDebtImpactPort;
 import com.easyfinance.debts.application.command.CreateInstallmentExpenseDebtCommand;
 import com.easyfinance.debts.application.command.CreateManualDebtCommand;
+import com.easyfinance.debts.application.port.out.DebtPaymentRepositoryPort;
 import com.easyfinance.debts.application.port.out.ExpenseOriginValidationPort;
 import com.easyfinance.debts.application.port.out.DebtRepositoryPort;
 import com.easyfinance.debts.domain.model.Debt;
@@ -36,6 +37,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -47,8 +49,9 @@ class DebtManagementUseCaseTest {
     private final ExpenseOriginValidationPort expenseOriginValidationPort = mock(ExpenseOriginValidationPort.class);
     private final BudgetDebtImpactPort budgetDebtImpactPort = mock(BudgetDebtImpactPort.class);
     private final DebtRepositoryPort debtRepository = mock(DebtRepositoryPort.class);
+    private final DebtPaymentRepositoryPort debtPaymentRepository = mock(DebtPaymentRepositoryPort.class);
     private final AccountAuthorizationService authorizationService = new AccountAuthorizationService(accountRepository, accountParticipantRepository);
-    private final DebtManagementUseCase useCase = new DebtManagementUseCase(currentUserProvider, authorizationService, expenseOriginValidationPort, budgetDebtImpactPort, debtRepository);
+    private final DebtManagementUseCase useCase = new DebtManagementUseCase(currentUserProvider, authorizationService, expenseOriginValidationPort, budgetDebtImpactPort, debtRepository, debtPaymentRepository);
 
     @BeforeEach
     void setUp() {
@@ -156,12 +159,82 @@ class DebtManagementUseCaseTest {
     }
 
     @Test
-    void cancelDerivedDebtIsBlockedInThisPhase() {
+    void cancelDerivedDebtWithoutActivePaymentsCancelsDebtOriginExpenseAndImpacts() {
         givenAdminAccess(AccountStatus.ACTIVE, 10L);
         when(debtRepository.findByAccountIdAndId(1L, 5L)).thenReturn(Optional.of(derivedDebt(5L, 20L)));
+        when(debtPaymentRepository.existsActiveByAccountIdAndDebtId(1L, 5L)).thenReturn(false);
+        when(debtRepository.save(any(Debt.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        useCase.cancelDebt(1L, 5L);
+        verify(expenseOriginValidationPort).cancelInstallmentOrigin(1L, 99L);
+        verify(budgetDebtImpactPort).cancelActiveImpactsForDebt(1L, 5L);
+    }
+
+    @Test
+    void cancelDerivedDebtWithActivePaymentsFails() {
+        givenAdminAccess(AccountStatus.ACTIVE, 10L);
+        when(debtRepository.findByAccountIdAndId(1L, 5L)).thenReturn(Optional.of(derivedDebt(5L, 20L)));
+        when(debtPaymentRepository.existsActiveByAccountIdAndDebtId(1L, 5L)).thenReturn(true);
 
         assertThatThrownBy(() -> useCase.cancelDebt(1L, 5L))
-                .isInstanceOfSatisfying(ForbiddenOperationException.class, ex -> assertThat(ex.code()).isEqualTo("DEBT_CANCEL_NOT_ALLOWED"));
+                .isInstanceOfSatisfying(BusinessRuleViolationException.class, ex -> assertThat(ex.code()).isEqualTo("DERIVED_DEBT_HAS_PAYMENTS"));
+        verify(expenseOriginValidationPort, never()).cancelInstallmentOrigin(any(), any());
+        verify(budgetDebtImpactPort, never()).cancelActiveImpactsForDebt(any(), any());
+        verify(debtRepository, never()).save(any(Debt.class));
+    }
+
+    @Test
+    void cancelDerivedDebtWithCancelledPaymentsOnlyIsAllowed() {
+        givenAdminAccess(AccountStatus.ACTIVE, 10L);
+        when(debtRepository.findByAccountIdAndId(1L, 5L)).thenReturn(Optional.of(derivedDebt(5L, 20L)));
+        when(debtPaymentRepository.existsActiveByAccountIdAndDebtId(1L, 5L)).thenReturn(false);
+        when(debtRepository.save(any(Debt.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        useCase.cancelDebt(1L, 5L);
+        verify(expenseOriginValidationPort).cancelInstallmentOrigin(1L, 99L);
+    }
+
+    @Test
+    void cancelDerivedDebtRollsBackWhenOriginExpenseCancellationFails() {
+        givenAdminAccess(AccountStatus.ACTIVE, 10L);
+        when(debtRepository.findByAccountIdAndId(1L, 5L)).thenReturn(Optional.of(derivedDebt(5L, 20L)));
+        when(debtPaymentRepository.existsActiveByAccountIdAndDebtId(1L, 5L)).thenReturn(false);
+        doThrow(new BusinessRuleViolationException("DEBT_ORIGIN_EXPENSE_NOT_ACTIVE", "Debt origin expense is not active."))
+                .when(expenseOriginValidationPort).cancelInstallmentOrigin(1L, 99L);
+
+        assertThatThrownBy(() -> useCase.cancelDebt(1L, 5L))
+                .isInstanceOfSatisfying(BusinessRuleViolationException.class, ex -> assertThat(ex.code()).isEqualTo("DEBT_ORIGIN_EXPENSE_NOT_ACTIVE"));
+    }
+
+    @Test
+    void cancelDerivedDebtRollsBackWhenBudgetImpactCancellationFails() {
+        givenAdminAccess(AccountStatus.ACTIVE, 10L);
+        when(debtRepository.findByAccountIdAndId(1L, 5L)).thenReturn(Optional.of(derivedDebt(5L, 20L)));
+        when(debtPaymentRepository.existsActiveByAccountIdAndDebtId(1L, 5L)).thenReturn(false);
+        doThrow(new BusinessRuleViolationException("BUDGET_IMPACT_UPDATE_FAILED", "Debt payment could not be fully applied to budget impacts."))
+                .when(budgetDebtImpactPort).cancelActiveImpactsForDebt(1L, 5L);
+
+        assertThatThrownBy(() -> useCase.cancelDebt(1L, 5L))
+                .isInstanceOfSatisfying(BusinessRuleViolationException.class, ex -> assertThat(ex.code()).isEqualTo("BUDGET_IMPACT_UPDATE_FAILED"));
+        verify(debtRepository, never()).save(any(Debt.class));
+    }
+
+    @Test
+    void cancelPaidDebtFailsWithDebtNotActive() {
+        givenAdminAccess(AccountStatus.ACTIVE, 10L);
+        when(debtRepository.findByAccountIdAndId(1L, 5L)).thenReturn(Optional.of(manualDebt(5L, 20L, DebtState.PAID)));
+
+        assertThatThrownBy(() -> useCase.cancelDebt(1L, 5L))
+                .isInstanceOfSatisfying(BusinessRuleViolationException.class, ex -> assertThat(ex.code()).isEqualTo("DEBT_NOT_ACTIVE"));
+    }
+
+    @Test
+    void cancelCancelledDebtFailsWithAlreadyCancelled() {
+        givenAdminAccess(AccountStatus.ACTIVE, 10L);
+        when(debtRepository.findByAccountIdAndId(1L, 5L)).thenReturn(Optional.of(manualDebt(5L, 20L, DebtState.CANCELLED)));
+
+        assertThatThrownBy(() -> useCase.cancelDebt(1L, 5L))
+                .isInstanceOfSatisfying(BusinessRuleViolationException.class, ex -> assertThat(ex.code()).isEqualTo("DEBT_ALREADY_CANCELLED"));
     }
 
     private void givenMemberAccess(AccountStatus accountStatus, Long participantId) {

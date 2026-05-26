@@ -58,6 +58,13 @@ public final class BudgetImpact {
         return new BudgetImpact(id, accountId, budgetId, subBudgetId, debtId, expenseId, periodYear, periodMonth, expectedAmount, newPaidAmount, null, sourceType, createdAt, updatedAt);
     }
 
+    public BudgetImpact cancel() {
+        if (status == BudgetImpactStatus.CANCELLED) {
+            return this;
+        }
+        return new BudgetImpact(id, accountId, budgetId, subBudgetId, debtId, expenseId, periodYear, periodMonth, expectedAmount, paidAmount, BudgetImpactStatus.CANCELLED, sourceType, createdAt, updatedAt);
+    }
+
     public Money unpaidAmount() {
         return Money.cop(expectedAmount.amount().subtract(paidAmount.amount()));
     }

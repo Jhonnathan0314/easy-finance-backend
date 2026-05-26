@@ -377,6 +377,7 @@ public class JpaAnalyticsQueryAdapter implements AnalyticsQueryPort {
                     FROM sub_budgets sb
                     JOIN budget_row b ON b.id = sb.budget_id
                     WHERE sb.account_id = :accountId
+                      AND sb.status = 'ACTIVE'
                 )
                 SELECT
                     b.id AS budget_id,

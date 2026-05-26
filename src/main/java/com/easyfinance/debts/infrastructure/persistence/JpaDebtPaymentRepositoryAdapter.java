@@ -45,6 +45,11 @@ public class JpaDebtPaymentRepositoryAdapter implements DebtPaymentRepositoryPor
     }
 
     @Override
+    public boolean existsActiveByAccountIdAndDebtId(Long accountId, Long debtId) {
+        return repository.existsByAccountIdAndDebtIdAndStatus(accountId, debtId, DebtPaymentStatusJpa.ACTIVE);
+    }
+
+    @Override
     public PageResponse<DebtPayment> findAll(ListDebtPaymentsQuery query) {
         var page = repository.findAll(specification(query), PageRequest.of(query.pageQuery().page(), query.pageQuery().size(), DebtPaymentSort.from(query.sort())));
         return new PageResponse<>(

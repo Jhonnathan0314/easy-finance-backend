@@ -7,4 +7,6 @@ public interface BudgetDebtImpactPort {
     void createImpactsForInstallmentDebt(CreateDebtBudgetImpactsCommand command);
 
     void applyDebtPaymentToImpacts(ApplyDebtPaymentImpactCommand command);
+
+    void cancelActiveImpactsForDebt(Long accountId, Long debtId);
 }

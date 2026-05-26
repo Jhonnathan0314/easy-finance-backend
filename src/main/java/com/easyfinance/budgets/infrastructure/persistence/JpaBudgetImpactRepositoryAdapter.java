@@ -49,4 +49,15 @@ public class JpaBudgetImpactRepositoryAdapter implements BudgetImpactRepositoryP
     public List<BudgetImpact> findActiveByAccountIdAndDebtIdOrderByPeriod(Long accountId, Long debtId) {
         return repository.findByAccountIdAndDebtIdAndStatusOrderByPeriodYearAscPeriodMonthAscIdAsc(accountId, debtId, BudgetImpactStatusJpa.ACTIVE).stream().map(mapper::toDomain).toList();
     }
+
+    @Override
+    public List<BudgetImpact> findNonCancelledByAccountIdAndDebtIdOrderByPeriod(Long accountId, Long debtId) {
+        return repository.findByAccountIdAndDebtIdAndStatusInOrderByPeriodYearAscPeriodMonthAscIdAsc(
+                        accountId,
+                        debtId,
+                        List.of(BudgetImpactStatusJpa.ACTIVE, BudgetImpactStatusJpa.PAID)
+                ).stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
 }

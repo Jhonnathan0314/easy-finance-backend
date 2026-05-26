@@ -13,4 +13,7 @@ public interface SpringDataBudgetImpactRepository extends JpaRepository<BudgetIm
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     List<BudgetImpactJpaEntity> findByAccountIdAndDebtIdAndStatusOrderByPeriodYearAscPeriodMonthAscIdAsc(Long accountId, Long debtId, BudgetImpactStatusJpa status);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    List<BudgetImpactJpaEntity> findByAccountIdAndDebtIdAndStatusInOrderByPeriodYearAscPeriodMonthAscIdAsc(Long accountId, Long debtId, List<BudgetImpactStatusJpa> statuses);
 }

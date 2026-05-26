@@ -426,6 +426,10 @@ class DebtPaymentTransactionIT {
                 throw new IllegalStateException("Forced budget impact update failure.");
             }
         }
+
+        @Override
+        public void cancelActiveImpactsForDebt(Long accountId, Long debtId) {
+        }
     }
 
     static class TestCurrentUserProvider implements CurrentUserProvider {

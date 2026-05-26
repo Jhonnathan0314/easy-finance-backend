@@ -234,6 +234,19 @@ public class BudgetManagementUseCase implements
         }
     }
 
+    @Override
+    @Transactional
+    public void cancelActiveImpactsForDebt(Long accountId, Long debtId) {
+        List<BudgetImpact> impacts = impactRepository.findNonCancelledByAccountIdAndDebtIdOrderByPeriod(accountId, debtId);
+        for (BudgetImpact impact : impacts) {
+            impactRepository.save(impact.cancel());
+        }
+        List<SubBudget> derivedSubBudgets = subBudgetRepository.findDebtDerivedActiveByAccountIdAndDebtId(accountId, debtId);
+        for (SubBudget subBudget : derivedSubBudgets) {
+            subBudgetRepository.save(subBudget.deactivateDebtDerived());
+        }
+    }
+
     private Budget getOrCreateBudget(Long accountId, Integer year, Integer month) {
         return budgetRepository.getOrCreateMonthlyBudget(accountId, year, month, "Budget " + year + "-" + String.format("%02d", month));
     }

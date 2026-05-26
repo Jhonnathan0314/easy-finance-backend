@@ -12,5 +12,7 @@ public interface SubBudgetRepositoryPort {
 
     Optional<SubBudget> findDebtDerivedByAccountIdAndBudgetIdAndDebtId(Long accountId, Long budgetId, Long debtId);
 
+    List<SubBudget> findDebtDerivedActiveByAccountIdAndDebtId(Long accountId, Long debtId);
+
     List<SubBudget> findByAccountIdAndBudgetId(Long accountId, Long budgetId);
 }

@@ -354,6 +354,35 @@ class BudgetManagementUseCaseTest {
         verify(impactRepository).save(org.mockito.ArgumentMatchers.argThat(impact -> impact.id().equals(2L) && impact.paidAmount().amount().compareTo(new BigDecimal("50000.00")) == 0));
     }
 
+    @Test
+    void cancelDebtBudgetArtifactsCancelsAllNonCancelledImpactsAndDeactivatesDerivedSubBudgets() {
+        BudgetImpact activeImpact = BudgetImpact.restore(1L, 1L, 10L, 20L, 5L, 9L, 2026, 5, Money.cop(new BigDecimal("100000")), Money.zeroCop(), BudgetImpactStatus.ACTIVE, com.easyfinance.budgets.domain.model.BudgetImpactSourceType.DEBT_INSTALLMENT, Instant.now(), Instant.now());
+        BudgetImpact paidImpact = BudgetImpact.restore(2L, 1L, 11L, 21L, 5L, 9L, 2026, 6, Money.cop(new BigDecimal("100000")), Money.cop(new BigDecimal("100000")), BudgetImpactStatus.PAID, com.easyfinance.budgets.domain.model.BudgetImpactSourceType.DEBT_INSTALLMENT, Instant.now(), Instant.now());
+        SubBudget derivedOne = SubBudget.restore(100L, 1L, 10L, 7L, 5L, "Debt: Laptop", Money.cop(new BigDecimal("100000")), Money.zeroCop(), SubBudgetStatus.ACTIVE, SubBudgetSourceType.DEBT_DERIVED, Instant.now(), Instant.now());
+        SubBudget derivedTwo = SubBudget.restore(101L, 1L, 11L, 7L, 5L, "Debt: Laptop", Money.cop(new BigDecimal("100000")), Money.zeroCop(), SubBudgetStatus.ACTIVE, SubBudgetSourceType.DEBT_DERIVED, Instant.now(), Instant.now());
+        when(impactRepository.findNonCancelledByAccountIdAndDebtIdOrderByPeriod(1L, 5L)).thenReturn(List.of(activeImpact, paidImpact));
+        when(subBudgetRepository.findDebtDerivedActiveByAccountIdAndDebtId(1L, 5L)).thenReturn(List.of(derivedOne, derivedTwo));
+        when(impactRepository.save(any(BudgetImpact.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(subBudgetRepository.save(any(SubBudget.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        useCase.cancelActiveImpactsForDebt(1L, 5L);
+
+        verify(impactRepository, times(2)).save(org.mockito.ArgumentMatchers.argThat(impact -> impact.status() == BudgetImpactStatus.CANCELLED));
+        verify(subBudgetRepository, times(2)).save(org.mockito.ArgumentMatchers.argThat(subBudget ->
+                subBudget.sourceType() == SubBudgetSourceType.DEBT_DERIVED && subBudget.status() == SubBudgetStatus.INACTIVE));
+    }
+
+    @Test
+    void cancelDebtBudgetArtifactsDoesNotAffectManualSubBudgetsOrOtherDebt() {
+        when(impactRepository.findNonCancelledByAccountIdAndDebtIdOrderByPeriod(1L, 5L)).thenReturn(List.of());
+        when(subBudgetRepository.findDebtDerivedActiveByAccountIdAndDebtId(1L, 5L)).thenReturn(List.of());
+
+        useCase.cancelActiveImpactsForDebt(1L, 5L);
+
+        verify(impactRepository, times(0)).save(any(BudgetImpact.class));
+        verify(subBudgetRepository, times(0)).save(any(SubBudget.class));
+    }
+
     private void givenAccess(AccountParticipantRole role, AccountStatus accountStatus) {
         when(accountRepository.findById(1L)).thenReturn(Optional.of(Account.restore(1L, "Account", null, accountStatus, Instant.now(), Instant.now())));
         when(accountParticipantRepository.findByAccountIdAndParticipantId(1L, 10L))

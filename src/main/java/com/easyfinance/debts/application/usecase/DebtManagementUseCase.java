@@ -12,6 +12,7 @@ import com.easyfinance.debts.application.port.in.CreateInstallmentExpenseDebtPor
 import com.easyfinance.debts.application.port.in.CreateManualDebtPort;
 import com.easyfinance.debts.application.port.in.GetDebtPort;
 import com.easyfinance.debts.application.port.in.ListDebtsPort;
+import com.easyfinance.debts.application.port.out.DebtPaymentRepositoryPort;
 import com.easyfinance.debts.application.port.out.DebtRepositoryPort;
 import com.easyfinance.debts.application.port.out.ExpenseOriginValidationPort;
 import com.easyfinance.debts.application.query.ListDebtsQuery;
@@ -20,6 +21,7 @@ import com.easyfinance.debts.application.response.PageResponse;
 import com.easyfinance.debts.domain.model.Debt;
 import com.easyfinance.debts.domain.model.DebtSourceType;
 import com.easyfinance.shared.application.CurrentUser;
+import com.easyfinance.shared.domain.BusinessRuleViolationException;
 import com.easyfinance.shared.application.CurrentUserProvider;
 import com.easyfinance.shared.domain.ForbiddenOperationException;
 import com.easyfinance.shared.domain.NotFoundException;
@@ -40,19 +42,22 @@ public class DebtManagementUseCase implements
     private final ExpenseOriginValidationPort expenseOriginValidationPort;
     private final BudgetDebtImpactPort budgetDebtImpactPort;
     private final DebtRepositoryPort debtRepository;
+    private final DebtPaymentRepositoryPort debtPaymentRepository;
 
     public DebtManagementUseCase(
             CurrentUserProvider currentUserProvider,
             AccountAuthorizationService accountAuthorizationService,
             ExpenseOriginValidationPort expenseOriginValidationPort,
             BudgetDebtImpactPort budgetDebtImpactPort,
-            DebtRepositoryPort debtRepository
+            DebtRepositoryPort debtRepository,
+            DebtPaymentRepositoryPort debtPaymentRepository
     ) {
         this.currentUserProvider = currentUserProvider;
         this.accountAuthorizationService = accountAuthorizationService;
         this.expenseOriginValidationPort = expenseOriginValidationPort;
         this.budgetDebtImpactPort = budgetDebtImpactPort;
         this.debtRepository = debtRepository;
+        this.debtPaymentRepository = debtPaymentRepository;
     }
 
     @Override
@@ -134,10 +139,23 @@ public class DebtManagementUseCase implements
         AccountAccess access = accountAuthorizationService.requireActiveMemberForActiveAccount(accountId, currentUser.participantId());
         Debt debt = findDebt(accountId, debtId);
         debt.ensureActive();
-        if (debt.sourceType() == DebtSourceType.INSTALLMENT_EXPENSE) {
-            throw new ForbiddenOperationException("DEBT_CANCEL_NOT_ALLOWED", "Installment expense debt cancellation is not available in this phase.");
-        }
         ensureCanCancel(debt, access, currentUser.participantId());
+        if (debt.sourceType() == DebtSourceType.INSTALLMENT_EXPENSE) {
+            cancelDerivedDebt(accountId, debt);
+            return;
+        }
+        debtRepository.save(debt.cancel());
+    }
+
+    private void cancelDerivedDebt(Long accountId, Debt debt) {
+        if (debt.originExpenseId() == null) {
+            throw new BusinessRuleViolationException("DEBT_CANCEL_NOT_ALLOWED", "Installment expense debt requires origin expense.");
+        }
+        if (debtPaymentRepository.existsActiveByAccountIdAndDebtId(accountId, debt.id())) {
+            throw new BusinessRuleViolationException("DERIVED_DEBT_HAS_PAYMENTS", "Derived debt with active payments cannot be cancelled.");
+        }
+        expenseOriginValidationPort.cancelInstallmentOrigin(accountId, debt.originExpenseId());
+        budgetDebtImpactPort.cancelActiveImpactsForDebt(accountId, debt.id());
         debtRepository.save(debt.cancel());
     }
 

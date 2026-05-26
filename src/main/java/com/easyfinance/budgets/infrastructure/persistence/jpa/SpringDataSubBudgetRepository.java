@@ -10,5 +10,12 @@ public interface SpringDataSubBudgetRepository extends JpaRepository<SubBudgetJp
 
     Optional<SubBudgetJpaEntity> findByAccountIdAndBudgetIdAndSourceTypeAndDebtId(Long accountId, Long budgetId, SubBudgetSourceTypeJpa sourceType, Long debtId);
 
+    List<SubBudgetJpaEntity> findByAccountIdAndDebtIdAndSourceTypeAndStatusOrderByBudgetIdAscIdAsc(
+            Long accountId,
+            Long debtId,
+            SubBudgetSourceTypeJpa sourceType,
+            SubBudgetStatusJpa status
+    );
+
     List<SubBudgetJpaEntity> findByAccountIdAndBudgetIdOrderByIdAsc(Long accountId, Long budgetId);
 }

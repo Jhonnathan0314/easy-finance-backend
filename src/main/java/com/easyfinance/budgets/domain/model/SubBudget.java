@@ -58,6 +58,13 @@ public final class SubBudget {
         return new SubBudget(id, accountId, budgetId, categoryId, debtId, name, plannedAmount, spentAmount, SubBudgetStatus.INACTIVE, sourceType, createdAt, updatedAt);
     }
 
+    public SubBudget deactivateDebtDerived() {
+        if (sourceType != SubBudgetSourceType.DEBT_DERIVED) {
+            throw new BusinessRuleViolationException("SUB_BUDGET_SOURCE_NOT_EDITABLE", "Only debt-derived sub-budgets can be deactivated from this operation.");
+        }
+        return new SubBudget(id, accountId, budgetId, categoryId, debtId, name, plannedAmount, spentAmount, SubBudgetStatus.INACTIVE, sourceType, createdAt, updatedAt);
+    }
+
     public void ensureManualEditable() {
         if (sourceType != SubBudgetSourceType.MANUAL) {
             throw new BusinessRuleViolationException("SUB_BUDGET_SOURCE_NOT_EDITABLE", "Only manual sub-budgets can be edited from this endpoint.");

@@ -13,4 +13,6 @@ public interface BudgetImpactRepositoryPort {
     List<BudgetImpact> findByAccountIdAndBudgetId(Long accountId, Long budgetId);
 
     List<BudgetImpact> findActiveByAccountIdAndDebtIdOrderByPeriod(Long accountId, Long debtId);
+
+    List<BudgetImpact> findNonCancelledByAccountIdAndDebtIdOrderByPeriod(Long accountId, Long debtId);
 }

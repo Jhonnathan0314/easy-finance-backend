@@ -114,6 +114,10 @@ class InstallmentExpenseBudgetTransactionIT {
                 @Override
                 public void applyDebtPaymentToImpacts(ApplyDebtPaymentImpactCommand command) {
                 }
+
+                @Override
+                public void cancelActiveImpactsForDebt(Long accountId, Long debtId) {
+                }
             };
         }
 

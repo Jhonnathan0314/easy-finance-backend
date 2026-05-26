@@ -12,5 +12,7 @@ public interface DebtPaymentRepositoryPort {
 
     Optional<DebtPayment> findByAccountIdAndDebtIdAndId(Long accountId, Long debtId, Long paymentId);
 
+    boolean existsActiveByAccountIdAndDebtId(Long accountId, Long debtId);
+
     PageResponse<DebtPayment> findAll(ListDebtPaymentsQuery query);
 }
