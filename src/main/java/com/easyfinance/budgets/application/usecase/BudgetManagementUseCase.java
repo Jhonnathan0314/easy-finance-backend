@@ -244,7 +244,7 @@ public class BudgetManagementUseCase implements
         }
         BigDecimal expectedTotal = command.installmentAmount().amount().multiply(BigDecimal.valueOf(command.installmentCount()));
         if (expectedTotal.compareTo(command.totalAmount().amount()) != 0) {
-            throw new BusinessRuleViolationException("BUDGET_IMPACT_CREATION_FAILED", "Installment amount multiplied by installment count must match total amount.");
+            throw new BusinessRuleViolationException("BUDGET_IMPACT_CREATION_FAILED", "Installment amount multiplied by installment count must match financed debt total amount.");
         }
     }
 

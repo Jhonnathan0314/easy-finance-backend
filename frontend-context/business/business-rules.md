@@ -60,7 +60,9 @@
 - Budgets are monthly per account: unique `(accountId, year, month)`.
 - Budget impacts are generated from derived installment debts.
 - One impact is created per installment period.
-- `installmentAmount * installmentCount` must equal `totalAmount`.
+- For installment expenses, the original expense `totalAmount` may be lower than the financed debt total.
+- Budget impacts must total the financed debt amount: `installmentAmount * installmentCount`.
+- `installmentAmount * installmentCount` cannot be lower than the original expense `totalAmount`.
 - Debt payments are applied chronologically to unpaid impacts.
 - Full impact payment marks impact `PAID`; partial payment keeps it `ACTIVE`.
 - Manual sub-budgets can be edited; derived sub-budgets cannot.

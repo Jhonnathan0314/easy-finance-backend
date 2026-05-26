@@ -18,6 +18,7 @@ public final class Debt {
     private final String name;
     private final String description;
     private final Money totalAmount;
+    private final Money scheduledTotalAmount;
     private final Money remainingBalance;
     private final Integer installmentCount;
     private final Money installmentAmount;
@@ -37,6 +38,7 @@ public final class Debt {
             String name,
             String description,
             Money totalAmount,
+            Money scheduledTotalAmount,
             Money remainingBalance,
             Integer installmentCount,
             Money installmentAmount,
@@ -55,6 +57,7 @@ public final class Debt {
         this.name = DebtText.normalizeName(name);
         this.description = DebtText.normalizeDescription(description);
         this.totalAmount = requirePositiveAmount(totalAmount, "DEBT_AMOUNT_INVALID", "Debt total amount must be greater than zero in COP.");
+        this.scheduledTotalAmount = requireScheduledTotalAmount(scheduledTotalAmount, this.totalAmount);
         this.remainingBalance = requireRemainingBalance(remainingBalance, this.totalAmount);
         this.installmentCount = validateInstallmentCount(installmentCount, sourceType);
         this.installmentAmount = validateInstallmentAmount(installmentAmount, sourceType);
@@ -80,7 +83,8 @@ public final class Debt {
             String notes
     ) {
         LocalDate endDate = installmentCount == null ? dueDate : calculateEndDate(startDate, installmentCount);
-        return new Debt(null, accountId, participantId, null, DebtSourceType.MANUAL, name, description, totalAmount, totalAmount, installmentCount, installmentAmount, startDate, endDate, DebtState.ACTIVE, notes, null, null);
+        Money scheduledTotal = scheduledTotalAmount(totalAmount, installmentCount, installmentAmount);
+        return new Debt(null, accountId, participantId, null, DebtSourceType.MANUAL, name, description, totalAmount, scheduledTotal, totalAmount, installmentCount, installmentAmount, startDate, endDate, DebtState.ACTIVE, notes, null, null);
     }
 
     public static Debt createFromInstallmentExpense(
@@ -89,14 +93,15 @@ public final class Debt {
             Long originExpenseId,
             String name,
             String description,
-            Money totalAmount,
+            Money principalAmount,
             Integer installmentCount,
             Money installmentAmount,
             LocalDate firstInstallmentDate,
             String notes
     ) {
         LocalDate endDate = calculateEndDate(firstInstallmentDate, installmentCount);
-        return new Debt(null, accountId, participantId, originExpenseId, DebtSourceType.INSTALLMENT_EXPENSE, name, description, totalAmount, totalAmount, installmentCount, installmentAmount, firstInstallmentDate, endDate, DebtState.ACTIVE, notes, null, null);
+        Money scheduledTotal = financedTotal(installmentAmount, installmentCount, principalAmount);
+        return new Debt(null, accountId, participantId, originExpenseId, DebtSourceType.INSTALLMENT_EXPENSE, name, description, principalAmount, scheduledTotal, principalAmount, installmentCount, installmentAmount, firstInstallmentDate, endDate, DebtState.ACTIVE, notes, null, null);
     }
 
     public static Debt restore(
@@ -108,6 +113,7 @@ public final class Debt {
             String name,
             String description,
             Money totalAmount,
+            Money scheduledTotalAmount,
             Money remainingBalance,
             Integer installmentCount,
             Money installmentAmount,
@@ -118,12 +124,12 @@ public final class Debt {
             Instant createdAt,
             Instant updatedAt
     ) {
-        return new Debt(id, accountId, participantId, originExpenseId, sourceType, name, description, totalAmount, remainingBalance, installmentCount, installmentAmount, startDate, endDate, state, notes, createdAt, updatedAt);
+        return new Debt(id, accountId, participantId, originExpenseId, sourceType, name, description, totalAmount, scheduledTotalAmount, remainingBalance, installmentCount, installmentAmount, startDate, endDate, state, notes, createdAt, updatedAt);
     }
 
     public Debt cancel() {
         ensureActive();
-        return new Debt(id, accountId, participantId, originExpenseId, sourceType, name, description, totalAmount, remainingBalance, installmentCount, installmentAmount, startDate, endDate, DebtState.CANCELLED, notes, createdAt, updatedAt);
+        return new Debt(id, accountId, participantId, originExpenseId, sourceType, name, description, totalAmount, scheduledTotalAmount, remainingBalance, installmentCount, installmentAmount, startDate, endDate, DebtState.CANCELLED, notes, createdAt, updatedAt);
     }
 
     public Debt applyPayment(Money paymentAmount) {
@@ -135,7 +141,7 @@ public final class Debt {
         BigDecimal newRemainingAmount = remainingBalance.amount().subtract(resolvedPaymentAmount.amount());
         Money newRemainingBalance = Money.cop(newRemainingAmount);
         DebtState newState = newRemainingAmount.signum() == 0 ? DebtState.PAID : DebtState.ACTIVE;
-        return new Debt(id, accountId, participantId, originExpenseId, sourceType, name, description, totalAmount, newRemainingBalance, installmentCount, installmentAmount, startDate, endDate, newState, notes, createdAt, updatedAt);
+        return new Debt(id, accountId, participantId, originExpenseId, sourceType, name, description, totalAmount, scheduledTotalAmount, newRemainingBalance, installmentCount, installmentAmount, startDate, endDate, newState, notes, createdAt, updatedAt);
     }
 
     public void ensureActive() {
@@ -173,6 +179,7 @@ public final class Debt {
     public String name() { return name; }
     public String description() { return description; }
     public Money totalAmount() { return totalAmount; }
+    public Money scheduledTotalAmount() { return scheduledTotalAmount; }
     public Money remainingBalance() { return remainingBalance; }
     public Integer installmentCount() { return installmentCount; }
     public Money installmentAmount() { return installmentAmount; }
@@ -229,6 +236,29 @@ public final class Debt {
             throw new BusinessRuleViolationException("DEBT_AMOUNT_INVALID", "Debt remaining balance is invalid.");
         }
         return resolved;
+    }
+
+    private static Money requireScheduledTotalAmount(Money scheduled, Money total) {
+        Money resolved = scheduled == null ? total : scheduled;
+        if (resolved.currency() != total.currency() || resolved.amount().compareTo(total.amount()) < 0) {
+            throw new BusinessRuleViolationException("DEBT_SCHEDULED_TOTAL_INVALID", "Debt scheduled total amount cannot be lower than debt total amount.");
+        }
+        return resolved;
+    }
+
+    private static Money scheduledTotalAmount(Money totalAmount, Integer installmentCount, Money installmentAmount) {
+        if (installmentCount == null || installmentAmount == null) {
+            return totalAmount;
+        }
+        return financedTotal(installmentAmount, installmentCount, totalAmount);
+    }
+
+    private static Money financedTotal(Money installmentAmount, Integer installmentCount, Money principalAmount) {
+        BigDecimal financedAmount = installmentAmount.amount().multiply(BigDecimal.valueOf(installmentCount));
+        if (financedAmount.compareTo(principalAmount.amount()) < 0) {
+            throw new BusinessRuleViolationException("DEBT_SCHEDULED_TOTAL_INVALID", "Debt scheduled total amount cannot be lower than debt total amount.");
+        }
+        return Money.cop(financedAmount);
     }
 
     private static Integer validateInstallmentCount(Integer value, DebtSourceType sourceType) {

@@ -13,6 +13,7 @@ public record DebtResponseDto(
         String name,
         String description,
         BigDecimal totalAmount,
+        BigDecimal scheduledTotalAmount,
         String totalCurrency,
         BigDecimal remainingAmount,
         String remainingCurrency,

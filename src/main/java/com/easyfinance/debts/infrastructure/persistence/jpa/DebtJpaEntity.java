@@ -43,6 +43,9 @@ public class DebtJpaEntity extends AuditableJpaEntity {
     @Column(name = "total_amount", nullable = false, precision = 19, scale = 2)
     private BigDecimal totalAmount;
 
+    @Column(name = "scheduled_total_amount", nullable = false, precision = 19, scale = 2)
+    private BigDecimal scheduledTotalAmount;
+
     @Column(name = "total_currency", nullable = false, length = 3)
     private String totalCurrency;
 
@@ -90,6 +93,8 @@ public class DebtJpaEntity extends AuditableJpaEntity {
     public void setDescription(String description) { this.description = description; }
     public BigDecimal getTotalAmount() { return totalAmount; }
     public void setTotalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount; }
+    public BigDecimal getScheduledTotalAmount() { return scheduledTotalAmount; }
+    public void setScheduledTotalAmount(BigDecimal scheduledTotalAmount) { this.scheduledTotalAmount = scheduledTotalAmount; }
     public String getTotalCurrency() { return totalCurrency; }
     public void setTotalCurrency(String totalCurrency) { this.totalCurrency = totalCurrency; }
     public BigDecimal getRemainingAmount() { return remainingAmount; }

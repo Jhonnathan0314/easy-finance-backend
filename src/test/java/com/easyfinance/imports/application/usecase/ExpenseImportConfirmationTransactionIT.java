@@ -337,14 +337,15 @@ class ExpenseImportConfirmationTransactionIT {
         Long debtId = jdbcTemplate.queryForObject(
                 """
                 INSERT INTO debts
-                (account_id, participant_id, source_type, name, total_amount, total_currency, remaining_amount, remaining_currency, start_date, state)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
+                (account_id, participant_id, source_type, name, total_amount, scheduled_total_amount, total_currency, remaining_amount, remaining_currency, start_date, state)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
                 """,
                 Long.class,
                 accountId,
                 participantId,
                 "MANUAL",
                 "Import Debt",
+                new BigDecimal("500.00"),
                 new BigDecimal("500.00"),
                 "COP",
                 remainingAmount,

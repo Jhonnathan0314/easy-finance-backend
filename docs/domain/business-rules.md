@@ -86,6 +86,10 @@ Rules:
 - The user does not manually create the derived debt.
 - Expense and derived debt must be created in the same transaction.
 - If debt creation fails, the expense must not be persisted.
+- `totalAmount` is the original purchase or advance amount.
+- `installmentAmount * installmentCount` is the financed debt total to pay.
+- The financed debt total can be equal to or greater than `totalAmount`; a greater value represents implicit interest, insurance, or financing costs.
+- The financed debt total cannot be lower than `totalAmount`.
 - Installment expense must include:
   - total amount
   - number of installments
@@ -105,7 +109,11 @@ Rules:
 - Installment amount must be greater than zero.
 - Interests are not calculated by the system.
 - Interest or financing costs are assumed to be included in the installment amount.
-- `remainingBalance` is initialized with the debt total amount.
+- Debt response exposes:
+  - `totalAmount`: principal/original debt amount.
+  - `scheduledTotalAmount`: total programmed to pay (can include implicit financing costs).
+  - `remainingBalance`: pending principal.
+- `remainingBalance` is initialized with `totalAmount` (principal).
 - Debt end date is calculated by adding calendar months to the start date according to the installment count.
 - Debt states:
   - `ACTIVE`

@@ -191,6 +191,62 @@ class DebtPaymentManagementUseCaseTest {
     }
 
     @Test
+    void capitalPaymentCanExceedInstallmentAmountWhenWithinFinancedRemainingBalance() {
+        givenMemberAccess(AccountStatus.ACTIVE, 10L);
+        Debt derivedDebt = derivedDebt(
+                Money.cop(new BigDecimal("1200000")),
+                Money.cop(new BigDecimal("1200000")),
+                Money.cop(new BigDecimal("100000")),
+                DebtState.ACTIVE
+        );
+        when(debtRepository.findByAccountIdAndIdForUpdate(1L, 5L)).thenReturn(Optional.of(derivedDebt));
+        when(paymentRepository.save(any(DebtPayment.class))).thenAnswer(invocation -> persistedPayment(invocation.getArgument(0)));
+        when(debtRepository.save(any(Debt.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        RegisterDebtPaymentCommand capitalCommand = new RegisterDebtPaymentCommand(
+                1L,
+                5L,
+                DebtPaymentType.CAPITAL_PAYMENT,
+                Money.cop(new BigDecimal("300000")),
+                LocalDate.of(2026, 5, 11),
+                "Capital prepayment"
+        );
+
+        var response = useCase.registerDebtPayment(capitalCommand);
+
+        assertThat(response.payment().paymentType()).isEqualTo("CAPITAL_PAYMENT");
+        assertThat(response.debt().remainingAmount()).isEqualByComparingTo("900000.00");
+        assertThat(response.debt().state()).isEqualTo("ACTIVE");
+        verify(budgetDebtImpactPort).applyDebtPaymentToImpacts(any());
+    }
+
+    @Test
+    void capitalPaymentOverFinancedRemainingBalanceFails() {
+        givenMemberAccess(AccountStatus.ACTIVE, 10L);
+        Debt derivedDebt = derivedDebt(
+                Money.cop(new BigDecimal("1200000")),
+                Money.cop(new BigDecimal("900000")),
+                Money.cop(new BigDecimal("100000")),
+                DebtState.ACTIVE
+        );
+        when(debtRepository.findByAccountIdAndIdForUpdate(1L, 5L)).thenReturn(Optional.of(derivedDebt));
+
+        RegisterDebtPaymentCommand capitalCommand = new RegisterDebtPaymentCommand(
+                1L,
+                5L,
+                DebtPaymentType.CAPITAL_PAYMENT,
+                Money.cop(new BigDecimal("900001")),
+                LocalDate.of(2026, 5, 11),
+                "Capital prepayment"
+        );
+
+        assertThatThrownBy(() -> useCase.registerDebtPayment(capitalCommand))
+                .isInstanceOfSatisfying(BusinessRuleViolationException.class, ex -> assertThat(ex.code()).isEqualTo("DEBT_PAYMENT_EXCEEDS_REMAINING_BALANCE"));
+        verify(paymentRepository, never()).save(any());
+        verify(debtRepository, never()).save(any());
+    }
+
+    @Test
     void paidDebtRejectsPayment() {
         givenMemberAccess(AccountStatus.ACTIVE, 10L);
         when(debtRepository.findByAccountIdAndIdForUpdate(1L, 5L)).thenReturn(Optional.of(debt(Money.zeroCop(), DebtState.PAID)));
@@ -298,7 +354,30 @@ class DebtPaymentManagementUseCaseTest {
     }
 
     private static Debt debt(Money remainingBalance, DebtState state) {
-        return Debt.restore(5L, 1L, 20L, null, DebtSourceType.MANUAL, "Loan", null, Money.cop(new BigDecimal("100000")), remainingBalance, null, null, LocalDate.now(), null, state, null, Instant.now(), Instant.now());
+        return Debt.restore(5L, 1L, 20L, null, DebtSourceType.MANUAL, "Loan", null, Money.cop(new BigDecimal("100000")), Money.cop(new BigDecimal("100000")), remainingBalance, null, null, LocalDate.now(), null, state, null, Instant.now(), Instant.now());
+    }
+
+    private static Debt derivedDebt(Money totalAmount, Money remainingBalance, Money installmentAmount, DebtState state) {
+        return Debt.restore(
+                5L,
+                1L,
+                20L,
+                99L,
+                DebtSourceType.INSTALLMENT_EXPENSE,
+                "Financed purchase",
+                null,
+                totalAmount,
+                totalAmount,
+                remainingBalance,
+                12,
+                installmentAmount,
+                LocalDate.of(2026, 5, 11),
+                LocalDate.of(2027, 5, 11),
+                state,
+                null,
+                Instant.now(),
+                Instant.now()
+        );
     }
 
     private static DebtPayment persistedPayment(DebtPayment payment) {

@@ -55,13 +55,18 @@ Derived debt fields:
 - `accountId`: same account as the expense.
 - `participantId`: same participant unless explicitly changed by future rules.
 - `paymentMethodId`: same payment method as the expense.
-- `totalAmount`: expense total amount.
+- `totalAmount`: principal/original debt amount.
+- `scheduledTotalAmount`: financed total to pay, calculated as `installmentAmount * installments`.
 - `installments`: number of installments.
 - `installmentAmount`: provided installment amount.
-- `remainingBalance`: initialized with total amount.
+- `remainingBalance`: initialized with debt principal amount.
 - `startDate`: provided debt start date.
 - `endDate`: calculated.
 - `state`: `ACTIVE`.
+
+The origin expense keeps the original purchase or advance amount. The financed debt total may be greater
+than the origin expense amount when the installments include interest, insurance, or financing costs. The
+financed debt total cannot be lower than the origin expense amount.
 
 ## End Date Calculation
 
@@ -232,4 +237,3 @@ Mutual debts are outside the MVP and must not participate in this flow.
 
 - Whether `endDate = startDate.plusMonths(installments - 1)` or `startDate.plusMonths(installments)` is preferred by the business wording. This document recommends `installments - 1` because the first installment belongs to the start month.
 - Whether capital payments should reduce future budget impacts automatically.
-- Whether installment amounts must sum exactly to total amount or may exceed total amount due to included financing costs.

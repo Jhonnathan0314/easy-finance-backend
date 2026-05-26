@@ -224,14 +224,15 @@ class DebtPaymentTransactionIT {
         );
         Long debtId = jdbcTemplate.queryForObject(
                 """
-                INSERT INTO debts (account_id, participant_id, source_type, name, total_amount, total_currency, remaining_amount, remaining_currency, start_date, state)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
+                INSERT INTO debts (account_id, participant_id, source_type, name, total_amount, scheduled_total_amount, total_currency, remaining_amount, remaining_currency, start_date, state)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
                 """,
                 Long.class,
                 accountId,
                 participantId,
                 "MANUAL",
                 "Transaction debt " + System.nanoTime(),
+                debtAmount,
                 debtAmount,
                 "COP",
                 debtAmount,
@@ -268,8 +269,8 @@ class DebtPaymentTransactionIT {
         );
         Long debtId = jdbcTemplate.queryForObject(
                 """
-                INSERT INTO debts (account_id, participant_id, origin_expense_id, source_type, name, total_amount, total_currency, remaining_amount, remaining_currency, installment_count, installment_amount, installment_currency, start_date, end_date, state)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
+                INSERT INTO debts (account_id, participant_id, origin_expense_id, source_type, name, total_amount, scheduled_total_amount, total_currency, remaining_amount, remaining_currency, installment_count, installment_amount, installment_currency, start_date, end_date, state)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
                 """,
                 Long.class,
                 accountId,
@@ -277,6 +278,7 @@ class DebtPaymentTransactionIT {
                 expenseId,
                 "INSTALLMENT_EXPENSE",
                 "Laptop",
+                debtAmount,
                 debtAmount,
                 "COP",
                 debtAmount,

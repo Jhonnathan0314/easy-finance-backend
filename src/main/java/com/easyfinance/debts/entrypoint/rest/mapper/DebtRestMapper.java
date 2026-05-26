@@ -42,6 +42,7 @@ public final class DebtRestMapper {
                 response.name(),
                 response.description(),
                 response.totalAmount(),
+                response.scheduledTotalAmount(),
                 response.totalCurrency(),
                 response.remainingAmount(),
                 response.remainingCurrency(),

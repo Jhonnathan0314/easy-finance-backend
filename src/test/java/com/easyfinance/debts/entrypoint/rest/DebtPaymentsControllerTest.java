@@ -92,6 +92,6 @@ class DebtPaymentsControllerTest {
     }
 
     private static DebtResponse debt(String state, BigDecimal remaining) {
-        return new DebtResponse(5L, 1L, 20L, null, "MANUAL", "Loan", null, new BigDecimal("100000"), "COP", remaining, "COP", null, null, null, LocalDate.of(2026, 5, 1), null, state, null, Instant.now(), Instant.now());
+        return new DebtResponse(5L, 1L, 20L, null, "MANUAL", "Loan", null, new BigDecimal("100000"), new BigDecimal("100000"), "COP", remaining, "COP", null, null, null, LocalDate.of(2026, 5, 1), null, state, null, Instant.now(), Instant.now());
     }
 }

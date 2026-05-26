@@ -36,6 +36,7 @@ import com.easyfinance.shared.domain.Money;
 import com.easyfinance.shared.domain.NotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -295,6 +296,25 @@ class BudgetManagementUseCaseTest {
     }
 
     @Test
+    void createsMonthlyImpactsThatTotalFinancedDebtAmount() {
+        when(budgetRepository.getOrCreateMonthlyBudget(any(), any(), any(), any())).thenAnswer(invocation ->
+                persistedBudget(Budget.create(invocation.getArgument(0), invocation.getArgument(1), invocation.getArgument(2), invocation.getArgument(3)), 100L));
+        when(subBudgetRepository.findDebtDerivedByAccountIdAndBudgetIdAndDebtId(any(), any(), any())).thenReturn(Optional.empty());
+        when(subBudgetRepository.save(any(SubBudget.class))).thenAnswer(invocation -> persistedSubBudget(invocation.getArgument(0), 200L));
+        when(impactRepository.findByAccountIdAndDebtIdAndPeriod(any(), any(), any(), any())).thenReturn(Optional.empty());
+        when(impactRepository.save(any(BudgetImpact.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        useCase.createImpactsForInstallmentDebt(new CreateDebtBudgetImpactsCommand(1L, 5L, 9L, 7L, "Advance", Money.cop(new BigDecimal("1200000")), 12, Money.cop(new BigDecimal("100000")), LocalDate.of(2026, 1, 1)));
+
+        ArgumentCaptor<BudgetImpact> impactCaptor = ArgumentCaptor.forClass(BudgetImpact.class);
+        verify(impactRepository, times(12)).save(impactCaptor.capture());
+        BigDecimal impactTotal = impactCaptor.getAllValues().stream()
+                .map(impact -> impact.expectedAmount().amount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        assertThat(impactTotal).isEqualByComparingTo("1200000.00");
+    }
+
+    @Test
     void sameDebtNameCreatesDistinctDerivedSubBudgetsByDebtId() {
         when(budgetRepository.getOrCreateMonthlyBudget(any(), any(), any(), any()))
                 .thenReturn(persistedBudget(Budget.create(1L, 2026, 5, "May"), 100L));
@@ -316,9 +336,9 @@ class BudgetManagementUseCaseTest {
     }
 
     @Test
-    void installmentTotalMismatchFails() {
+    void installmentDebtTotalMismatchFails() {
         assertThatThrownBy(() -> useCase.createImpactsForInstallmentDebt(new CreateDebtBudgetImpactsCommand(1L, 5L, 9L, 7L, "Laptop", Money.cop(new BigDecimal("300001")), 3, Money.cop(new BigDecimal("100000")), LocalDate.of(2026, 1, 1))))
-                .hasMessage("Installment amount multiplied by installment count must match total amount.");
+                .hasMessage("Installment amount multiplied by installment count must match financed debt total amount.");
     }
 
     @Test

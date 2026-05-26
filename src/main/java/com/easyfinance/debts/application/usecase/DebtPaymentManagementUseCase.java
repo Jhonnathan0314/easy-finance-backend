@@ -172,6 +172,7 @@ public class DebtPaymentManagementUseCase implements
                 debt.name(),
                 debt.description(),
                 debt.totalAmount().amount(),
+                debt.scheduledTotalAmount().amount(),
                 debt.totalAmount().currency().name(),
                 debt.remainingBalance().amount(),
                 debt.remainingBalance().currency().name(),

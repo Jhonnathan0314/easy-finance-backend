@@ -18,16 +18,19 @@ class DebtTest {
 
         assertThat(debt.sourceType()).isEqualTo(DebtSourceType.MANUAL);
         assertThat(debt.remainingBalance()).isEqualTo(debt.totalAmount());
+        assertThat(debt.scheduledTotalAmount()).isEqualTo(debt.totalAmount());
         assertThat(debt.endDate()).isNull();
         assertThat(debt.state()).isEqualTo(DebtState.ACTIVE);
     }
 
     @Test
     void createInstallmentDebtCalculatesEndDate() {
-        Debt debt = Debt.createFromInstallmentExpense(1L, 10L, 99L, "Laptop", null, Money.cop(new BigDecimal("1200000")), 6, Money.cop(new BigDecimal("200000")), LocalDate.of(2026, 6, 1), null);
+        Debt debt = Debt.createFromInstallmentExpense(1L, 10L, 99L, "Laptop", null, Money.cop(new BigDecimal("1000000")), 6, Money.cop(new BigDecimal("200000")), LocalDate.of(2026, 6, 1), null);
 
         assertThat(debt.sourceType()).isEqualTo(DebtSourceType.INSTALLMENT_EXPENSE);
         assertThat(debt.endDate()).isEqualTo(LocalDate.of(2026, 12, 1));
+        assertThat(debt.totalAmount().amount()).isEqualByComparingTo("1000000.00");
+        assertThat(debt.scheduledTotalAmount().amount()).isEqualByComparingTo("1200000.00");
     }
 
     @Test
@@ -58,6 +61,22 @@ class DebtTest {
     void rejectInvalidInstallmentCount() {
         assertThatThrownBy(() -> Debt.createFromInstallmentExpense(1L, 10L, 99L, "Laptop", null, Money.cop(new BigDecimal("1200000")), 0, Money.cop(new BigDecimal("200000")), LocalDate.now(), null))
                 .isInstanceOfSatisfying(BusinessRuleViolationException.class, ex -> assertThat(ex.code()).isEqualTo("DEBT_INSTALLMENT_COUNT_INVALID"));
+    }
+
+    @Test
+    void rejectScheduledTotalLowerThanPrincipal() {
+        assertThatThrownBy(() -> Debt.createFromInstallmentExpense(
+                1L,
+                10L,
+                99L,
+                "Laptop",
+                null,
+                Money.cop(new BigDecimal("1200000")),
+                6,
+                Money.cop(new BigDecimal("100000")),
+                LocalDate.now(),
+                null
+        )).isInstanceOfSatisfying(BusinessRuleViolationException.class, ex -> assertThat(ex.code()).isEqualTo("DEBT_SCHEDULED_TOTAL_INVALID"));
     }
 
     @Test

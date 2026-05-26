@@ -81,7 +81,8 @@ Validation:
 - amount fields: required and `>= 0.01`
 - description: required, max 500
 - installment count: min 1
-- installment rule: `installmentAmount * installmentCount == totalAmount`
+- installment rule: `installmentAmount * installmentCount >= totalAmount`
+- `totalAmount` is the original purchase/advance amount; `installmentAmount * installmentCount` is the financed debt total to pay.
 
 ## Debts And Payments
 

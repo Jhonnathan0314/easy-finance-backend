@@ -75,14 +75,15 @@ class DebtsSchemaIT {
 
         assertThatThrownBy(() -> jdbcTemplate.update(
                 """
-                INSERT INTO debts (account_id, participant_id, origin_expense_id, source_type, name, total_amount, total_currency, remaining_amount, remaining_currency, start_date, state)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO debts (account_id, participant_id, origin_expense_id, source_type, name, total_amount, scheduled_total_amount, total_currency, remaining_amount, remaining_currency, start_date, state)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 fixture.accountId(),
                 fixture.participantId(),
                 fixture.expenseId(),
                 "INSTALLMENT_EXPENSE",
                 "Bad debt",
+                1200000,
                 1200000,
                 "COP",
                 1200000,
@@ -142,16 +143,40 @@ class DebtsSchemaIT {
         )).isInstanceOf(DataAccessException.class);
     }
 
+    @Test
+    void scheduledTotalCannotBeLowerThanTotalAmount() {
+        Fixture fixture = createFixture();
+
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                """
+                INSERT INTO debts (account_id, participant_id, source_type, name, total_amount, scheduled_total_amount, total_currency, remaining_amount, remaining_currency, start_date, state)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                fixture.accountId(),
+                fixture.participantId(),
+                "MANUAL",
+                "Invalid scheduled total",
+                100000,
+                90000,
+                "COP",
+                100000,
+                "COP",
+                "2026-05-11",
+                "ACTIVE"
+        )).isInstanceOf(DataAccessException.class);
+    }
+
     private void insertManualDebt(Long accountId, Long participantId) {
         jdbcTemplate.update(
                 """
-                INSERT INTO debts (account_id, participant_id, source_type, name, total_amount, total_currency, remaining_amount, remaining_currency, start_date, state)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO debts (account_id, participant_id, source_type, name, total_amount, scheduled_total_amount, total_currency, remaining_amount, remaining_currency, start_date, state)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 accountId,
                 participantId,
                 "MANUAL",
                 "Manual debt",
+                100000,
                 100000,
                 "COP",
                 100000,
@@ -164,14 +189,15 @@ class DebtsSchemaIT {
     private Long insertManualDebtReturningId(Long accountId, Long participantId) {
         return jdbcTemplate.queryForObject(
                 """
-                INSERT INTO debts (account_id, participant_id, source_type, name, total_amount, total_currency, remaining_amount, remaining_currency, start_date, state)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
+                INSERT INTO debts (account_id, participant_id, source_type, name, total_amount, scheduled_total_amount, total_currency, remaining_amount, remaining_currency, start_date, state)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
                 """,
                 Long.class,
                 accountId,
                 participantId,
                 "MANUAL",
                 "Manual debt",
+                100000,
                 100000,
                 "COP",
                 100000,
@@ -201,14 +227,15 @@ class DebtsSchemaIT {
     private void insertDerivedDebt(Long accountId, Long participantId, Long expenseId) {
         jdbcTemplate.update(
                 """
-                INSERT INTO debts (account_id, participant_id, origin_expense_id, source_type, name, total_amount, total_currency, remaining_amount, remaining_currency, installment_count, installment_amount, installment_currency, start_date, end_date, state)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO debts (account_id, participant_id, origin_expense_id, source_type, name, total_amount, scheduled_total_amount, total_currency, remaining_amount, remaining_currency, installment_count, installment_amount, installment_currency, start_date, end_date, state)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 accountId,
                 participantId,
                 expenseId,
                 "INSTALLMENT_EXPENSE",
                 "Laptop",
+                1200000,
                 1200000,
                 "COP",
                 1200000,

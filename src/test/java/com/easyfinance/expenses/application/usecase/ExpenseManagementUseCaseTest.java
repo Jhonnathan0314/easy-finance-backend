@@ -14,6 +14,7 @@ import com.easyfinance.catalogs.application.validation.PaymentMethodValidationVi
 import com.easyfinance.catalogs.domain.model.CatalogStatus;
 import com.easyfinance.catalogs.domain.model.CategoryType;
 import com.easyfinance.catalogs.domain.model.PaymentMethodType;
+import com.easyfinance.debts.application.command.CreateInstallmentExpenseDebtCommand;
 import com.easyfinance.debts.application.port.in.CreateInstallmentExpenseDebtPort;
 import com.easyfinance.expenses.application.command.CreateDebtPaymentExpenseCommand;
 import com.easyfinance.expenses.application.command.CreateExpenseCommand;
@@ -192,7 +193,60 @@ class ExpenseManagementUseCaseTest {
 
         assertThat(response.expenseType()).isEqualTo("INSTALLMENT");
         assertThat(response.paymentState()).isEqualTo("PENDING");
-        verify(createInstallmentExpenseDebtPort).createInstallmentExpenseDebt(any());
+        ArgumentCaptor<CreateInstallmentExpenseDebtCommand> commandCaptor = ArgumentCaptor.forClass(CreateInstallmentExpenseDebtCommand.class);
+        verify(createInstallmentExpenseDebtPort).createInstallmentExpenseDebt(commandCaptor.capture());
+        assertThat(commandCaptor.getValue().totalAmount().amount()).isEqualByComparingTo("1200000.00");
+    }
+
+    @Test
+    void createInstallmentExpenseWithFinancingCostsCreatesDebtForFinancedTotal() {
+        givenMemberAccess(AccountStatus.ACTIVE, 10L);
+        givenValidCatalogs();
+        when(expenseRepository.save(any(Expense.class))).thenAnswer(invocation -> persisted(invocation.getArgument(0)));
+
+        var response = useCase.createInstallmentExpense(new CreateInstallmentExpenseCommand(
+                1L,
+                2L,
+                3L,
+                "Advance",
+                Money.cop(new BigDecimal("1000000")),
+                LocalDate.of(2026, 5, 11),
+                12,
+                Money.cop(new BigDecimal("100000")),
+                LocalDate.of(2026, 6, 1),
+                "Advance debt",
+                "Includes financing costs"
+        ));
+
+        ArgumentCaptor<CreateInstallmentExpenseDebtCommand> commandCaptor = ArgumentCaptor.forClass(CreateInstallmentExpenseDebtCommand.class);
+        ArgumentCaptor<Expense> expenseCaptor = ArgumentCaptor.forClass(Expense.class);
+        verify(expenseRepository).save(expenseCaptor.capture());
+        verify(createInstallmentExpenseDebtPort).createInstallmentExpenseDebt(commandCaptor.capture());
+        assertThat(response.amount()).isEqualByComparingTo("1000000.00");
+        assertThat(expenseCaptor.getValue().amount().amount()).isEqualByComparingTo("1000000.00");
+        assertThat(commandCaptor.getValue().totalAmount().amount()).isEqualByComparingTo("1000000.00");
+    }
+
+    @Test
+    void createInstallmentExpenseWithFinancedTotalLowerThanOriginalAmountFails() {
+        givenMemberAccess(AccountStatus.ACTIVE, 10L);
+        givenValidCatalogs();
+
+        assertThatThrownBy(() -> useCase.createInstallmentExpense(new CreateInstallmentExpenseCommand(
+                1L,
+                2L,
+                3L,
+                "Advance",
+                Money.cop(new BigDecimal("1000000")),
+                LocalDate.of(2026, 5, 11),
+                9,
+                Money.cop(new BigDecimal("100000")),
+                LocalDate.of(2026, 6, 1),
+                "Advance debt",
+                null
+        ))).isInstanceOfSatisfying(BusinessRuleViolationException.class, ex -> assertThat(ex.code()).isEqualTo("INSTALLMENT_FINANCED_TOTAL_INVALID"));
+        verify(expenseRepository, never()).save(any());
+        verify(createInstallmentExpenseDebtPort, never()).createInstallmentExpenseDebt(any());
     }
 
     @Test

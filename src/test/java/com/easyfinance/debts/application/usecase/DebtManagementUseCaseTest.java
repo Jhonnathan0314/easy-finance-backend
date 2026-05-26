@@ -81,7 +81,23 @@ class DebtManagementUseCaseTest {
         var response = useCase.createInstallmentExpenseDebt(new CreateInstallmentExpenseDebtCommand(1L, 10L, 99L, 7L, "Laptop", null, Money.cop(new BigDecimal("1200000")), 6, Money.cop(new BigDecimal("200000")), LocalDate.of(2026, 6, 1), null));
 
         assertThat(response.sourceType()).isEqualTo("INSTALLMENT_EXPENSE");
+        assertThat(response.totalAmount()).isEqualByComparingTo("1200000.00");
+        assertThat(response.scheduledTotalAmount()).isEqualByComparingTo("1200000.00");
+        assertThat(response.remainingAmount()).isEqualByComparingTo("1200000.00");
         assertThat(response.endDate()).isEqualTo(LocalDate.of(2026, 12, 1));
+        verify(expenseOriginValidationPort).validateInstallmentOrigin(1L, 99L);
+    }
+
+    @Test
+    void createDerivedDebtSeparatesPrincipalAndScheduledTotal() {
+        when(debtRepository.save(any(Debt.class))).thenAnswer(invocation -> persisted(invocation.getArgument(0)));
+
+        var response = useCase.createInstallmentExpenseDebt(new CreateInstallmentExpenseDebtCommand(1L, 10L, 99L, 7L, "Advance", null, Money.cop(new BigDecimal("1000000")), 12, Money.cop(new BigDecimal("100000")), LocalDate.of(2026, 6, 1), null));
+
+        assertThat(response.totalAmount()).isEqualByComparingTo("1000000.00");
+        assertThat(response.scheduledTotalAmount()).isEqualByComparingTo("1200000.00");
+        assertThat(response.remainingAmount()).isEqualByComparingTo("1000000.00");
+        assertThat(response.installmentAmount()).isEqualByComparingTo("100000.00");
         verify(expenseOriginValidationPort).validateInstallmentOrigin(1L, 99L);
     }
 
@@ -165,14 +181,14 @@ class DebtManagementUseCaseTest {
     }
 
     private static Debt persisted(Debt debt) {
-        return Debt.restore(5L, debt.accountId(), debt.participantId(), debt.originExpenseId(), debt.sourceType(), debt.name(), debt.description(), debt.totalAmount(), debt.remainingBalance(), debt.installmentCount(), debt.installmentAmount(), debt.startDate(), debt.endDate(), debt.state(), debt.notes(), Instant.now(), Instant.now());
+        return Debt.restore(5L, debt.accountId(), debt.participantId(), debt.originExpenseId(), debt.sourceType(), debt.name(), debt.description(), debt.totalAmount(), debt.scheduledTotalAmount(), debt.remainingBalance(), debt.installmentCount(), debt.installmentAmount(), debt.startDate(), debt.endDate(), debt.state(), debt.notes(), Instant.now(), Instant.now());
     }
 
     private static Debt manualDebt(Long id, Long participantId, DebtState state) {
-        return Debt.restore(id, 1L, participantId, null, DebtSourceType.MANUAL, "Loan", null, Money.cop(new BigDecimal("100000")), Money.cop(new BigDecimal("100000")), null, null, LocalDate.now(), null, state, null, Instant.now(), Instant.now());
+        return Debt.restore(id, 1L, participantId, null, DebtSourceType.MANUAL, "Loan", null, Money.cop(new BigDecimal("100000")), Money.cop(new BigDecimal("100000")), Money.cop(new BigDecimal("100000")), null, null, LocalDate.now(), null, state, null, Instant.now(), Instant.now());
     }
 
     private static Debt derivedDebt(Long id, Long participantId) {
-        return Debt.restore(id, 1L, participantId, 99L, DebtSourceType.INSTALLMENT_EXPENSE, "Laptop", null, Money.cop(new BigDecimal("1200000")), Money.cop(new BigDecimal("1200000")), 6, Money.cop(new BigDecimal("200000")), LocalDate.now(), LocalDate.now().plusMonths(6), DebtState.ACTIVE, null, Instant.now(), Instant.now());
+        return Debt.restore(id, 1L, participantId, 99L, DebtSourceType.INSTALLMENT_EXPENSE, "Laptop", null, Money.cop(new BigDecimal("1200000")), Money.cop(new BigDecimal("1200000")), Money.cop(new BigDecimal("1200000")), 6, Money.cop(new BigDecimal("200000")), LocalDate.now(), LocalDate.now().plusMonths(6), DebtState.ACTIVE, null, Instant.now(), Instant.now());
     }
 }

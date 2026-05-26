@@ -345,7 +345,7 @@ class ExpenseImportManagementUseCaseTest {
     private static RegisterDebtPaymentResponse debtPaymentResponse(Long paymentId) {
         return new RegisterDebtPaymentResponse(
                 new DebtPaymentResponse(paymentId, 1L, 30L, 10L, "INSTALLMENT", new BigDecimal("120.00"), "COP", LocalDate.of(2026, 5, 1), "Imported payment", "ACTIVE", Instant.now(), Instant.now()),
-                new DebtResponse(30L, 1L, 10L, null, "MANUAL", "Loan", null, new BigDecimal("1000.00"), "COP", new BigDecimal("380.00"), "COP", null, null, null, LocalDate.of(2026, 5, 1), null, "ACTIVE", null, Instant.now(), Instant.now())
+                new DebtResponse(30L, 1L, 10L, null, "MANUAL", "Loan", null, new BigDecimal("1000.00"), new BigDecimal("1000.00"), "COP", new BigDecimal("380.00"), "COP", null, null, null, LocalDate.of(2026, 5, 1), null, "ACTIVE", null, Instant.now(), Instant.now())
         );
     }
 
@@ -358,6 +358,7 @@ class ExpenseImportManagementUseCaseTest {
                 DebtSourceType.MANUAL,
                 "Loan",
                 null,
+                Money.cop(new BigDecimal("1000.00")),
                 Money.cop(new BigDecimal("1000.00")),
                 Money.cop(remainingBalance),
                 null,

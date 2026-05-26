@@ -67,14 +67,14 @@
 {
   "categoryId": 10,
   "paymentMethodId": 20,
-  "description": "Laptop",
-  "totalAmount": 1200000.00,
+  "description": "Cash advance",
+  "totalAmount": 1000000.00,
   "expenseDate": "2026-05-12",
   "installmentCount": 12,
   "installmentAmount": 100000.00,
   "firstInstallmentDate": "2026-06-01",
-  "debtName": "Laptop installments",
-  "notes": "Store purchase"
+  "debtName": "Cash advance installments",
+  "notes": "Installments include financing costs"
 }
 ```
 

@@ -76,14 +76,15 @@ class ExpenseImportsSchemaIT {
         Fixture fixture = createFixture();
         Long debtId = jdbcTemplate.queryForObject(
                 """
-                INSERT INTO debts (account_id, participant_id, source_type, name, total_amount, total_currency, remaining_amount, remaining_currency, start_date, state)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
+                INSERT INTO debts (account_id, participant_id, source_type, name, total_amount, scheduled_total_amount, total_currency, remaining_amount, remaining_currency, start_date, state)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
                 """,
                 Long.class,
                 fixture.accountId(),
                 fixture.participantId(),
                 "MANUAL",
                 "Loan",
+                "1000.00",
                 "1000.00",
                 "COP",
                 "1000.00",

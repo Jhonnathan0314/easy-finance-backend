@@ -63,7 +63,7 @@ class InstallmentExpenseBudgetHappyPathIT {
                 fixture.categoryId(),
                 fixture.paymentMethodId(),
                 "Budget happy path laptop",
-                Money.cop(new BigDecimal("300000")),
+                Money.cop(new BigDecimal("250000")),
                 LocalDate.of(2026, 5, 11),
                 3,
                 Money.cop(new BigDecimal("100000")),
@@ -73,7 +73,10 @@ class InstallmentExpenseBudgetHappyPathIT {
         ));
 
         Long expenseId = jdbcTemplate.queryForObject("SELECT id FROM expenses WHERE account_id = ? AND description = ?", Long.class, fixture.accountId(), "Budget happy path laptop");
+        BigDecimal expenseAmount = jdbcTemplate.queryForObject("SELECT amount FROM expenses WHERE account_id = ? AND id = ?", BigDecimal.class, fixture.accountId(), expenseId);
         Long debtId = jdbcTemplate.queryForObject("SELECT id FROM debts WHERE account_id = ? AND name = ?", Long.class, fixture.accountId(), "Budget happy path debt");
+        BigDecimal debtTotal = jdbcTemplate.queryForObject("SELECT total_amount FROM debts WHERE account_id = ? AND id = ?", BigDecimal.class, fixture.accountId(), debtId);
+        BigDecimal remainingBalance = jdbcTemplate.queryForObject("SELECT remaining_amount FROM debts WHERE account_id = ? AND id = ?", BigDecimal.class, fixture.accountId(), debtId);
         Long budgetCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM budgets WHERE account_id = ?", Long.class, fixture.accountId());
         Long subBudgetCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM sub_budgets WHERE account_id = ? AND source_type = 'DEBT_DERIVED'", Long.class, fixture.accountId());
         Long impactCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM budget_impacts WHERE account_id = ? AND debt_id = ?", Long.class, fixture.accountId(), debtId);
@@ -106,7 +109,10 @@ class InstallmentExpenseBudgetHappyPathIT {
         );
 
         assertThat(expenseId).isPositive();
+        assertThat(expenseAmount).isEqualByComparingTo("250000.00");
         assertThat(debtId).isPositive();
+        assertThat(debtTotal).isEqualByComparingTo("300000.00");
+        assertThat(remainingBalance).isEqualByComparingTo("300000.00");
         assertThat(budgetCount).isEqualTo(3);
         assertThat(subBudgetCount).isEqualTo(3);
         assertThat(impactCount).isEqualTo(3);

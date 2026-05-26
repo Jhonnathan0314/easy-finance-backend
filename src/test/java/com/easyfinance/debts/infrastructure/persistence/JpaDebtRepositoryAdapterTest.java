@@ -47,6 +47,6 @@ class JpaDebtRepositoryAdapterTest {
     }
 
     private static Debt debt(Long id, Long accountId) {
-        return Debt.restore(id, accountId, 10L, null, DebtSourceType.MANUAL, "Loan", null, Money.cop(new BigDecimal("100000")), Money.cop(new BigDecimal("100000")), null, null, LocalDate.now(), null, DebtState.ACTIVE, null, Instant.now(), Instant.now());
+        return Debt.restore(id, accountId, 10L, null, DebtSourceType.MANUAL, "Loan", null, Money.cop(new BigDecimal("100000")), Money.cop(new BigDecimal("100000")), Money.cop(new BigDecimal("100000")), null, null, LocalDate.now(), null, DebtState.ACTIVE, null, Instant.now(), Instant.now());
     }
 }

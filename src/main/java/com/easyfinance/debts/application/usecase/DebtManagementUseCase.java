@@ -98,7 +98,7 @@ public class DebtManagementUseCase implements
                 savedDebt.originExpenseId(),
                 command.categoryId(),
                 savedDebt.name(),
-                savedDebt.totalAmount(),
+                savedDebt.scheduledTotalAmount(),
                 savedDebt.installmentCount(),
                 savedDebt.installmentAmount(),
                 savedDebt.startDate()
@@ -173,6 +173,7 @@ public class DebtManagementUseCase implements
                 debt.name(),
                 debt.description(),
                 debt.totalAmount().amount(),
+                debt.scheduledTotalAmount().amount(),
                 debt.totalAmount().currency().name(),
                 debt.remainingBalance().amount(),
                 debt.remainingBalance().currency().name(),

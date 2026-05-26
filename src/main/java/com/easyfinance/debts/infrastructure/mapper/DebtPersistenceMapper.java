@@ -21,6 +21,7 @@ public class DebtPersistenceMapper {
                 entity.getName(),
                 entity.getDescription(),
                 new Money(entity.getTotalAmount(), CurrencyCode.valueOf(entity.getTotalCurrency())),
+                new Money(entity.getScheduledTotalAmount(), CurrencyCode.valueOf(entity.getTotalCurrency())),
                 new Money(entity.getRemainingAmount(), CurrencyCode.valueOf(entity.getRemainingCurrency())),
                 entity.getInstallmentCount(),
                 entity.getInstallmentAmount() == null ? null : new Money(entity.getInstallmentAmount(), CurrencyCode.valueOf(entity.getInstallmentCurrency())),
@@ -48,6 +49,7 @@ public class DebtPersistenceMapper {
         entity.setName(debt.name());
         entity.setDescription(debt.description());
         entity.setTotalAmount(debt.totalAmount().amount());
+        entity.setScheduledTotalAmount(debt.scheduledTotalAmount().amount());
         entity.setTotalCurrency(debt.totalAmount().currency().name());
         entity.setRemainingAmount(debt.remainingBalance().amount());
         entity.setRemainingCurrency(debt.remainingBalance().currency().name());

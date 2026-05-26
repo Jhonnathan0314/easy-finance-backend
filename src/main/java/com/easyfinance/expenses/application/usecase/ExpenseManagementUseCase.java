@@ -43,6 +43,8 @@ import com.easyfinance.shared.domain.UnauthorizedOperationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+
 @Service
 public class ExpenseManagementUseCase implements
         CreateExpensePort,
@@ -139,6 +141,7 @@ public class ExpenseManagementUseCase implements
         validateCategory(command.accountId(), command.categoryId());
         validatePaymentMethod(command.accountId(), command.paymentMethodId());
         validateInstallmentData(command.installmentCount(), command.installmentAmount(), command.firstInstallmentDate());
+        financedTotal(command.installmentAmount(), command.installmentCount(), command.totalAmount());
         Expense expense = Expense.createInstallment(
                 command.accountId(),
                 command.categoryId(),
@@ -315,6 +318,14 @@ public class ExpenseManagementUseCase implements
         if (firstInstallmentDate == null) {
             throw new BusinessRuleViolationException("INSTALLMENT_EXPENSE_INVALID", "First installment date is required.");
         }
+    }
+
+    private Money financedTotal(Money installmentAmount, Integer installmentCount, Money originalTotalAmount) {
+        BigDecimal financedAmount = installmentAmount.amount().multiply(BigDecimal.valueOf(installmentCount));
+        if (financedAmount.compareTo(originalTotalAmount.amount()) < 0) {
+            throw new BusinessRuleViolationException("INSTALLMENT_FINANCED_TOTAL_INVALID", "Installment total cannot be lower than original expense amount.");
+        }
+        return Money.cop(financedAmount);
     }
 
     private ExpenseResponse toResponse(Expense expense) {

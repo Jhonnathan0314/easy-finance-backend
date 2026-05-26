@@ -44,7 +44,8 @@ Mirror backend validation to reduce failed submissions.
   - installmentCount required, min 1.
   - installmentAmount required, min 0.01.
   - firstInstallmentDate required.
-  - validate `installmentAmount * installmentCount == totalAmount`.
+  - validate `installmentAmount * installmentCount >= totalAmount`.
+  - allow `installmentAmount * installmentCount > totalAmount`; the difference is implicit financing cost.
 
 ## Debts
 

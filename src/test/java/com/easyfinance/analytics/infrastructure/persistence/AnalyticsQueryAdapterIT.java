@@ -520,12 +520,13 @@ class AnalyticsQueryAdapterIT {
 
     private Long insertDebt(Long accountId, Long participantId, String state, String sourceType, int totalAmount, int remainingAmount) {
         return jdbcTemplate.queryForObject(
-                "INSERT INTO debts (account_id, participant_id, source_type, name, total_amount, total_currency, remaining_amount, remaining_currency, start_date, state) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+                "INSERT INTO debts (account_id, participant_id, source_type, name, total_amount, scheduled_total_amount, total_currency, remaining_amount, remaining_currency, start_date, state) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
                 Long.class,
                 accountId,
                 participantId,
                 sourceType,
                 "Debt",
+                totalAmount,
                 totalAmount,
                 "COP",
                 remainingAmount,
@@ -552,13 +553,14 @@ class AnalyticsQueryAdapterIT {
                 "INSTALLMENT"
         );
         return jdbcTemplate.queryForObject(
-                "INSERT INTO debts (account_id, participant_id, origin_expense_id, source_type, name, total_amount, total_currency, remaining_amount, remaining_currency, installment_count, installment_amount, installment_currency, start_date, state) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+                "INSERT INTO debts (account_id, participant_id, origin_expense_id, source_type, name, total_amount, scheduled_total_amount, total_currency, remaining_amount, remaining_currency, installment_count, installment_amount, installment_currency, start_date, state) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
                 Long.class,
                 fixture.accountId(),
                 fixture.participantId(),
                 originExpenseId,
                 "INSTALLMENT_EXPENSE",
                 "Installment debt",
+                totalAmount,
                 totalAmount,
                 "COP",
                 remainingAmount,

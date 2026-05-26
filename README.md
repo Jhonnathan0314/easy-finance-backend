@@ -390,10 +390,13 @@ Expense rules:
 - The participant FK validates account membership existence; `ACTIVE` membership status is enforced in the application layer.
 - Cancelling is a soft operation: status becomes `CANCELLED`.
 - Simple expenses do not create debts.
+- For installment expenses, `totalAmount` is the original purchase/advance amount. The financed debt total is calculated as `installmentAmount * installmentCount`.
+- `installmentAmount * installmentCount` may be greater than `totalAmount`; the difference represents implicit interest, insurance, or financing costs.
+- `installmentAmount * installmentCount` cannot be lower than `totalAmount`.
 - Duplicating creates a new `ACTIVE` `SIMPLE` expense with a new id and audit metadata; it never creates debt, debt payments, budget impacts, or import rows.
 - This phase does not create debt payments or budget impacts.
 
-Main expense error codes include `EXPENSE_NOT_FOUND`, `EXPENSE_ALREADY_CANCELLED`, `EXPENSE_AMOUNT_INVALID`, `EXPENSE_DATE_INVALID`, `EXPENSE_UPDATE_NOT_ALLOWED`, `EXPENSE_CANCEL_NOT_ALLOWED`, `EXPENSE_DUPLICATE_NOT_ALLOWED`, `INSTALLMENT_EXPENSE_UPDATE_NOT_ALLOWED`, `INSTALLMENT_EXPENSE_CANCEL_NOT_ALLOWED`, `EXPENSE_CATEGORY_NOT_FOUND`, `EXPENSE_CATEGORY_INACTIVE`, `EXPENSE_CATEGORY_INVALID_TYPE`, `EXPENSE_PAYMENT_METHOD_NOT_FOUND`, and `EXPENSE_PAYMENT_METHOD_INACTIVE`.
+Main expense error codes include `EXPENSE_NOT_FOUND`, `EXPENSE_ALREADY_CANCELLED`, `EXPENSE_AMOUNT_INVALID`, `EXPENSE_DATE_INVALID`, `EXPENSE_UPDATE_NOT_ALLOWED`, `EXPENSE_CANCEL_NOT_ALLOWED`, `EXPENSE_DUPLICATE_NOT_ALLOWED`, `INSTALLMENT_EXPENSE_UPDATE_NOT_ALLOWED`, `INSTALLMENT_EXPENSE_CANCEL_NOT_ALLOWED`, `INSTALLMENT_FINANCED_TOTAL_INVALID`, `EXPENSE_CATEGORY_NOT_FOUND`, `EXPENSE_CATEGORY_INACTIVE`, `EXPENSE_CATEGORY_INVALID_TYPE`, `EXPENSE_PAYMENT_METHOD_NOT_FOUND`, and `EXPENSE_PAYMENT_METHOD_INACTIVE`.
 
 ## Debts API
 
@@ -471,7 +474,9 @@ Debt rules:
 - Manual debts do not have `originExpenseId`.
 - Installment expense debts require `originExpenseId`, `installmentCount`, and `installmentAmount`.
 - A derived debt can only use an origin expense that belongs to the same account and has `expenseType = INSTALLMENT`.
-- `remainingBalance` starts equal to `totalAmount`.
+- For debts derived from installment expenses, `totalAmount` is the original principal amount from the installment expense.
+- `scheduledTotalAmount` is the financed total to pay: `installmentAmount * installmentCount`.
+- `remainingBalance` tracks pending principal and starts equal to debt `totalAmount`.
 - The debt end date for installments is calculated by adding `installmentCount` calendar months to `startDate`.
 - If a manual debt has no `installmentCount` and no `dueDate`, `endDate` remains `null`.
 - Creating an installment expense, its debt, and derived budget impacts is transactional: if any insert fails, all roll back.
@@ -483,7 +488,7 @@ Debt rules:
 - `createExpense` defaults to `false`. When `true`, the request must include active account-scoped `categoryId`, active `paymentMethodId`, and non-blank `expenseDescription`.
 - Associated expenses are created as `SIMPLE`, `ACTIVE`, `PAID`, with `sourceType = DEBT_PAYMENT` and `sourceDebtPaymentId` pointing to the created payment.
 - Debt payments are not cancelled or reversed in this phase.
-- Installment debts require `installmentAmount * installmentCount == totalAmount` so budget impacts match the debt total exactly.
+- Installment debts require budget impacts to total the financed debt amount. Budget impacts keep one expected amount per installment.
 - Debt payments on installment-derived debts are distributed chronologically across active budget impacts. A full impact becomes `PAID`; partial payment keeps it `ACTIVE`.
 
 Main debt error codes include `DEBT_NOT_FOUND`, `DEBT_NOT_ACTIVE`, `DEBT_ALREADY_CANCELLED`, `DEBT_AMOUNT_INVALID`, `DEBT_INSTALLMENT_COUNT_INVALID`, `DEBT_INSTALLMENT_AMOUNT_INVALID`, `DEBT_SOURCE_INVALID`, `DEBT_CANCEL_NOT_ALLOWED`, `DEBT_ORIGIN_EXPENSE_NOT_FOUND`, `DEBT_ORIGIN_EXPENSE_INVALID_TYPE`, `INSTALLMENT_EXPENSE_INVALID`, and `INSTALLMENT_EXPENSE_DEBT_CREATION_FAILED`.

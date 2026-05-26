@@ -185,8 +185,8 @@ class BudgetsSchemaIT {
     private Long insertDebt(Long accountId, Long participantId, Long expenseId) {
         return jdbcTemplate.queryForObject(
                 """
-                INSERT INTO debts (account_id, participant_id, origin_expense_id, source_type, name, total_amount, total_currency, remaining_amount, remaining_currency, installment_count, installment_amount, installment_currency, start_date, end_date, state)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
+                INSERT INTO debts (account_id, participant_id, origin_expense_id, source_type, name, total_amount, scheduled_total_amount, total_currency, remaining_amount, remaining_currency, installment_count, installment_amount, installment_currency, start_date, end_date, state)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
                 """,
                 Long.class,
                 accountId,
@@ -194,6 +194,7 @@ class BudgetsSchemaIT {
                 expenseId,
                 "INSTALLMENT_EXPENSE",
                 "Laptop",
+                300000,
                 300000,
                 "COP",
                 300000,
