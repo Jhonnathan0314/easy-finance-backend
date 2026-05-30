@@ -528,6 +528,15 @@ curl -X POST http://localhost:8080/api/v1/accounts/1/budgets/2026/5/duplicate \
   -d "{\"targetYear\":2026,\"targetMonth\":6,\"name\":\"Junio 2026\"}"
 ```
 
+Create annual budget (creates January to December monthly budgets):
+
+```bash
+curl -X POST http://localhost:8080/api/v1/accounts/1/budgets/annual \
+  -H "Authorization: Bearer <accessToken>" \
+  -H "Content-Type: application/json" \
+  -d "{\"year\":2026,\"name\":\"Presupuesto 2026\",\"status\":\"ACTIVE\",\"subBudgets\":[{\"name\":\"Mercado\",\"categoryId\":7,\"plannedAmount\":500000}]}"
+```
+
 List budgets:
 
 ```bash
@@ -567,6 +576,8 @@ Budget rules:
 - `ACCOUNT_ADMIN` is required to create/update/duplicate budgets and manual sub-budgets.
 - `ACCOUNT_MEMBER` can list and read budgets.
 - Budget duplication copies only active manual sub-budgets into a new active target budget; debt-derived sub-budgets, budget impacts, and spent execution are not copied.
+- Annual budget creation creates the 12 monthly budgets for one year in one transaction and can create the same base manual sub-budgets in each month.
+- Annual budget creation fails as a whole with `ANNUAL_BUDGET_MONTH_ALREADY_EXISTS` if any month in that year already exists for the account.
 - Installment-derived debts create monthly budgets automatically when needed.
 - Automatic monthly budget creation uses PostgreSQL upsert on `(accountId, year, month)` to tolerate concurrent installment debt creation.
 - Debt-derived sub-budgets use `sourceType = DEBT_DERIVED`, carry the associated `debtId`, are unique by account/budget/debt, and cannot be edited from manual endpoints.

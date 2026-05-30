@@ -2,12 +2,15 @@ package com.easyfinance.budgets.application.usecase;
 
 import com.easyfinance.accounts.application.service.AccountAuthorizationService;
 import com.easyfinance.budgets.application.command.ApplyDebtPaymentImpactCommand;
+import com.easyfinance.budgets.application.command.CreateAnnualBudgetCommand;
+import com.easyfinance.budgets.application.command.CreateAnnualSubBudgetBaseCommand;
 import com.easyfinance.budgets.application.command.CreateDebtBudgetImpactsCommand;
 import com.easyfinance.budgets.application.command.CreateSubBudgetCommand;
 import com.easyfinance.budgets.application.command.DuplicateBudgetCommand;
 import com.easyfinance.budgets.application.command.UpdateSubBudgetCommand;
 import com.easyfinance.budgets.application.command.UpsertBudgetCommand;
 import com.easyfinance.budgets.application.port.in.BudgetDebtImpactPort;
+import com.easyfinance.budgets.application.port.in.CreateAnnualBudgetPort;
 import com.easyfinance.budgets.application.port.in.CreateSubBudgetPort;
 import com.easyfinance.budgets.application.port.in.DeactivateSubBudgetPort;
 import com.easyfinance.budgets.application.port.in.DuplicateBudgetPort;
@@ -23,10 +26,12 @@ import com.easyfinance.budgets.application.query.ListBudgetsQuery;
 import com.easyfinance.budgets.application.response.BudgetDetailResponse;
 import com.easyfinance.budgets.application.response.BudgetImpactResponse;
 import com.easyfinance.budgets.application.response.BudgetResponse;
+import com.easyfinance.budgets.application.response.AnnualBudgetResponse;
 import com.easyfinance.budgets.application.response.PageResponse;
 import com.easyfinance.budgets.application.response.SubBudgetResponse;
 import com.easyfinance.budgets.domain.model.Budget;
 import com.easyfinance.budgets.domain.model.BudgetImpact;
+import com.easyfinance.budgets.domain.model.BudgetStatus;
 import com.easyfinance.budgets.domain.model.SubBudgetSourceType;
 import com.easyfinance.budgets.domain.model.SubBudgetStatus;
 import com.easyfinance.budgets.domain.model.SubBudget;
@@ -57,6 +62,7 @@ import java.util.stream.Collectors;
 @Service
 public class BudgetManagementUseCase implements
         UpsertBudgetPort,
+        CreateAnnualBudgetPort,
         GetBudgetPort,
         ListBudgetsPort,
         CreateSubBudgetPort,
@@ -100,6 +106,49 @@ public class BudgetManagementUseCase implements
                 .map(existing -> existing.update(command.name(), command.status()))
                 .orElse(probe.update(command.name(), command.status()));
         return toBudgetResponse(budgetRepository.save(budget));
+    }
+
+    @Override
+    @Transactional
+    public AnnualBudgetResponse createAnnualBudget(CreateAnnualBudgetCommand command) {
+        accountAuthorizationService.requireActiveAdminForActiveAccount(command.accountId(), currentParticipantId());
+        for (int month = 1; month <= 12; month++) {
+            if (budgetRepository.findByAccountIdAndYearAndMonth(command.accountId(), command.year(), month).isPresent()) {
+                throw new BusinessRuleViolationException("ANNUAL_BUDGET_MONTH_ALREADY_EXISTS", "At least one budget month already exists for the requested year.");
+            }
+        }
+
+        BudgetStatus status = command.status() == null ? com.easyfinance.budgets.domain.model.BudgetStatus.ACTIVE : command.status();
+        List<CreateAnnualSubBudgetBaseCommand> baseSubBudgets = command.subBudgets() == null ? List.of() : command.subBudgets();
+        baseSubBudgets.forEach(baseSubBudget -> {
+            if (baseSubBudget.plannedAmount() == null || baseSubBudget.plannedAmount().amount().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new BusinessRuleViolationException("PLANNED_AMOUNT_INVALID", "Planned amount must be greater than zero.");
+            }
+            validateActiveCategory(command.accountId(), baseSubBudget.categoryId());
+        });
+
+        try {
+            List<BudgetResponse> createdBudgets = new ArrayList<>();
+            for (int month = 1; month <= 12; month++) {
+                Budget createdBudget = budgetRepository.save(Budget.create(command.accountId(), command.year(), month, command.name()).update(command.name(), status));
+                for (CreateAnnualSubBudgetBaseCommand baseSubBudget : baseSubBudgets) {
+                    subBudgetRepository.save(SubBudget.createManual(
+                            command.accountId(),
+                            createdBudget.id(),
+                            baseSubBudget.categoryId(),
+                            baseSubBudget.name(),
+                            baseSubBudget.plannedAmount()
+                    ));
+                }
+                createdBudgets.add(toBudgetResponse(createdBudget));
+            }
+            return new AnnualBudgetResponse(command.accountId(), command.year(), createdBudgets);
+        } catch (BusinessRuleViolationException ex) {
+            if ("BUDGET_TARGET_ALREADY_EXISTS".equals(ex.code())) {
+                throw new BusinessRuleViolationException("ANNUAL_BUDGET_MONTH_ALREADY_EXISTS", "At least one budget month already exists for the requested year.", ex);
+            }
+            throw ex;
+        }
     }
 
     @Override

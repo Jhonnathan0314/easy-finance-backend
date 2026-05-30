@@ -1,6 +1,7 @@
 package com.easyfinance.budgets.entrypoint.rest;
 
 import com.easyfinance.budgets.application.port.in.CreateSubBudgetPort;
+import com.easyfinance.budgets.application.port.in.CreateAnnualBudgetPort;
 import com.easyfinance.budgets.application.port.in.DeactivateSubBudgetPort;
 import com.easyfinance.budgets.application.port.in.DuplicateBudgetPort;
 import com.easyfinance.budgets.application.port.in.GetBudgetPort;
@@ -69,6 +70,15 @@ class BudgetsControllerSecurityTest {
     }
 
     @Test
+    void createAnnualBudgetRequiresToken() throws Exception {
+        mockMvc.perform(post("/api/v1/accounts/1/budgets/annual")
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"year\":2026,\"name\":\"Presupuesto 2026\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
+    }
+
+    @Test
     void invalidTokenReturnsUnauthorized() throws Exception {
         when(jwtTokenService.validate("bad-token")).thenThrow(new JwtAuthenticationException("INVALID_TOKEN", "Invalid token."));
 
@@ -93,6 +103,7 @@ class BudgetsControllerSecurityTest {
         @Bean GetBudgetPort getBudgetPort() { return mock(GetBudgetPort.class); }
         @Bean ListBudgetsPort listBudgetsPort() { return mock(ListBudgetsPort.class); }
         @Bean DuplicateBudgetPort duplicateBudgetPort() { return mock(DuplicateBudgetPort.class); }
+        @Bean CreateAnnualBudgetPort createAnnualBudgetPort() { return mock(CreateAnnualBudgetPort.class); }
         @Bean CreateSubBudgetPort createSubBudgetPort() { return mock(CreateSubBudgetPort.class); }
         @Bean UpdateSubBudgetPort updateSubBudgetPort() { return mock(UpdateSubBudgetPort.class); }
         @Bean DeactivateSubBudgetPort deactivateSubBudgetPort() { return mock(DeactivateSubBudgetPort.class); }

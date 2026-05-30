@@ -139,6 +139,8 @@ Rules:
 - Budgets are monthly in the MVP.
 - There must be at most one monthly budget per account and period.
 - A monthly budget is identified by account, year, and month.
+- Annual budget creation is an orchestration action that creates the 12 monthly budgets for a year; it does not create a new annual entity.
+- Annual budget creation is all-or-nothing and fails if any month in the target year already exists for the account.
 - If a debt-derived impact targets a missing monthly budget, the system creates that budget automatically.
 - A budget groups sub-budgets and budget impacts.
 

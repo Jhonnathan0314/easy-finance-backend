@@ -1,6 +1,7 @@
 package com.easyfinance.budgets.entrypoint.rest;
 
 import com.easyfinance.budgets.application.port.in.DuplicateBudgetPort;
+import com.easyfinance.budgets.application.port.in.CreateAnnualBudgetPort;
 import com.easyfinance.budgets.application.port.in.GetBudgetPort;
 import com.easyfinance.budgets.application.port.in.ListBudgetsPort;
 import com.easyfinance.budgets.application.port.in.UpsertBudgetPort;
@@ -9,6 +10,8 @@ import com.easyfinance.budgets.domain.model.BudgetStatus;
 import com.easyfinance.budgets.entrypoint.rest.dto.BudgetDetailResponseDto;
 import com.easyfinance.budgets.entrypoint.rest.dto.BudgetResponseDto;
 import com.easyfinance.budgets.entrypoint.rest.dto.BudgetStatusDto;
+import com.easyfinance.budgets.entrypoint.rest.dto.AnnualBudgetResponseDto;
+import com.easyfinance.budgets.entrypoint.rest.dto.CreateAnnualBudgetRequest;
 import com.easyfinance.budgets.entrypoint.rest.dto.DuplicateBudgetRequest;
 import com.easyfinance.budgets.entrypoint.rest.dto.PageResponseDto;
 import com.easyfinance.budgets.entrypoint.rest.dto.UpsertBudgetRequest;
@@ -32,12 +35,14 @@ public class BudgetsController {
     private final GetBudgetPort getBudgetPort;
     private final ListBudgetsPort listBudgetsPort;
     private final DuplicateBudgetPort duplicateBudgetPort;
+    private final CreateAnnualBudgetPort createAnnualBudgetPort;
 
-    public BudgetsController(UpsertBudgetPort upsertBudgetPort, GetBudgetPort getBudgetPort, ListBudgetsPort listBudgetsPort, DuplicateBudgetPort duplicateBudgetPort) {
+    public BudgetsController(UpsertBudgetPort upsertBudgetPort, GetBudgetPort getBudgetPort, ListBudgetsPort listBudgetsPort, DuplicateBudgetPort duplicateBudgetPort, CreateAnnualBudgetPort createAnnualBudgetPort) {
         this.upsertBudgetPort = upsertBudgetPort;
         this.getBudgetPort = getBudgetPort;
         this.listBudgetsPort = listBudgetsPort;
         this.duplicateBudgetPort = duplicateBudgetPort;
+        this.createAnnualBudgetPort = createAnnualBudgetPort;
     }
 
     @PutMapping("/{year}/{month}")
@@ -63,6 +68,14 @@ public class BudgetsController {
             @Valid @RequestBody DuplicateBudgetRequest request
     ) {
         return BudgetRestMapper.toDto(duplicateBudgetPort.duplicateBudget(BudgetRestMapper.toCommand(accountId, sourceYear, sourceMonth, request)));
+    }
+
+    @PostMapping("/annual")
+    public AnnualBudgetResponseDto createAnnual(
+            @PathVariable Long accountId,
+            @Valid @RequestBody CreateAnnualBudgetRequest request
+    ) {
+        return BudgetRestMapper.toDto(createAnnualBudgetPort.createAnnualBudget(BudgetRestMapper.toCommand(accountId, request)));
     }
 
     @GetMapping

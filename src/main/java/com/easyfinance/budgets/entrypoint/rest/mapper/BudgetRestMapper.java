@@ -1,18 +1,24 @@
 package com.easyfinance.budgets.entrypoint.rest.mapper;
 
 import com.easyfinance.budgets.application.command.CreateSubBudgetCommand;
+import com.easyfinance.budgets.application.command.CreateAnnualBudgetCommand;
+import com.easyfinance.budgets.application.command.CreateAnnualSubBudgetBaseCommand;
 import com.easyfinance.budgets.application.command.DuplicateBudgetCommand;
 import com.easyfinance.budgets.application.command.UpdateSubBudgetCommand;
 import com.easyfinance.budgets.application.command.UpsertBudgetCommand;
 import com.easyfinance.budgets.application.response.BudgetDetailResponse;
 import com.easyfinance.budgets.application.response.BudgetImpactResponse;
 import com.easyfinance.budgets.application.response.BudgetResponse;
+import com.easyfinance.budgets.application.response.AnnualBudgetResponse;
 import com.easyfinance.budgets.application.response.PageResponse;
 import com.easyfinance.budgets.application.response.SubBudgetResponse;
 import com.easyfinance.budgets.domain.model.BudgetStatus;
 import com.easyfinance.budgets.entrypoint.rest.dto.BudgetDetailResponseDto;
 import com.easyfinance.budgets.entrypoint.rest.dto.BudgetImpactResponseDto;
 import com.easyfinance.budgets.entrypoint.rest.dto.BudgetResponseDto;
+import com.easyfinance.budgets.entrypoint.rest.dto.AnnualBudgetResponseDto;
+import com.easyfinance.budgets.entrypoint.rest.dto.CreateAnnualBudgetRequest;
+import com.easyfinance.budgets.entrypoint.rest.dto.CreateAnnualSubBudgetBaseRequest;
 import com.easyfinance.budgets.entrypoint.rest.dto.CreateSubBudgetRequest;
 import com.easyfinance.budgets.entrypoint.rest.dto.DuplicateBudgetRequest;
 import com.easyfinance.budgets.entrypoint.rest.dto.PageResponseDto;
@@ -38,6 +44,24 @@ public final class BudgetRestMapper {
         );
     }
 
+    public static CreateAnnualBudgetCommand toCommand(Long accountId, CreateAnnualBudgetRequest request) {
+        return new CreateAnnualBudgetCommand(
+                accountId,
+                request.year(),
+                request.name(),
+                request.status() == null ? null : BudgetStatus.valueOf(request.status().name()),
+                request.subBudgets() == null ? null : request.subBudgets().stream().map(BudgetRestMapper::toCommand).toList()
+        );
+    }
+
+    private static CreateAnnualSubBudgetBaseCommand toCommand(CreateAnnualSubBudgetBaseRequest request) {
+        return new CreateAnnualSubBudgetBaseCommand(
+                request.name(),
+                request.categoryId(),
+                Money.cop(request.plannedAmount())
+        );
+    }
+
     public static DuplicateBudgetCommand toCommand(Long accountId, Integer sourceYear, Integer sourceMonth, DuplicateBudgetRequest request) {
         return new DuplicateBudgetCommand(
                 accountId,
@@ -59,6 +83,14 @@ public final class BudgetRestMapper {
 
     public static BudgetResponseDto toDto(BudgetResponse response) {
         return new BudgetResponseDto(response.id(), response.accountId(), response.year(), response.month(), response.name(), response.status(), response.createdAt(), response.updatedAt());
+    }
+
+    public static AnnualBudgetResponseDto toDto(AnnualBudgetResponse response) {
+        return new AnnualBudgetResponseDto(
+                response.accountId(),
+                response.year(),
+                response.createdBudgets().stream().map(BudgetRestMapper::toDto).toList()
+        );
     }
 
     public static BudgetDetailResponseDto toDto(BudgetDetailResponse response) {

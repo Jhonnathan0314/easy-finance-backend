@@ -9,6 +9,8 @@ import com.easyfinance.accounts.domain.model.AccountParticipantRole;
 import com.easyfinance.accounts.domain.model.AccountParticipantStatus;
 import com.easyfinance.accounts.domain.model.AccountStatus;
 import com.easyfinance.budgets.application.command.ApplyDebtPaymentImpactCommand;
+import com.easyfinance.budgets.application.command.CreateAnnualBudgetCommand;
+import com.easyfinance.budgets.application.command.CreateAnnualSubBudgetBaseCommand;
 import com.easyfinance.budgets.application.command.CreateDebtBudgetImpactsCommand;
 import com.easyfinance.budgets.application.command.CreateSubBudgetCommand;
 import com.easyfinance.budgets.application.command.DuplicateBudgetCommand;
@@ -185,6 +187,101 @@ class BudgetManagementUseCaseTest {
 
         assertThatThrownBy(() -> useCase.duplicateBudget(new DuplicateBudgetCommand(1L, 2026, 5, 2026, 6, null)))
                 .isInstanceOf(ForbiddenOperationException.class);
+    }
+
+    @Test
+    void adminCreatesAnnualBudgetWithTwelveMonthsAndBaseSubBudgets() {
+        givenAccess(AccountParticipantRole.ACCOUNT_ADMIN, AccountStatus.ACTIVE);
+        for (int month = 1; month <= 12; month++) {
+            when(budgetRepository.findByAccountIdAndYearAndMonth(1L, 2026, month)).thenReturn(Optional.empty());
+        }
+        when(catalogValidationPort.findCategoryForValidation(1L, 7L)).thenReturn(Optional.of(new CategoryValidationView(7L, 1L, CategoryType.EXPENSE, CatalogStatus.ACTIVE)));
+        when(budgetRepository.save(any(Budget.class))).thenAnswer(invocation -> persistedBudget(invocation.getArgument(0), 100L + invocation.<Budget>getArgument(0).month()));
+        when(subBudgetRepository.save(any(SubBudget.class))).thenAnswer(invocation -> persistedSubBudget(invocation.getArgument(0), 200L + invocation.<SubBudget>getArgument(0).budgetId()));
+
+        var response = useCase.createAnnualBudget(new CreateAnnualBudgetCommand(
+                1L,
+                2026,
+                "Presupuesto 2026",
+                null,
+                List.of(new CreateAnnualSubBudgetBaseCommand("Mercado", 7L, Money.cop(new BigDecimal("800000"))))
+        ));
+
+        assertThat(response.year()).isEqualTo(2026);
+        assertThat(response.createdBudgets()).hasSize(12);
+        assertThat(response.createdBudgets().getFirst().month()).isEqualTo(1);
+        assertThat(response.createdBudgets().getLast().month()).isEqualTo(12);
+        verify(subBudgetRepository, times(12)).save(org.mockito.ArgumentMatchers.argThat(subBudget ->
+                subBudget.sourceType() == SubBudgetSourceType.MANUAL
+                        && subBudget.status() == SubBudgetStatus.ACTIVE
+                        && subBudget.name().equals("Mercado")));
+    }
+
+    @Test
+    void annualBudgetFailsWhenAnyMonthAlreadyExists() {
+        givenAccess(AccountParticipantRole.ACCOUNT_ADMIN, AccountStatus.ACTIVE);
+        when(budgetRepository.findByAccountIdAndYearAndMonth(1L, 2026, 1)).thenReturn(Optional.empty());
+        when(budgetRepository.findByAccountIdAndYearAndMonth(1L, 2026, 2)).thenReturn(Optional.of(persistedBudget(Budget.create(1L, 2026, 2, "Feb"), 20L)));
+
+        assertThatThrownBy(() -> useCase.createAnnualBudget(new CreateAnnualBudgetCommand(
+                1L, 2026, "Presupuesto 2026", BudgetStatus.ACTIVE, List.of()
+        ))).isInstanceOfSatisfying(BusinessRuleViolationException.class, ex ->
+                assertThat(ex.code()).isEqualTo("ANNUAL_BUDGET_MONTH_ALREADY_EXISTS"));
+
+        verify(budgetRepository, times(0)).save(any(Budget.class));
+    }
+
+    @Test
+    void annualBudgetValidatesInactiveCategory() {
+        givenAccess(AccountParticipantRole.ACCOUNT_ADMIN, AccountStatus.ACTIVE);
+        for (int month = 1; month <= 12; month++) {
+            when(budgetRepository.findByAccountIdAndYearAndMonth(1L, 2026, month)).thenReturn(Optional.empty());
+        }
+        when(catalogValidationPort.findCategoryForValidation(1L, 7L)).thenReturn(Optional.of(new CategoryValidationView(7L, 1L, CategoryType.EXPENSE, CatalogStatus.INACTIVE)));
+
+        assertThatThrownBy(() -> useCase.createAnnualBudget(new CreateAnnualBudgetCommand(
+                1L,
+                2026,
+                "Presupuesto 2026",
+                null,
+                List.of(new CreateAnnualSubBudgetBaseCommand("Mercado", 7L, Money.cop(new BigDecimal("800000"))))
+        ))).isInstanceOfSatisfying(BusinessRuleViolationException.class, ex ->
+                assertThat(ex.code()).isEqualTo("CATEGORY_INACTIVE"));
+    }
+
+    @Test
+    void annualBudgetFailsWhenCategoryDoesNotBelongToAccount() {
+        givenAccess(AccountParticipantRole.ACCOUNT_ADMIN, AccountStatus.ACTIVE);
+        for (int month = 1; month <= 12; month++) {
+            when(budgetRepository.findByAccountIdAndYearAndMonth(1L, 2026, month)).thenReturn(Optional.empty());
+        }
+        when(catalogValidationPort.findCategoryForValidation(1L, 99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> useCase.createAnnualBudget(new CreateAnnualBudgetCommand(
+                1L,
+                2026,
+                "Presupuesto 2026",
+                null,
+                List.of(new CreateAnnualSubBudgetBaseCommand("Mercado", 99L, Money.cop(new BigDecimal("800000"))))
+        ))).isInstanceOfSatisfying(NotFoundException.class, ex ->
+                assertThat(ex.code()).isEqualTo("CATEGORY_NOT_FOUND"));
+    }
+
+    @Test
+    void annualBudgetFailsWhenPlannedAmountIsNotPositive() {
+        givenAccess(AccountParticipantRole.ACCOUNT_ADMIN, AccountStatus.ACTIVE);
+        for (int month = 1; month <= 12; month++) {
+            when(budgetRepository.findByAccountIdAndYearAndMonth(1L, 2026, month)).thenReturn(Optional.empty());
+        }
+
+        assertThatThrownBy(() -> useCase.createAnnualBudget(new CreateAnnualBudgetCommand(
+                1L,
+                2026,
+                "Presupuesto 2026",
+                null,
+                List.of(new CreateAnnualSubBudgetBaseCommand("Mercado", null, Money.cop(BigDecimal.ZERO)))
+        ))).isInstanceOfSatisfying(BusinessRuleViolationException.class, ex ->
+                assertThat(ex.code()).isEqualTo("PLANNED_AMOUNT_INVALID"));
     }
 
     @Test
