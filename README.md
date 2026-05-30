@@ -882,6 +882,40 @@ Income import rules:
 - If all rows are valid, incomes are created in one transaction.
 - Imported incomes are normal `incomes` records, status `ACTIVE`, participant from authenticated user.
 
+Category imports are also a direct Excel workflow scoped by account:
+
+1. Download categories template.
+2. Upload `.xlsx` file for direct validation and creation (no persisted preview batch).
+
+Download template:
+
+```bash
+curl -L http://localhost:8080/api/v1/accounts/1/imports/categories/template \
+  -H "Authorization: Bearer <accessToken>" \
+  -o easy-finance-category-import-template.xlsx
+```
+
+Direct import:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/accounts/1/imports/categories \
+  -H "Authorization: Bearer <accessToken>" \
+  -F "file=@Plantilla-categorias.xlsx"
+```
+
+Category import rules:
+
+- Endpoint requires `ACCOUNT_ADMIN` and active account.
+- Template main sheet is `Categorias` with columns `Nombre`, `Tipo`.
+- Template includes hidden `Valores` sheet with allowed type labels `Gasto` and `Ingreso`.
+- `Tipo` accepts `Gasto`/`Ingreso` and technical values `EXPENSE`/`INCOME`.
+- Fully empty rows are ignored.
+- Import validates all rows first; if any row is invalid, no categories are created.
+- Duplicates inside the same file are rejected by `(type, normalizedName)` case-insensitive key.
+- Duplicates against active categories are rejected with `CATEGORY_ALREADY_EXISTS`.
+- Existing inactive category with the same name/type does not block creation, matching manual create behavior.
+- Created categories are normal account categories with status `ACTIVE` and `description = null`.
+
 ## Build
 
 ```bash

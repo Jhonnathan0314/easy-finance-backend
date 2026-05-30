@@ -131,4 +131,18 @@ Authorization: Bearer <accessToken>
 | POST | `/api/v1/accounts/{accountId}/imports/expenses/{batchId}/confirm` | Confirm valid rows, create expenses, and register debt payments for rows marked as debt payments. |
 | GET | `/api/v1/accounts/{accountId}/imports/expenses/{batchId}` | Get import batch and row errors. |
 
+## Income Imports
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/v1/accounts/{accountId}/imports/incomes/template` | Download direct import `.xlsx` template with active `INCOME` categories. |
+| POST | `/api/v1/accounts/{accountId}/imports/incomes` | Direct multipart `.xlsx` import; validates all rows then creates all incomes in one transaction. |
+
+## Category Imports
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/v1/accounts/{accountId}/imports/categories/template` | Download direct import `.xlsx` template with `Nombre` and `Tipo` (`Gasto`/`Ingreso`). |
+| POST | `/api/v1/accounts/{accountId}/imports/categories` | Direct multipart `.xlsx` import; admin-only, validates all rows then creates all categories in one transaction. |
+
 Debt payment registration accepts optional `createExpense`, `categoryId`, `paymentMethodId`, and `expenseDescription`. When `createExpense=true`, backend creates a conceptual expense with `sourceType=DEBT_PAYMENT`; cashflow still counts only the debt payment outflow.

@@ -264,6 +264,8 @@ POST /api/v1/accounts/{accountId}/imports/expenses/preview
 POST /api/v1/accounts/{accountId}/imports/expenses/{batchId}/confirm
 GET /api/v1/accounts/{accountId}/imports/incomes/template
 POST /api/v1/accounts/{accountId}/imports/incomes
+GET /api/v1/accounts/{accountId}/imports/categories/template
+POST /api/v1/accounts/{accountId}/imports/categories
 ```
 
 Expense import rows expose debt-payment metadata in preview/confirm responses:
@@ -280,6 +282,15 @@ Income import is direct and does not persist preview batches:
 - fully empty rows are ignored
 - all rows are validated first; if any row is invalid, no incomes are created
 - if all rows are valid, all incomes are created in one transaction as normal `incomes` rows with status `ACTIVE`
+
+Category import is direct and does not persist preview batches:
+- template sheet `Categorias` with columns `Nombre`, `Tipo`
+- hidden `Valores` sheet with allowed type labels `Gasto` and `Ingreso`
+- `Tipo` also accepts technical values `EXPENSE` and `INCOME`
+- fully empty rows are ignored
+- all rows are validated first; if any row is invalid, no categories are created
+- if all rows are valid, all categories are created in one transaction as normal `categories` rows with status `ACTIVE`
+- category import requires `ACCOUNT_ADMIN` on an active account
 
 Debt payment registration keeps `createExpense = false` by default. When callers send `createExpense = true`,
 the request also requires `categoryId`, `paymentMethodId`, and `expenseDescription`; the response includes

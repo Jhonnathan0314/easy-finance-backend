@@ -40,8 +40,15 @@ Rules:
 - Categories belong to an account.
 - Categories are not global.
 - Category names must be unique within an account.
+- Active uniqueness is enforced by `(accountId, type, normalizedName)` for `ACTIVE` records.
+- An existing `INACTIVE` category with the same name/type does not block creating a new `ACTIVE` category.
 - Categories can classify expenses, sub-budgets, and reports.
 - A category cannot be used across accounts.
+- Category Excel import is direct (no persisted preview batch):
+  - requires `ACCOUNT_ADMIN` on an active account,
+  - validates all rows first,
+  - creates all categories only if all rows are valid,
+  - creates standard `ACTIVE` categories with `description = null`.
 
 ## Payment Methods
 
