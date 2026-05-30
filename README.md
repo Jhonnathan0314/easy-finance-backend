@@ -852,6 +852,36 @@ Row-level errors include `REQUIRED`, `INVALID_DATE`, `INVALID_AMOUNT`, `CATEGORY
 
 Debt-payment row errors include `IMPORT_DEBT_PAYMENT_DEBT_REQUIRED`, `IMPORT_DEBT_PAYMENT_TYPE_REQUIRED`, `IMPORT_DEBT_PAYMENT_FIELDS_NOT_ALLOWED`, `IMPORT_DEBT_NOT_FOUND`, `IMPORT_DEBT_NOT_ACTIVE`, `IMPORT_DEBT_PAYMENT_EXCEEDS_REMAINING_BALANCE`, `IMPORT_DEBT_PAYMENT_TYPE_INVALID`, and `IMPORT_DEBT_PAYMENT_FLAG_INVALID`.
 
+Income imports are a direct Excel workflow scoped by account:
+
+1. Download template with active INCOME categories.
+2. Upload `.xlsx` file for direct validation and creation (no persisted preview batch).
+
+Download template:
+
+```bash
+curl -L http://localhost:8080/api/v1/accounts/1/imports/incomes/template \
+  -H "Authorization: Bearer <accessToken>" \
+  -o easy-finance-income-import-template.xlsx
+```
+
+Direct import:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/accounts/1/imports/incomes \
+  -H "Authorization: Bearer <accessToken>" \
+  -F "file=@Plantilla-ingresos.xlsx"
+```
+
+Income import rules:
+
+- Template main sheet is `Ingresos` with columns `Fecha`, `Descripcion`, `Categoria`, `Monto`.
+- Template includes hidden `Valores` sheet with active account categories of type `INCOME`.
+- Fully empty rows are ignored.
+- Import validates all rows first; if any row is invalid, no incomes are created.
+- If all rows are valid, incomes are created in one transaction.
+- Imported incomes are normal `incomes` records, status `ACTIVE`, participant from authenticated user.
+
 ## Build
 
 ```bash

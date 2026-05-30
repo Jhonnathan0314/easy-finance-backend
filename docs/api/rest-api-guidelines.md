@@ -262,6 +262,8 @@ Imports:
 GET /api/v1/accounts/{accountId}/imports/expenses/template
 POST /api/v1/accounts/{accountId}/imports/expenses/preview
 POST /api/v1/accounts/{accountId}/imports/expenses/{batchId}/confirm
+GET /api/v1/accounts/{accountId}/imports/incomes/template
+POST /api/v1/accounts/{accountId}/imports/incomes
 ```
 
 Expense import rows expose debt-payment metadata in preview/confirm responses:
@@ -271,6 +273,13 @@ template includes `AplicaPagoDeuda`, `Deuda`, `TipoPagoDeuda`, and `NotasPagoDeu
 and persists those fields. Confirm registers the debt payment through the debt-payment use case, creates
 an associated expense with `sourceType = DEBT_PAYMENT`, and persists both trace ids for rows with
 `appliesDebtPayment = true`.
+
+Income import is direct and does not persist preview batches:
+- template sheet `Ingresos` with columns `Fecha`, `Descripcion`, `Categoria`, `Monto`
+- hidden `Valores` sheet with active account categories of type `INCOME`
+- fully empty rows are ignored
+- all rows are validated first; if any row is invalid, no incomes are created
+- if all rows are valid, all incomes are created in one transaction as normal `incomes` rows with status `ACTIVE`
 
 Debt payment registration keeps `createExpense = false` by default. When callers send `createExpense = true`,
 the request also requires `categoryId`, `paymentMethodId`, and `expenseDescription`; the response includes

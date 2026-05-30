@@ -174,6 +174,11 @@ Rules:
 - Income amount must be greater than zero.
 - Income is currently event-based: each income has a specific `incomeDate`.
 - Income is included in reports and dashboard calculations.
+- Income Excel import is direct (no persisted preview batch):
+  - validates all rows first,
+  - creates all incomes only if all rows are valid,
+  - uses the authenticated participant as owner,
+  - stores normal rows in `incomes` with status `ACTIVE`.
 
 ## Audit
 

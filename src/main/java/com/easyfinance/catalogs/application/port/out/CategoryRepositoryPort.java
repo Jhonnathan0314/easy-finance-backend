@@ -25,4 +25,6 @@ public interface CategoryRepositoryPort {
     PageResponse<Category> findAll(ListCategoriesQuery query);
 
     List<Category> findActiveExpenseByAccountId(Long accountId);
+
+    List<Category> findActiveIncomeByAccountId(Long accountId);
 }

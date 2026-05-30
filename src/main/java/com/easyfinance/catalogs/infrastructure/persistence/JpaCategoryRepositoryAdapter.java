@@ -119,6 +119,18 @@ public class JpaCategoryRepositoryAdapter implements CategoryRepositoryPort {
                 .toList();
     }
 
+    @Override
+    public List<Category> findActiveIncomeByAccountId(Long accountId) {
+        return repository.findByAccountIdAndTypeAndStatusOrderByNameAsc(
+                        accountId,
+                        CategoryTypeJpa.INCOME,
+                        CatalogStatusJpa.ACTIVE
+                )
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
     private static Specification<CategoryJpaEntity> specification(ListCategoriesQuery query) {
         return (root, criteriaQuery, builder) -> {
             var predicate = builder.equal(root.get("accountId"), query.accountId());

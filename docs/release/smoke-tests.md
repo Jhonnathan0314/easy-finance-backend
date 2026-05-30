@@ -336,7 +336,38 @@ Expected:
 - Valid rows create simple expenses.
 - A repeated confirm fails with `IMPORT_ALREADY_CONFIRMED`.
 
-## 15. Negative Security Checks
+## 15. Income Import Direct
+
+Template:
+
+```http
+GET /api/v1/accounts/{accountId}/imports/incomes/template
+Authorization: Bearer <token>
+```
+
+Expected:
+
+- Response is `200`.
+- `Content-Type` is `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`.
+- `Content-Disposition` downloads `easy-finance-income-import-template.xlsx`.
+- Workbook contains `Ingresos` sheet and account-scoped active `INCOME` categories.
+
+Import:
+
+```http
+POST /api/v1/accounts/{accountId}/imports/incomes
+Authorization: Bearer <token>
+Content-Type: multipart/form-data
+file=<xlsx-file>
+```
+
+Expected:
+
+- Fully blank rows are ignored.
+- If any row is invalid, `createdCount` is `0` and no income is persisted.
+- If all rows are valid, all incomes are created in one transaction with status `ACTIVE`.
+
+## 16. Negative Security Checks
 
 Run:
 
