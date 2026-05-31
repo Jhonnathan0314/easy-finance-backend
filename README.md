@@ -916,6 +916,42 @@ Category import rules:
 - Existing inactive category with the same name/type does not block creation, matching manual create behavior.
 - Created categories are normal account categories with status `ACTIVE` and `description = null`.
 
+Payment method imports are direct and account-scoped:
+
+1. Download payment-method template.
+2. Upload `.xlsx` file for direct validation and creation (no persisted preview batch).
+
+Download template:
+
+```bash
+curl -L http://localhost:8080/api/v1/accounts/1/imports/payment-methods/template \
+  -H "Authorization: Bearer <accessToken>" \
+  -o easy-finance-payment-method-import-template.xlsx
+```
+
+Direct import:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/accounts/1/imports/payment-methods \
+  -H "Authorization: Bearer <accessToken>" \
+  -F "file=@Plantilla-medios-pago.xlsx"
+```
+
+Payment method import rules:
+
+- Endpoint requires `ACCOUNT_ADMIN` and active account.
+- Template main sheet is `MediosPago` with columns `Nombre`, `Tipo`.
+- Template includes hidden `Valores` sheet with allowed type labels:
+  - `Efectivo`, `CuentaBancaria`, `TarjetaCredito`, `TarjetaDebito`, `BilleteraDigital`, `Otro`.
+- `Tipo` accepts both labels and technical enum values:
+  - `CASH`, `BANK_ACCOUNT`, `CREDIT_CARD`, `DEBIT_CARD`, `DIGITAL_WALLET`, `OTHER`.
+- Fully empty rows are ignored.
+- Import validates all rows first; if any row is invalid, no payment methods are created.
+- Duplicates inside the same file are rejected by normalized name (case-insensitive), consistent with backend uniqueness.
+- Duplicates against active payment methods are rejected with `PAYMENT_METHOD_ALREADY_EXISTS`.
+- Existing inactive payment method with the same name does not block creation, matching manual create behavior.
+- Created payment methods are normal account records with status `ACTIVE` and `description = null`.
+
 ## Build
 
 ```bash

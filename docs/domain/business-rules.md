@@ -53,6 +53,8 @@ Rules:
 ## Payment Methods
 
 - Payment methods belong to an account.
+- Active uniqueness is enforced by `(accountId, normalizedName)` for `ACTIVE` records.
+- An existing `INACTIVE` payment method with the same name does not block creating a new `ACTIVE` payment method.
 - A payment method can have a responsible participant.
 - Payment methods can be used by expenses and debts.
 - Payment method responsible participant must belong to the same account.
@@ -61,6 +63,11 @@ Rules:
   - `DEBIT`
   - `CREDIT`
   - `TRANSFER`
+- Payment-method Excel import is direct (no persisted preview batch):
+  - requires `ACCOUNT_ADMIN` on an active account,
+  - validates all rows first,
+  - creates all payment methods only if all rows are valid,
+  - creates standard `ACTIVE` payment methods with `description = null`.
 
 ## Expenses
 

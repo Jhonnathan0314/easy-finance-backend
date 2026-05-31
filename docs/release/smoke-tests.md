@@ -402,7 +402,42 @@ Expected:
 - If all rows are valid, all categories are created in one transaction with status `ACTIVE`.
 - Duplicates inside the file and duplicates against active categories are rejected.
 
-## 17. Negative Security Checks
+## 17. Payment Method Import Direct
+
+Template:
+
+```http
+GET /api/v1/accounts/{accountId}/imports/payment-methods/template
+Authorization: Bearer <token>
+```
+
+Expected:
+
+- Response is `200`.
+- `Content-Type` is `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`.
+- `Content-Disposition` downloads `easy-finance-payment-method-import-template.xlsx`.
+- Workbook contains `MediosPago` sheet with columns `Nombre`, `Tipo`.
+- Hidden `Valores` sheet contains `Efectivo`, `CuentaBancaria`, `TarjetaCredito`, `TarjetaDebito`, `BilleteraDigital`, `Otro`.
+
+Import:
+
+```http
+POST /api/v1/accounts/{accountId}/imports/payment-methods
+Authorization: Bearer <token>
+Content-Type: multipart/form-data
+file=<xlsx-file>
+```
+
+Expected:
+
+- Requires `ACCOUNT_ADMIN` on an active account.
+- Fully blank rows are ignored.
+- `Tipo` accepts the visible labels and technical enum values.
+- If any row is invalid, `createdCount` is `0` and no payment method is persisted.
+- If all rows are valid, all payment methods are created in one transaction with status `ACTIVE`.
+- Duplicates inside the file and duplicates against active payment methods are rejected.
+
+## 18. Negative Security Checks
 
 Run:
 
