@@ -15,6 +15,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
 
 import java.util.Locale;
+import java.time.YearMonth;
 import java.util.Optional;
 
 @Repository
@@ -66,6 +67,17 @@ public class JpaIncomeRepositoryAdapter implements IncomeRepositoryPort {
             }
             if (query.to() != null) {
                 predicate = builder.and(predicate, builder.lessThanOrEqualTo(root.get("incomeDate"), query.to()));
+            }
+            if (query.year() != null) {
+                if (query.month() == null) {
+                    YearMonth yearMonth = YearMonth.of(query.year(), 1);
+                    predicate = builder.and(predicate, builder.greaterThanOrEqualTo(root.get("incomeDate"), yearMonth.atDay(1)));
+                    predicate = builder.and(predicate, builder.lessThanOrEqualTo(root.get("incomeDate"), YearMonth.of(query.year(), 12).atEndOfMonth()));
+                } else {
+                    YearMonth yearMonth = YearMonth.of(query.year(), query.month());
+                    predicate = builder.and(predicate, builder.greaterThanOrEqualTo(root.get("incomeDate"), yearMonth.atDay(1)));
+                    predicate = builder.and(predicate, builder.lessThanOrEqualTo(root.get("incomeDate"), yearMonth.atEndOfMonth()));
+                }
             }
             if (query.categoryId() != null) {
                 predicate = builder.and(predicate, builder.equal(root.get("categoryId"), query.categoryId()));

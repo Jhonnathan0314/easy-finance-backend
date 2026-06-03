@@ -72,7 +72,7 @@ class IncomesControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("ACTIVE"));
 
-        mockMvc.perform(get("/api/v1/accounts/1/incomes?from=2026-05-01&to=2026-05-31&status=ACTIVE&sort=incomeDate,desc"))
+        mockMvc.perform(get("/api/v1/accounts/1/incomes?year=2026&from=2026-05-01&to=2026-05-31&status=ACTIVE&sort=incomeDate,desc"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].description").value("Salary"));
 
@@ -144,6 +144,19 @@ class IncomesControllerTest {
         ArgumentCaptor<ListIncomesQuery> captor = ArgumentCaptor.forClass(ListIncomesQuery.class);
         verify(listIncomesPort).listIncomes(captor.capture());
         assertThat(captor.getValue().search()).isNull();
+    }
+
+    @Test
+    void listReceivesYearAndMonthParams() throws Exception {
+        when(listIncomesPort.listIncomes(any())).thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0));
+
+        mockMvc.perform(get("/api/v1/accounts/1/incomes?year=2026&month=5"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<ListIncomesQuery> captor = ArgumentCaptor.forClass(ListIncomesQuery.class);
+        verify(listIncomesPort).listIncomes(captor.capture());
+        assertThat(captor.getValue().year()).isEqualTo(2026);
+        assertThat(captor.getValue().month()).isEqualTo(5);
     }
 
     private static IncomeResponse income() {

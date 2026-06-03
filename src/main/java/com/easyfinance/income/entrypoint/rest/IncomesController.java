@@ -67,6 +67,8 @@ public class IncomesController {
     @GetMapping
     public PageResponseDto<IncomeResponseDto> list(
             @PathVariable Long accountId,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
             @RequestParam(required = false) LocalDate from,
             @RequestParam(required = false) LocalDate to,
             @RequestParam(required = false) Long categoryId,
@@ -79,6 +81,8 @@ public class IncomesController {
     ) {
         var query = new ListIncomesQuery(
                 accountId,
+                year,
+                month,
                 from,
                 to,
                 categoryId,

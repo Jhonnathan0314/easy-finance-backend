@@ -611,7 +611,7 @@ curl -X POST http://localhost:8080/api/v1/accounts/1/incomes \
 List incomes:
 
 ```bash
-curl "http://localhost:8080/api/v1/accounts/1/incomes?from=2026-05-01&to=2026-05-31&status=ACTIVE&search=salario&page=0&size=20&sort=incomeDate,desc" \
+curl "http://localhost:8080/api/v1/accounts/1/incomes?year=2026&month=5&from=2026-05-01&to=2026-05-31&status=ACTIVE&search=salario&page=0&size=20&sort=incomeDate,desc" \
   -H "Authorization: Bearer <accessToken>"
 ```
 
@@ -658,7 +658,7 @@ Income rules:
 - PostgreSQL enforces that the category and participant referenced by an income belong to the same `accountId`.
 - Cancelling is a soft operation: status becomes `CANCELLED`.
 - Duplicating creates a new `ACTIVE` income with a new id and audit metadata; cancelled incomes cannot be duplicated.
-- Listing defaults to `ACTIVE` incomes and supports filters `from`, `to`, `categoryId`, `participantId`, `status`, `search`, `page`, `size`, and safe `sort` values `incomeDate`, `amount`, `createdAt`, and `updatedAt`.
+- Listing defaults to `ACTIVE` incomes and supports filters `year`, `month`, `from`, `to`, `categoryId`, `participantId`, `status`, `search`, `page`, `size`, and safe `sort` values `incomeDate`, `amount`, `createdAt`, and `updatedAt`.
 - `search` is optional, trimmed, ignored when blank, case-insensitive, and currently matches income `description`.
 - Incomes feed monthly summary, cashflow, and incomes-by-category analytics.
 

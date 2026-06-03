@@ -101,7 +101,7 @@ Authorization: Bearer <accessToken>
 | Method | Path | Purpose |
 |---|---|---|
 | POST | `/api/v1/accounts/{accountId}/incomes` | Create income. |
-| GET | `/api/v1/accounts/{accountId}/incomes` | List incomes. Query: `from`, `to`, `categoryId`, `participantId`, `status`, `search`, `page`, `size`, `sort`. |
+| GET | `/api/v1/accounts/{accountId}/incomes` | List incomes. Query: `year`, `month`, `from`, `to`, `categoryId`, `participantId`, `status`, `search`, `page`, `size`, `sort`. |
 | GET | `/api/v1/accounts/{accountId}/incomes/{incomeId}` | Get income. |
 | PUT | `/api/v1/accounts/{accountId}/incomes/{incomeId}` | Update active income if owner or admin. |
 | PATCH | `/api/v1/accounts/{accountId}/incomes/{incomeId}/cancel` | Cancel active income if owner or admin. |

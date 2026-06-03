@@ -122,7 +122,7 @@ class IncomeManagementUseCaseTest {
         givenMemberAccess(AccountStatus.ACTIVE, 10L);
         when(incomeRepository.findAll(any())).thenReturn(new com.easyfinance.income.application.response.PageResponse<>(List.of(income(5L, 10L, IncomeStatus.ACTIVE)), 0, 20, 1, 1));
 
-        var response = useCase.listIncomes(new ListIncomesQuery(1L, null, null, null, null, null, null, PageQuery.of(0, 20), null));
+        var response = useCase.listIncomes(new ListIncomesQuery(1L, null, null, null, null, null, null, null, null, PageQuery.of(0, 20), null));
 
         assertThat(response.content()).hasSize(1);
     }
