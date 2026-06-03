@@ -32,7 +32,7 @@ public class ApachePoiIncomeImportTemplateGenerator implements IncomeImportTempl
     private static final String INCOMES_SHEET = "Ingresos";
     private static final String VALUES_SHEET = "Valores";
     private static final String CATEGORY_RANGE = "CategoriasIngreso";
-    private static final String[] HEADERS = {"Fecha", "Descripcion", "Categoria", "Monto"};
+    private static final String[] HEADERS = {"Fecha (yyyy-MM-dd)", "Descripcion", "Categoria", "Monto"};
 
     @Override
     public byte[] generate(IncomeImportTemplateData data) {
@@ -179,4 +179,3 @@ public class ApachePoiIncomeImportTemplateGenerator implements IncomeImportTempl
         return style;
     }
 }
-

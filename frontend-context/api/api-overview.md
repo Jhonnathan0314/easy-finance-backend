@@ -142,14 +142,21 @@ Authorization: Bearer <accessToken>
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/v1/accounts/{accountId}/imports/categories/template` | Download direct import `.xlsx` template with `Nombre` and `Tipo` (`Gasto`/`Ingreso`). |
+| GET | `/api/v1/accounts/{accountId}/imports/categories/template` | Download direct import `.xlsx` template with `Nombre`, `Tipo` (`Gasto`/`Ingreso`), and optional `Descripcion`. |
 | POST | `/api/v1/accounts/{accountId}/imports/categories` | Direct multipart `.xlsx` import; admin-only, validates all rows then creates all categories in one transaction. |
 
 ## Payment Method Imports
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/v1/accounts/{accountId}/imports/payment-methods/template` | Download direct import `.xlsx` template with `Nombre` and `Tipo` for payment methods. |
+| GET | `/api/v1/accounts/{accountId}/imports/payment-methods/template` | Download direct import `.xlsx` template with `Nombre`, `Tipo`, and optional `Descripcion` for payment methods. |
 | POST | `/api/v1/accounts/{accountId}/imports/payment-methods` | Direct multipart `.xlsx` import; admin-only, validates all rows then creates all payment methods in one transaction. |
+
+## Annual Budget Imports
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/v1/accounts/{accountId}/imports/budgets/annual/template` | Download direct annual budget `.xlsx` template with monthly base/override support. |
+| POST | `/api/v1/accounts/{accountId}/imports/budgets/annual` | Direct multipart `.xlsx` import; admin-only, validates all rows then creates 12 monthly budgets in one transaction. |
 
 Debt payment registration accepts optional `createExpense`, `categoryId`, `paymentMethodId`, and `expenseDescription`. When `createExpense=true`, backend creates a conceptual expense with `sourceType=DEBT_PAYMENT`; cashflow still counts only the debt payment outflow.

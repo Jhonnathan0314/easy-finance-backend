@@ -381,7 +381,7 @@ Expected:
 - Response is `200`.
 - `Content-Type` is `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`.
 - `Content-Disposition` downloads `easy-finance-category-import-template.xlsx`.
-- Workbook contains `Categorias` sheet with columns `Nombre`, `Tipo`.
+- Workbook contains `Categorias` sheet with columns `Nombre`, `Tipo`, `Descripcion` (optional).
 - Hidden `Valores` sheet contains `Gasto` and `Ingreso`.
 
 Import:
@@ -416,7 +416,7 @@ Expected:
 - Response is `200`.
 - `Content-Type` is `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`.
 - `Content-Disposition` downloads `easy-finance-payment-method-import-template.xlsx`.
-- Workbook contains `MediosPago` sheet with columns `Nombre`, `Tipo`.
+- Workbook contains `MediosPago` sheet with columns `Nombre`, `Tipo`, `Descripcion` (optional).
 - Hidden `Valores` sheet contains `Efectivo`, `CuentaBancaria`, `TarjetaCredito`, `TarjetaDebito`, `BilleteraDigital`, `Otro`.
 
 Import:

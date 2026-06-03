@@ -14,6 +14,7 @@ import com.easyfinance.shared.application.CurrentUserProvider;
 import com.easyfinance.shared.domain.BusinessRuleViolationException;
 import com.easyfinance.shared.domain.ForbiddenOperationException;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.io.ByteArrayInputStream;
 import java.time.Instant;
@@ -51,8 +52,8 @@ class PaymentMethodImportUseCaseTest {
     void importCreatesAllWhenRowsAreValid() {
         givenCurrentUser();
         when(parserPort.parse(any())).thenReturn(List.of(
-                new PaymentMethodImportParsedRow(2, "Efectivo", PaymentMethodType.CASH, List.of()),
-                new PaymentMethodImportParsedRow(3, "Nequi", PaymentMethodType.DIGITAL_WALLET, List.of())
+                new PaymentMethodImportParsedRow(2, "Efectivo", "Caja principal", PaymentMethodType.CASH, List.of()),
+                new PaymentMethodImportParsedRow(3, "Nequi", null, PaymentMethodType.DIGITAL_WALLET, List.of())
         ));
         when(createPaymentMethodPort.createPaymentMethod(any()))
                 .thenReturn(paymentMethod(101L, "Efectivo", "CASH"))
@@ -62,14 +63,19 @@ class PaymentMethodImportUseCaseTest {
 
         assertThat(response.createdCount()).isEqualTo(2);
         assertThat(response.rows()).allMatch(row -> row.valid() && row.createdPaymentMethodId() != null);
+        ArgumentCaptor<com.easyfinance.catalogs.application.command.CreatePaymentMethodCommand> captor =
+                ArgumentCaptor.forClass(com.easyfinance.catalogs.application.command.CreatePaymentMethodCommand.class);
+        verify(createPaymentMethodPort, org.mockito.Mockito.times(2)).createPaymentMethod(captor.capture());
+        assertThat(captor.getAllValues().getFirst().description()).isEqualTo("Caja principal");
+        assertThat(captor.getAllValues().get(1).description()).isNull();
     }
 
     @Test
     void importDoesNotCreateAnyWhenOneRowIsInvalid() {
         givenCurrentUser();
         when(parserPort.parse(any())).thenReturn(List.of(
-                new PaymentMethodImportParsedRow(2, "Efectivo", PaymentMethodType.CASH, List.of()),
-                new PaymentMethodImportParsedRow(3, null, null, List.of("Nombre requerido"))
+                new PaymentMethodImportParsedRow(2, "Efectivo", null, PaymentMethodType.CASH, List.of()),
+                new PaymentMethodImportParsedRow(3, null, null, null, List.of("Nombre requerido"))
         ));
 
         var response = useCase.importPaymentMethods(command("payment-methods.xlsx"));
@@ -83,7 +89,7 @@ class PaymentMethodImportUseCaseTest {
     void importDetectsDuplicateActivePaymentMethodInDatabase() {
         givenCurrentUser();
         when(parserPort.parse(any())).thenReturn(List.of(
-                new PaymentMethodImportParsedRow(2, "Efectivo", PaymentMethodType.CASH, List.of())
+                new PaymentMethodImportParsedRow(2, "Efectivo", null, PaymentMethodType.CASH, List.of())
         ));
         when(paymentMethodRepository.existsActiveByAccountIdAndNormalizedName(1L, "efectivo"))
                 .thenReturn(true);
@@ -99,7 +105,7 @@ class PaymentMethodImportUseCaseTest {
     void importAllowsSameNameWhenOnlyInactiveExists() {
         givenCurrentUser();
         when(parserPort.parse(any())).thenReturn(List.of(
-                new PaymentMethodImportParsedRow(2, "Efectivo", PaymentMethodType.CASH, List.of())
+                new PaymentMethodImportParsedRow(2, "Efectivo", null, PaymentMethodType.CASH, List.of())
         ));
         when(paymentMethodRepository.existsActiveByAccountIdAndNormalizedName(1L, "efectivo"))
                 .thenReturn(false);
@@ -166,4 +172,3 @@ class PaymentMethodImportUseCaseTest {
         return new PaymentMethodResponse(id, 1L, name, null, type, "ACTIVE", Instant.now(), Instant.now());
     }
 }
-

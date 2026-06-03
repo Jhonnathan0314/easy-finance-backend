@@ -93,7 +93,12 @@ public class CategoryImportUseCase implements GenerateCategoryImportTemplatePort
                 validationRows.add(new CategoryImportRowResponse(parsedRow.rowNumber(), false, null, errors));
                 continue;
             }
-            validRows.add(new ValidatedCategoryRow(parsedRow.rowNumber(), parsedRow.name().trim(), parsedRow.type()));
+            validRows.add(new ValidatedCategoryRow(
+                    parsedRow.rowNumber(),
+                    parsedRow.name().trim(),
+                    parsedRow.description(),
+                    parsedRow.type()
+            ));
             validationRows.add(new CategoryImportRowResponse(parsedRow.rowNumber(), true, null, List.of()));
         }
 
@@ -106,7 +111,7 @@ public class CategoryImportUseCase implements GenerateCategoryImportTemplatePort
             List<CategoryImportRowResponse> createdRows = new ArrayList<>();
             for (ValidatedCategoryRow row : validRows) {
                 var created = createCategoryPort.createCategory(
-                        new CreateCategoryCommand(command.accountId(), row.name(), null, row.type())
+                        new CreateCategoryCommand(command.accountId(), row.name(), row.description(), row.type())
                 );
                 createdRows.add(new CategoryImportRowResponse(row.rowNumber(), true, created.id(), List.of()));
             }
@@ -142,6 +147,7 @@ public class CategoryImportUseCase implements GenerateCategoryImportTemplatePort
     private record ValidatedCategoryRow(
             Integer rowNumber,
             String name,
+            String description,
             CategoryType type
     ) {
     }

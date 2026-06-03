@@ -1,0 +1,23 @@
+package com.easyfinance.imports.entrypoint.rest.mapper;
+
+import com.easyfinance.imports.application.response.AnnualBudgetImportResponse;
+import com.easyfinance.imports.entrypoint.rest.dto.AnnualBudgetImportResponseDto;
+import com.easyfinance.imports.entrypoint.rest.dto.AnnualBudgetImportRowResponseDto;
+
+public final class BudgetImportRestMapper {
+
+    private BudgetImportRestMapper() {
+    }
+
+    public static AnnualBudgetImportResponseDto toDto(AnnualBudgetImportResponse response) {
+        return new AnnualBudgetImportResponseDto(
+                response.year(),
+                response.createdBudgetsCount(),
+                response.createdSubBudgetsCount(),
+                response.rows().stream()
+                        .map(row -> new AnnualBudgetImportRowResponseDto(row.rowNumber(), row.valid(), row.appliedMonths(), row.errors()))
+                        .toList()
+        );
+    }
+}
+

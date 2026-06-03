@@ -268,6 +268,8 @@ GET /api/v1/accounts/{accountId}/imports/categories/template
 POST /api/v1/accounts/{accountId}/imports/categories
 GET /api/v1/accounts/{accountId}/imports/payment-methods/template
 POST /api/v1/accounts/{accountId}/imports/payment-methods
+GET /api/v1/accounts/{accountId}/imports/budgets/annual/template
+POST /api/v1/accounts/{accountId}/imports/budgets/annual
 ```
 
 Expense import rows expose debt-payment metadata in preview/confirm responses:
@@ -286,7 +288,7 @@ Income import is direct and does not persist preview batches:
 - if all rows are valid, all incomes are created in one transaction as normal `incomes` rows with status `ACTIVE`
 
 Category import is direct and does not persist preview batches:
-- template sheet `Categorias` with columns `Nombre`, `Tipo`
+- template sheet `Categorias` with columns `Nombre`, `Tipo`, `Descripcion` (optional)
 - hidden `Valores` sheet with allowed type labels `Gasto` and `Ingreso`
 - `Tipo` also accepts technical values `EXPENSE` and `INCOME`
 - fully empty rows are ignored
@@ -295,7 +297,7 @@ Category import is direct and does not persist preview batches:
 - category import requires `ACCOUNT_ADMIN` on an active account
 
 Payment-method import is direct and does not persist preview batches:
-- template sheet `MediosPago` with columns `Nombre`, `Tipo`
+- template sheet `MediosPago` with columns `Nombre`, `Tipo`, `Descripcion` (optional)
 - hidden `Valores` sheet with allowed labels:
   - `Efectivo`, `CuentaBancaria`, `TarjetaCredito`, `TarjetaDebito`, `BilleteraDigital`, `Otro`
 - `Tipo` also accepts technical values:
@@ -304,6 +306,22 @@ Payment-method import is direct and does not persist preview batches:
 - all rows are validated first; if any row is invalid, no payment methods are created
 - if all rows are valid, all payment methods are created in one transaction as normal `payment_methods` rows with status `ACTIVE`
 - payment-method import requires `ACCOUNT_ADMIN` on an active account
+
+Annual-budget import is direct and does not persist preview batches:
+- template sheet `PresupuestoAnual` with columns:
+  - `Año`, `Mes`, `NombrePresupuesto`, `Categoria`, `NombreSubpresupuesto`, `Valor`
+- hidden `Valores` sheet with supported month values and active account categories of type `EXPENSE`
+- `Mes` accepts:
+  - empty/blank (`Todos`)
+  - `Todos`
+  - Spanish month names (`Enero`..`Diciembre`)
+  - numeric `1..12`
+- `Todos` rows define the base yearly structure; month-specific rows override only the targeted month for the same `(categoria, nombreSubpresupuesto)`
+- fully empty rows are ignored
+- all rows are validated first; if any row is invalid, no budgets are created
+- if any budget already exists for that account/year, import fails with `ANNUAL_BUDGET_MONTH_ALREADY_EXISTS`
+- if valid, all 12 monthly budgets are created in one transaction with sub-budgets `MANUAL` and `ACTIVE`
+- annual-budget import requires `ACCOUNT_ADMIN` on an active account
 
 Debt payment registration keeps `createExpense = false` by default. When callers send `createExpense = true`,
 the request also requires `categoryId`, `paymentMethodId`, and `expenseDescription`; the response includes

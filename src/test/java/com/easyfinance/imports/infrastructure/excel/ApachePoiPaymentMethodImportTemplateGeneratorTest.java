@@ -21,6 +21,7 @@ class ApachePoiPaymentMethodImportTemplateGeneratorTest {
             assertThat(main).isNotNull();
             assertThat(main.getRow(0).getCell(0).getStringCellValue()).isEqualTo("Nombre");
             assertThat(main.getRow(0).getCell(1).getStringCellValue()).isEqualTo("Tipo");
+            assertThat(main.getRow(0).getCell(2).getStringCellValue()).isEqualTo("Descripcion");
 
             Sheet values = workbook.getSheet("Valores");
             assertThat(values).isNotNull();
@@ -33,4 +34,3 @@ class ApachePoiPaymentMethodImportTemplateGeneratorTest {
         }
     }
 }
-

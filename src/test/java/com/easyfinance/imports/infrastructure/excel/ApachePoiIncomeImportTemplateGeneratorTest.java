@@ -24,7 +24,7 @@ class ApachePoiIncomeImportTemplateGeneratorTest {
             var values = workbook.getSheet("Valores");
             assertThat(incomes).isNotNull();
             assertThat(values).isNotNull();
-            assertThat(incomes.getRow(0).getCell(0).getStringCellValue()).isEqualTo("Fecha");
+            assertThat(incomes.getRow(0).getCell(0).getStringCellValue()).isEqualTo("Fecha (yyyy-MM-dd)");
             assertThat(incomes.getRow(0).getCell(1).getStringCellValue()).isEqualTo("Descripcion");
             assertThat(incomes.getRow(0).getCell(2).getStringCellValue()).isEqualTo("Categoria");
             assertThat(incomes.getRow(0).getCell(3).getStringCellValue()).isEqualTo("Monto");
@@ -37,4 +37,3 @@ class ApachePoiIncomeImportTemplateGeneratorTest {
         }
     }
 }
-

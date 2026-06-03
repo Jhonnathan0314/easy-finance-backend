@@ -91,7 +91,12 @@ public class PaymentMethodImportUseCase implements GeneratePaymentMethodImportTe
                 validationRows.add(new PaymentMethodImportRowResponse(parsedRow.rowNumber(), false, null, errors));
                 continue;
             }
-            validRows.add(new ValidatedPaymentMethodRow(parsedRow.rowNumber(), parsedRow.name().trim(), parsedRow.type()));
+            validRows.add(new ValidatedPaymentMethodRow(
+                    parsedRow.rowNumber(),
+                    parsedRow.name().trim(),
+                    parsedRow.description(),
+                    parsedRow.type()
+            ));
             validationRows.add(new PaymentMethodImportRowResponse(parsedRow.rowNumber(), true, null, List.of()));
         }
 
@@ -104,7 +109,7 @@ public class PaymentMethodImportUseCase implements GeneratePaymentMethodImportTe
             List<PaymentMethodImportRowResponse> createdRows = new ArrayList<>();
             for (ValidatedPaymentMethodRow row : validRows) {
                 var created = createPaymentMethodPort.createPaymentMethod(
-                        new CreatePaymentMethodCommand(command.accountId(), row.name(), null, row.type())
+                        new CreatePaymentMethodCommand(command.accountId(), row.name(), row.description(), row.type())
                 );
                 createdRows.add(new PaymentMethodImportRowResponse(row.rowNumber(), true, created.id(), List.of()));
             }
@@ -140,8 +145,8 @@ public class PaymentMethodImportUseCase implements GeneratePaymentMethodImportTe
     private record ValidatedPaymentMethodRow(
             Integer rowNumber,
             String name,
+            String description,
             PaymentMethodType type
     ) {
     }
 }
-

@@ -37,6 +37,7 @@ class ApachePoiCategoryImportParserTest {
         assertThat(rows).hasSize(2);
         assertThat(rows.get(0).type()).isEqualTo(CategoryType.EXPENSE);
         assertThat(rows.get(1).type()).isEqualTo(CategoryType.INCOME);
+        assertThat(rows.get(0).description()).isNull();
     }
 
     @Test
@@ -99,6 +100,25 @@ class ApachePoiCategoryImportParserTest {
         var rows = parser.parse(command(file));
         assertThat(rows).hasSize(2);
         assertThat(rows.get(1).errors()).contains("Categoria duplicada dentro del archivo");
+    }
+
+    @Test
+    void parsesOptionalDescriptionWhenPresentAndTrimsIt() throws Exception {
+        byte[] file = workbookBytes(sheet -> {
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("Nombre");
+            header.createCell(1).setCellValue("Tipo");
+            header.createCell(2).setCellValue("Descripcion");
+            Row row = sheet.createRow(1);
+            row.createCell(0).setCellValue("Mercado");
+            row.createCell(1).setCellValue("Gasto");
+            row.createCell(2).setCellValue("  Compras del hogar  ");
+        });
+
+        var rows = parser.parse(command(file));
+
+        assertThat(rows).hasSize(1);
+        assertThat(rows.getFirst().description()).isEqualTo("Compras del hogar");
     }
 
     private static void createHeader(Sheet sheet) {

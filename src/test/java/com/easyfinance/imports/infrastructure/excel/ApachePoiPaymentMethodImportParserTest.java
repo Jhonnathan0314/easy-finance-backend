@@ -36,6 +36,7 @@ class ApachePoiPaymentMethodImportParserTest {
         assertThat(rows).hasSize(2);
         assertThat(rows.get(0).type()).isEqualTo(PaymentMethodType.CASH);
         assertThat(rows.get(1).type()).isEqualTo(PaymentMethodType.BANK_ACCOUNT);
+        assertThat(rows.get(0).description()).isNull();
     }
 
     @Test
@@ -100,6 +101,25 @@ class ApachePoiPaymentMethodImportParserTest {
         assertThat(rows.get(1).errors()).contains("Medio de pago duplicado dentro del archivo");
     }
 
+    @Test
+    void parsesOptionalDescriptionWhenPresentAndTrimsIt() throws Exception {
+        byte[] file = workbookBytes(sheet -> {
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("Nombre");
+            header.createCell(1).setCellValue("Tipo");
+            header.createCell(2).setCellValue("Descripcion");
+            Row row = sheet.createRow(1);
+            row.createCell(0).setCellValue("Nequi");
+            row.createCell(1).setCellValue("BilleteraDigital");
+            row.createCell(2).setCellValue("  Billetera principal  ");
+        });
+
+        var rows = parser.parse(command(file));
+
+        assertThat(rows).hasSize(1);
+        assertThat(rows.getFirst().description()).isEqualTo("Billetera principal");
+    }
+
     private static void createHeader(Sheet sheet) {
         Row header = sheet.createRow(0);
         header.createCell(0).setCellValue("Nombre");
@@ -119,4 +139,3 @@ class ApachePoiPaymentMethodImportParserTest {
         return new ImportPaymentMethodCommand(1L, "payment-methods.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", bytes.length, new ByteArrayInputStream(bytes));
     }
 }
-

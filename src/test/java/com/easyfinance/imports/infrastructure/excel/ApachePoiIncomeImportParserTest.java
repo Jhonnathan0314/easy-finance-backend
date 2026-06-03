@@ -44,6 +44,29 @@ class ApachePoiIncomeImportParserTest {
     }
 
     @Test
+    void parsesTemplateWithDateHeaderFormatSuffix() throws Exception {
+        byte[] file = workbookBytes(workbook -> {
+            var sheet = workbook.createSheet("Ingresos");
+            var header = sheet.createRow(0);
+            header.createCell(0).setCellValue("Fecha (yyyy-MM-dd)");
+            header.createCell(1).setCellValue("Descripcion");
+            header.createCell(2).setCellValue("Categoria");
+            header.createCell(3).setCellValue("Monto");
+            var row = sheet.createRow(1);
+            row.createCell(0).setCellValue("2026-05-11");
+            row.createCell(1).setCellValue("Freelance");
+            row.createCell(2).setCellValue("Servicios");
+            row.createCell(3).setCellValue(1000000);
+        });
+
+        var rows = parser.parse(command(file), 1L);
+
+        assertThat(rows).hasSize(1);
+        assertThat(rows.getFirst().incomeDate()).isEqualTo(LocalDate.of(2026, 5, 11));
+        assertThat(rows.getFirst().errors()).isEmpty();
+    }
+
+    @Test
     void reportsValidationErrors() throws Exception {
         byte[] file = workbookBytes(workbook -> {
             var sheet = workbook.createSheet("Ingresos");
@@ -96,4 +119,3 @@ class ApachePoiIncomeImportParserTest {
         void configure(Workbook workbook) throws Exception;
     }
 }
-

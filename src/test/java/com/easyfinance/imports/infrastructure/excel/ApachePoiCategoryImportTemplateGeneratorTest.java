@@ -21,6 +21,7 @@ class ApachePoiCategoryImportTemplateGeneratorTest {
             assertThat(categories).isNotNull();
             assertThat(categories.getRow(0).getCell(0).getStringCellValue()).isEqualTo("Nombre");
             assertThat(categories.getRow(0).getCell(1).getStringCellValue()).isEqualTo("Tipo");
+            assertThat(categories.getRow(0).getCell(2).getStringCellValue()).isEqualTo("Descripcion");
 
             Sheet values = workbook.getSheet("Valores");
             assertThat(values).isNotNull();
@@ -29,4 +30,3 @@ class ApachePoiCategoryImportTemplateGeneratorTest {
         }
     }
 }
-

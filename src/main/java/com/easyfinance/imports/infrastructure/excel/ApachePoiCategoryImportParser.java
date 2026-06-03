@@ -28,6 +28,7 @@ import java.util.Set;
 public class ApachePoiCategoryImportParser implements CategoryImportParserPort {
 
     private static final List<String> REQUIRED_HEADERS = List.of("Nombre", "Tipo");
+    private static final String OPTIONAL_DESCRIPTION_HEADER = "Descripcion";
     private final int maxRows;
 
     public ApachePoiCategoryImportParser(@Value("${easy-finance.imports.categories.max-rows:1000}") int maxRows) {
@@ -83,6 +84,9 @@ public class ApachePoiCategoryImportParser implements CategoryImportParserPort {
     private CategoryImportParsedRow parseRow(Row row, Map<String, Integer> columns, Set<String> seenKeys) {
         List<String> errors = new ArrayList<>();
         String name = requiredText(row.getCell(columns.get("Nombre")), "Nombre", errors);
+        String description = optionalText(columns.containsKey(OPTIONAL_DESCRIPTION_HEADER)
+                ? row.getCell(columns.get(OPTIONAL_DESCRIPTION_HEADER))
+                : null);
         CategoryType type = parseType(row.getCell(columns.get("Tipo")), errors);
         if (errors.isEmpty()) {
             String key = type.name() + "|" + name.trim().toLowerCase(Locale.ROOT);
@@ -90,7 +94,7 @@ public class ApachePoiCategoryImportParser implements CategoryImportParserPort {
                 errors.add("Categoria duplicada dentro del archivo");
             }
         }
-        return new CategoryImportParsedRow(row.getRowNum() + 1, name, type, errors);
+        return new CategoryImportParsedRow(row.getRowNum() + 1, name, description, type, errors);
     }
 
     private String requiredText(Cell cell, String field, List<String> errors) {
@@ -103,6 +107,17 @@ public class ApachePoiCategoryImportParser implements CategoryImportParserPort {
             return null;
         }
         return text(cell).trim();
+    }
+
+    private String optionalText(Cell cell) {
+        if (cell == null || cell.getCellType() == CellType.BLANK || text(cell).isBlank()) {
+            return null;
+        }
+        if (cell.getCellType() == CellType.FORMULA) {
+            return null;
+        }
+        String value = text(cell).trim();
+        return value.isEmpty() ? null : value;
     }
 
     private CategoryType parseType(Cell cell, List<String> errors) {

@@ -28,6 +28,7 @@ import java.util.Set;
 public class ApachePoiPaymentMethodImportParser implements PaymentMethodImportParserPort {
 
     private static final List<String> REQUIRED_HEADERS = List.of("Nombre", "Tipo");
+    private static final String OPTIONAL_DESCRIPTION_HEADER = "Descripcion";
     private final int maxRows;
 
     public ApachePoiPaymentMethodImportParser(@Value("${easy-finance.imports.payment-methods.max-rows:1000}") int maxRows) {
@@ -83,6 +84,9 @@ public class ApachePoiPaymentMethodImportParser implements PaymentMethodImportPa
     private PaymentMethodImportParsedRow parseRow(Row row, Map<String, Integer> columns, Set<String> seenNames) {
         List<String> errors = new ArrayList<>();
         String name = requiredText(row.getCell(columns.get("Nombre")), "Nombre", errors);
+        String description = optionalText(columns.containsKey(OPTIONAL_DESCRIPTION_HEADER)
+                ? row.getCell(columns.get(OPTIONAL_DESCRIPTION_HEADER))
+                : null);
         PaymentMethodType type = parseType(row.getCell(columns.get("Tipo")), errors);
         if (errors.isEmpty()) {
             String normalizedName = name.trim().toLowerCase(Locale.ROOT);
@@ -90,7 +94,7 @@ public class ApachePoiPaymentMethodImportParser implements PaymentMethodImportPa
                 errors.add("Medio de pago duplicado dentro del archivo");
             }
         }
-        return new PaymentMethodImportParsedRow(row.getRowNum() + 1, name, type, errors);
+        return new PaymentMethodImportParsedRow(row.getRowNum() + 1, name, description, type, errors);
     }
 
     private String requiredText(Cell cell, String field, List<String> errors) {
@@ -103,6 +107,17 @@ public class ApachePoiPaymentMethodImportParser implements PaymentMethodImportPa
             return null;
         }
         return text(cell).trim();
+    }
+
+    private String optionalText(Cell cell) {
+        if (cell == null || cell.getCellType() == CellType.BLANK || text(cell).isBlank()) {
+            return null;
+        }
+        if (cell.getCellType() == CellType.FORMULA) {
+            return null;
+        }
+        String value = text(cell).trim();
+        return value.isEmpty() ? null : value;
     }
 
     private PaymentMethodType parseType(Cell cell, List<String> errors) {
@@ -142,4 +157,3 @@ public class ApachePoiPaymentMethodImportParser implements PaymentMethodImportPa
         return cell == null ? "" : new DataFormatter().formatCellValue(cell);
     }
 }
-

@@ -14,6 +14,7 @@ import com.easyfinance.shared.application.CurrentUserProvider;
 import com.easyfinance.shared.domain.BusinessRuleViolationException;
 import com.easyfinance.shared.domain.ForbiddenOperationException;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.io.ByteArrayInputStream;
 import java.time.Instant;
@@ -51,8 +52,8 @@ class CategoryImportUseCaseTest {
     void importCreatesAllWhenRowsAreValid() {
         givenCurrentUser();
         when(parserPort.parse(any())).thenReturn(List.of(
-                new CategoryImportParsedRow(2, "Mercado", CategoryType.EXPENSE, List.of()),
-                new CategoryImportParsedRow(3, "Nomina", CategoryType.INCOME, List.of())
+                new CategoryImportParsedRow(2, "Mercado", "Compras del hogar", CategoryType.EXPENSE, List.of()),
+                new CategoryImportParsedRow(3, "Nomina", null, CategoryType.INCOME, List.of())
         ));
         when(createCategoryPort.createCategory(any()))
                 .thenReturn(category(101L, "Mercado", "EXPENSE"))
@@ -62,14 +63,19 @@ class CategoryImportUseCaseTest {
 
         assertThat(response.createdCount()).isEqualTo(2);
         assertThat(response.rows()).allMatch(row -> row.valid() && row.createdCategoryId() != null);
+        ArgumentCaptor<com.easyfinance.catalogs.application.command.CreateCategoryCommand> captor =
+                ArgumentCaptor.forClass(com.easyfinance.catalogs.application.command.CreateCategoryCommand.class);
+        verify(createCategoryPort, org.mockito.Mockito.times(2)).createCategory(captor.capture());
+        assertThat(captor.getAllValues().getFirst().description()).isEqualTo("Compras del hogar");
+        assertThat(captor.getAllValues().get(1).description()).isNull();
     }
 
     @Test
     void importDoesNotCreateAnyWhenOneRowIsInvalid() {
         givenCurrentUser();
         when(parserPort.parse(any())).thenReturn(List.of(
-                new CategoryImportParsedRow(2, "Mercado", CategoryType.EXPENSE, List.of()),
-                new CategoryImportParsedRow(3, null, null, List.of("Nombre requerido"))
+                new CategoryImportParsedRow(2, "Mercado", null, CategoryType.EXPENSE, List.of()),
+                new CategoryImportParsedRow(3, null, null, null, List.of("Nombre requerido"))
         ));
 
         var response = useCase.importCategories(command("categories.xlsx"));
@@ -83,7 +89,7 @@ class CategoryImportUseCaseTest {
     void importDetectsDuplicateActiveCategoryInDatabase() {
         givenCurrentUser();
         when(parserPort.parse(any())).thenReturn(List.of(
-                new CategoryImportParsedRow(2, "Mercado", CategoryType.EXPENSE, List.of())
+                new CategoryImportParsedRow(2, "Mercado", null, CategoryType.EXPENSE, List.of())
         ));
         when(categoryRepository.existsActiveByAccountIdAndTypeAndNormalizedName(1L, CategoryType.EXPENSE, "mercado"))
                 .thenReturn(true);
@@ -99,7 +105,7 @@ class CategoryImportUseCaseTest {
     void importAllowsSameNameWhenOnlyInactiveExists() {
         givenCurrentUser();
         when(parserPort.parse(any())).thenReturn(List.of(
-                new CategoryImportParsedRow(2, "Mercado", CategoryType.EXPENSE, List.of())
+                new CategoryImportParsedRow(2, "Mercado", null, CategoryType.EXPENSE, List.of())
         ));
         when(categoryRepository.existsActiveByAccountIdAndTypeAndNormalizedName(1L, CategoryType.EXPENSE, "mercado"))
                 .thenReturn(false);

@@ -29,7 +29,7 @@ public class ApachePoiCategoryImportTemplateGenerator implements CategoryImportT
     private static final String CATEGORIES_SHEET = "Categorias";
     private static final String VALUES_SHEET = "Valores";
     private static final String TYPE_RANGE = "TiposCategoria";
-    private static final String[] HEADERS = {"Nombre", "Tipo"};
+    private static final String[] HEADERS = {"Nombre", "Tipo", "Descripcion"};
 
     @Override
     public byte[] generate() {
@@ -81,6 +81,7 @@ public class ApachePoiCategoryImportTemplateGenerator implements CategoryImportT
         sheet.createFreezePane(0, 1);
         sheet.setColumnWidth(0, 36 * 256);
         sheet.setColumnWidth(1, 18 * 256);
+        sheet.setColumnWidth(2, 48 * 256);
     }
 
     private static void addTypeValidation(Sheet sheet) {
@@ -110,4 +111,3 @@ public class ApachePoiCategoryImportTemplateGenerator implements CategoryImportT
         return style;
     }
 }
-

@@ -906,7 +906,7 @@ curl -X POST http://localhost:8080/api/v1/accounts/1/imports/categories \
 Category import rules:
 
 - Endpoint requires `ACCOUNT_ADMIN` and active account.
-- Template main sheet is `Categorias` with columns `Nombre`, `Tipo`.
+- Template main sheet is `Categorias` with columns `Nombre`, `Tipo`, `Descripcion` (optional).
 - Template includes hidden `Valores` sheet with allowed type labels `Gasto` and `Ingreso`.
 - `Tipo` accepts `Gasto`/`Ingreso` and technical values `EXPENSE`/`INCOME`.
 - Fully empty rows are ignored.
@@ -914,7 +914,7 @@ Category import rules:
 - Duplicates inside the same file are rejected by `(type, normalizedName)` case-insensitive key.
 - Duplicates against active categories are rejected with `CATEGORY_ALREADY_EXISTS`.
 - Existing inactive category with the same name/type does not block creation, matching manual create behavior.
-- Created categories are normal account categories with status `ACTIVE` and `description = null`.
+- Created categories are normal account categories with status `ACTIVE` and optional `description`.
 
 Payment method imports are direct and account-scoped:
 
@@ -940,7 +940,7 @@ curl -X POST http://localhost:8080/api/v1/accounts/1/imports/payment-methods \
 Payment method import rules:
 
 - Endpoint requires `ACCOUNT_ADMIN` and active account.
-- Template main sheet is `MediosPago` with columns `Nombre`, `Tipo`.
+- Template main sheet is `MediosPago` with columns `Nombre`, `Tipo`, `Descripcion` (optional).
 - Template includes hidden `Valores` sheet with allowed type labels:
   - `Efectivo`, `CuentaBancaria`, `TarjetaCredito`, `TarjetaDebito`, `BilleteraDigital`, `Otro`.
 - `Tipo` accepts both labels and technical enum values:
@@ -950,7 +950,54 @@ Payment method import rules:
 - Duplicates inside the same file are rejected by normalized name (case-insensitive), consistent with backend uniqueness.
 - Duplicates against active payment methods are rejected with `PAYMENT_METHOD_ALREADY_EXISTS`.
 - Existing inactive payment method with the same name does not block creation, matching manual create behavior.
-- Created payment methods are normal account records with status `ACTIVE` and `description = null`.
+- Created payment methods are normal account records with status `ACTIVE` and optional `description`.
+
+Annual budget import is direct and account-scoped:
+
+1. Download annual-budget template.
+2. Upload `.xlsx` file for direct validation and creation (no persisted preview batch).
+
+Download template:
+
+```bash
+curl -L http://localhost:8080/api/v1/accounts/1/imports/budgets/annual/template \
+  -H "Authorization: Bearer <accessToken>" \
+  -o easy-finance-annual-budget-import-template.xlsx
+```
+
+Direct import:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/accounts/1/imports/budgets/annual \
+  -H "Authorization: Bearer <accessToken>" \
+  -F "file=@Plantilla-presupuesto-anual.xlsx"
+```
+
+Annual budget import rules:
+
+- Endpoint requires `ACCOUNT_ADMIN` and active account.
+- Template main sheet is `PresupuestoAnual` with columns:
+  - `Año`, `Mes`, `NombrePresupuesto`, `Categoria`, `NombreSubpresupuesto`, `Valor`.
+- Template includes hidden `Valores` sheet with supported months and active account categories of type `EXPENSE`.
+- `Mes` supports:
+  - empty/blank (interpreted as `Todos`),
+  - `Todos`,
+  - Spanish month names (`Enero`..`Diciembre`),
+  - numeric values `1..12`.
+- `Año` is required and must be between `2000` and `2100`; all non-empty rows must use the same year.
+- `NombrePresupuesto` is optional; if present on multiple rows, it must be consistent for the whole year.
+- `Categoria` is required and must resolve to an active `EXPENSE` category in the same account.
+- `NombreSubpresupuesto` is required and must satisfy domain length rules.
+- `Valor` is required and must be greater than `0`.
+- Duplicate rows inside the same file are rejected for:
+  - duplicated `Todos` entries with the same `(categoria, nombreSubpresupuesto)`,
+  - duplicated entries for the same month with the same `(categoria, nombreSubpresupuesto)`.
+- `Todos` + specific-month rows for the same `(categoria, nombreSubpresupuesto)` are valid; month-specific rows override only that month.
+- If any budget already exists in that account/year, import fails with `ANNUAL_BUDGET_MONTH_ALREADY_EXISTS`.
+- Import is all-or-nothing:
+  - any invalid row returns `createdBudgetsCount = 0` and creates nothing,
+  - valid file creates all `12` monthly budgets in one transaction.
+- Imported sub-budgets are created as `MANUAL` and `ACTIVE`; this flow never creates `DEBT_DERIVED`.
 
 ## Build
 

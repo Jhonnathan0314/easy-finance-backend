@@ -29,7 +29,7 @@ public class ApachePoiPaymentMethodImportTemplateGenerator implements PaymentMet
     private static final String SHEET = "MediosPago";
     private static final String VALUES_SHEET = "Valores";
     private static final String TYPES_RANGE = "TiposMedioPago";
-    private static final String[] HEADERS = {"Nombre", "Tipo"};
+    private static final String[] HEADERS = {"Nombre", "Tipo", "Descripcion"};
 
     @Override
     public byte[] generate() {
@@ -83,6 +83,7 @@ public class ApachePoiPaymentMethodImportTemplateGenerator implements PaymentMet
         sheet.createFreezePane(0, 1);
         sheet.setColumnWidth(0, 36 * 256);
         sheet.setColumnWidth(1, 24 * 256);
+        sheet.setColumnWidth(2, 48 * 256);
     }
 
     private static void addTypeValidation(Sheet sheet) {
@@ -112,4 +113,3 @@ public class ApachePoiPaymentMethodImportTemplateGenerator implements PaymentMet
         return style;
     }
 }
-

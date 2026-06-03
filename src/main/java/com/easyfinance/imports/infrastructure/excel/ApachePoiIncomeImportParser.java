@@ -26,7 +26,9 @@ import java.util.Map;
 @Component
 public class ApachePoiIncomeImportParser implements IncomeImportParserPort {
 
-    private static final List<String> REQUIRED_HEADERS = List.of("Fecha", "Descripcion", "Categoria", "Monto");
+    private static final String DATE_HEADER = "Fecha";
+    private static final String DATE_HEADER_WITH_FORMAT = "Fecha (yyyy-MM-dd)";
+    private static final List<String> REQUIRED_HEADERS = List.of("Descripcion", "Categoria", "Monto");
     private final int maxRows;
 
     public ApachePoiIncomeImportParser(@Value("${easy-finance.imports.incomes.max-rows:1000}") int maxRows) {
@@ -72,7 +74,8 @@ public class ApachePoiIncomeImportParser implements IncomeImportParserPort {
         for (Cell cell : headerRow) {
             columns.put(formatter.formatCellValue(cell).trim(), cell.getColumnIndex());
         }
-        if (!columns.keySet().containsAll(REQUIRED_HEADERS)) {
+        if ((!columns.containsKey(DATE_HEADER) && !columns.containsKey(DATE_HEADER_WITH_FORMAT))
+                || !columns.keySet().containsAll(REQUIRED_HEADERS)) {
             throw new BusinessRuleViolationException("IMPORT_TEMPLATE_INVALID", "Import template header is invalid.");
         }
         return columns;
@@ -80,7 +83,7 @@ public class ApachePoiIncomeImportParser implements IncomeImportParserPort {
 
     private IncomeImportParsedRow parseRow(Row row, Map<String, Integer> columns) {
         List<String> errors = new ArrayList<>();
-        LocalDate date = readDate(row.getCell(columns.get("Fecha")), errors);
+        LocalDate date = readDate(row.getCell(dateColumn(columns)), errors);
         String description = requiredText(row.getCell(columns.get("Descripcion")), "Descripcion", errors);
         String category = requiredText(row.getCell(columns.get("Categoria")), "Categoria", errors);
         BigDecimal amount = readAmount(row.getCell(columns.get("Monto")), errors);
@@ -163,5 +166,9 @@ public class ApachePoiIncomeImportParser implements IncomeImportParserPort {
     private static String text(Cell cell) {
         return cell == null ? "" : new DataFormatter().formatCellValue(cell);
     }
-}
 
+    private static Integer dateColumn(Map<String, Integer> columns) {
+        Integer column = columns.get(DATE_HEADER);
+        return column != null ? column : columns.get(DATE_HEADER_WITH_FORMAT);
+    }
+}
