@@ -8,6 +8,7 @@ import com.easyfinance.catalogs.domain.model.PaymentMethodType;
 import com.easyfinance.imports.application.command.ImportPaymentMethodCommand;
 import com.easyfinance.imports.application.port.in.GeneratePaymentMethodImportTemplatePort;
 import com.easyfinance.imports.application.port.in.ImportPaymentMethodPort;
+import com.easyfinance.imports.application.port.in.PreviewPaymentMethodImportPort;
 import com.easyfinance.imports.application.port.out.PaymentMethodImportParserPort;
 import com.easyfinance.imports.application.port.out.PaymentMethodImportTemplateGeneratorPort;
 import com.easyfinance.imports.application.response.PaymentMethodImportResponse;
@@ -28,7 +29,7 @@ import java.util.List;
 import java.util.Locale;
 
 @Service
-public class PaymentMethodImportUseCase implements GeneratePaymentMethodImportTemplatePort, ImportPaymentMethodPort {
+public class PaymentMethodImportUseCase implements GeneratePaymentMethodImportTemplatePort, ImportPaymentMethodPort, PreviewPaymentMethodImportPort {
 
     private static final String TEMPLATE_FILENAME = "easy-finance-payment-method-import-template.xlsx";
     private static final String TEMPLATE_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -71,6 +72,47 @@ public class PaymentMethodImportUseCase implements GeneratePaymentMethodImportTe
     @Transactional
     public PaymentMethodImportResponse importPaymentMethods(ImportPaymentMethodCommand command) {
         accountAuthorizationService.requireActiveAdminForActiveAccount(command.accountId(), currentUser().participantId());
+        ValidatedPaymentMethodImport validatedImport = validateImport(command);
+
+        if (validatedImport.hasErrors()) {
+            return new PaymentMethodImportResponse(0, validatedImport.rows());
+        }
+
+        try {
+            List<PaymentMethodImportRowResponse> createdRows = new ArrayList<>();
+            for (ValidatedPaymentMethodRow row : validatedImport.validRows()) {
+                var created = createPaymentMethodPort.createPaymentMethod(
+                        new CreatePaymentMethodCommand(command.accountId(), row.name(), row.description(), row.type())
+                );
+                createdRows.add(new PaymentMethodImportRowResponse(
+                        row.rowNumber(),
+                        row.name(),
+                        row.description(),
+                        row.type(),
+                        true,
+                        created.id(),
+                        List.of()
+                ));
+            }
+            return new PaymentMethodImportResponse(createdRows.size(), createdRows);
+        } catch (BusinessRuleViolationException ex) {
+            if ("PAYMENT_METHOD_ALREADY_EXISTS".equals(ex.code())) {
+                throw ex;
+            }
+            throw ex;
+        } catch (DataIntegrityViolationException ex) {
+            throw new BusinessRuleViolationException("PAYMENT_METHOD_ALREADY_EXISTS", "Payment method already exists.", ex);
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PaymentMethodImportResponse previewPaymentMethods(ImportPaymentMethodCommand command) {
+        accountAuthorizationService.requireActiveAdminForActiveAccount(command.accountId(), currentUser().participantId());
+        return new PaymentMethodImportResponse(0, validateImport(command).rows());
+    }
+
+    private ValidatedPaymentMethodImport validateImport(ImportPaymentMethodCommand command) {
         validateFile(command);
 
         List<PaymentMethodImportParsedRow> parsedRows = parserPort.parse(command);
@@ -87,41 +129,27 @@ public class PaymentMethodImportUseCase implements GeneratePaymentMethodImportTe
                     errors.add("Medio de pago ya existe");
                 }
             }
-            if (!errors.isEmpty()) {
-                validationRows.add(new PaymentMethodImportRowResponse(parsedRow.rowNumber(), false, null, errors));
-                continue;
+            boolean valid = errors.isEmpty();
+            if (valid) {
+                validRows.add(new ValidatedPaymentMethodRow(
+                        parsedRow.rowNumber(),
+                        parsedRow.name().trim(),
+                        parsedRow.description(),
+                        parsedRow.type()
+                ));
             }
-            validRows.add(new ValidatedPaymentMethodRow(
+            validationRows.add(new PaymentMethodImportRowResponse(
                     parsedRow.rowNumber(),
-                    parsedRow.name().trim(),
+                    parsedRow.name(),
                     parsedRow.description(),
-                    parsedRow.type()
+                    parsedRow.type(),
+                    valid,
+                    null,
+                    errors
             ));
-            validationRows.add(new PaymentMethodImportRowResponse(parsedRow.rowNumber(), true, null, List.of()));
         }
 
-        boolean hasErrors = validationRows.stream().anyMatch(row -> !row.valid());
-        if (hasErrors) {
-            return new PaymentMethodImportResponse(0, validationRows);
-        }
-
-        try {
-            List<PaymentMethodImportRowResponse> createdRows = new ArrayList<>();
-            for (ValidatedPaymentMethodRow row : validRows) {
-                var created = createPaymentMethodPort.createPaymentMethod(
-                        new CreatePaymentMethodCommand(command.accountId(), row.name(), row.description(), row.type())
-                );
-                createdRows.add(new PaymentMethodImportRowResponse(row.rowNumber(), true, created.id(), List.of()));
-            }
-            return new PaymentMethodImportResponse(createdRows.size(), createdRows);
-        } catch (BusinessRuleViolationException ex) {
-            if ("PAYMENT_METHOD_ALREADY_EXISTS".equals(ex.code())) {
-                throw ex;
-            }
-            throw ex;
-        } catch (DataIntegrityViolationException ex) {
-            throw new BusinessRuleViolationException("PAYMENT_METHOD_ALREADY_EXISTS", "Payment method already exists.", ex);
-        }
+        return new ValidatedPaymentMethodImport(validationRows, validRows);
     }
 
     private void validateFile(ImportPaymentMethodCommand command) {
@@ -148,5 +176,14 @@ public class PaymentMethodImportUseCase implements GeneratePaymentMethodImportTe
             String description,
             PaymentMethodType type
     ) {
+    }
+
+    private record ValidatedPaymentMethodImport(
+            List<PaymentMethodImportRowResponse> rows,
+            List<ValidatedPaymentMethodRow> validRows
+    ) {
+        boolean hasErrors() {
+            return rows.stream().anyMatch(row -> !row.valid());
+        }
     }
 }

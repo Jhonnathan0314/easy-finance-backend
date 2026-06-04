@@ -102,6 +102,22 @@ class CategoryImportUseCaseTest {
     }
 
     @Test
+    void previewReturnsParsedRowDataAndDoesNotCreate() {
+        givenCurrentUser();
+        when(parserPort.parse(any())).thenReturn(List.of(
+                new CategoryImportParsedRow(2, "Mercado", "Compras del hogar", CategoryType.EXPENSE, List.of())
+        ));
+
+        var response = useCase.previewCategories(command("categories.xlsx"));
+
+        assertThat(response.createdCount()).isZero();
+        assertThat(response.rows().getFirst().name()).isEqualTo("Mercado");
+        assertThat(response.rows().getFirst().description()).isEqualTo("Compras del hogar");
+        assertThat(response.rows().getFirst().type()).isEqualTo(CategoryType.EXPENSE);
+        verify(createCategoryPort, never()).createCategory(any());
+    }
+
+    @Test
     void importAllowsSameNameWhenOnlyInactiveExists() {
         givenCurrentUser();
         when(parserPort.parse(any())).thenReturn(List.of(

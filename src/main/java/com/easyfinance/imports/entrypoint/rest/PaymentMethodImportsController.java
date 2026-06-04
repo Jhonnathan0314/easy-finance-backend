@@ -3,6 +3,7 @@ package com.easyfinance.imports.entrypoint.rest;
 import com.easyfinance.imports.application.command.ImportPaymentMethodCommand;
 import com.easyfinance.imports.application.port.in.GeneratePaymentMethodImportTemplatePort;
 import com.easyfinance.imports.application.port.in.ImportPaymentMethodPort;
+import com.easyfinance.imports.application.port.in.PreviewPaymentMethodImportPort;
 import com.easyfinance.imports.entrypoint.rest.dto.PaymentMethodImportResponseDto;
 import com.easyfinance.imports.entrypoint.rest.mapper.PaymentMethodImportRestMapper;
 import com.easyfinance.shared.domain.BusinessRuleViolationException;
@@ -27,13 +28,16 @@ public class PaymentMethodImportsController {
 
     private final GeneratePaymentMethodImportTemplatePort generateTemplatePort;
     private final ImportPaymentMethodPort importPort;
+    private final PreviewPaymentMethodImportPort previewPort;
 
     public PaymentMethodImportsController(
             GeneratePaymentMethodImportTemplatePort generateTemplatePort,
-            ImportPaymentMethodPort importPort
+            ImportPaymentMethodPort importPort,
+            PreviewPaymentMethodImportPort previewPort
     ) {
         this.generateTemplatePort = generateTemplatePort;
         this.importPort = importPort;
+        this.previewPort = previewPort;
     }
 
     @GetMapping("/template")
@@ -45,6 +49,20 @@ public class PaymentMethodImportsController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(template.filename()).build().toString())
                 .contentLength(template.content().length)
                 .body(resource);
+    }
+
+    @PostMapping(path = "/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public PaymentMethodImportResponseDto preview(@PathVariable Long accountId, @RequestPart(value = "file", required = false) MultipartFile file) throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessRuleViolationException("IMPORT_FILE_REQUIRED", "Import file is required.");
+        }
+        return PaymentMethodImportRestMapper.toDto(previewPort.previewPaymentMethods(new ImportPaymentMethodCommand(
+                accountId,
+                file.getOriginalFilename(),
+                file.getContentType(),
+                file.getSize(),
+                file.getInputStream()
+        )));
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

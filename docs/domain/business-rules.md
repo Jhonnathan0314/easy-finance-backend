@@ -46,9 +46,10 @@ Rules:
 - A category cannot be used across accounts.
 - Category Excel import is direct (no persisted preview batch):
   - requires `ACCOUNT_ADMIN` on an active account,
+  - supports `/preview`, which validates and returns parsed row data without creating categories,
   - validates all rows first,
   - creates all categories only if all rows are valid,
-  - creates standard `ACTIVE` categories with `description = null`.
+  - creates standard `ACTIVE` categories and preserves optional `description`.
 
 ## Payment Methods
 
@@ -60,14 +61,17 @@ Rules:
 - Payment method responsible participant must belong to the same account.
 - Supported MVP types:
   - `CASH`
-  - `DEBIT`
-  - `CREDIT`
-  - `TRANSFER`
+  - `BANK_ACCOUNT`
+  - `CREDIT_CARD`
+  - `DEBIT_CARD`
+  - `DIGITAL_WALLET`
+  - `OTHER`
 - Payment-method Excel import is direct (no persisted preview batch):
   - requires `ACCOUNT_ADMIN` on an active account,
+  - supports `/preview`, which validates and returns parsed row data without creating payment methods,
   - validates all rows first,
   - creates all payment methods only if all rows are valid,
-  - creates standard `ACTIVE` payment methods with `description = null`.
+  - creates standard `ACTIVE` payment methods and preserves optional `description`.
 
 ## Expenses
 
@@ -189,6 +193,7 @@ Rules:
 - Income is currently event-based: each income has a specific `incomeDate`.
 - Income is included in reports and dashboard calculations.
 - Income Excel import is direct (no persisted preview batch):
+  - supports `/preview`, which validates and returns parsed row data plus resolved `categoryId` without creating incomes,
   - validates all rows first,
   - creates all incomes only if all rows are valid,
   - uses the authenticated participant as owner,

@@ -43,6 +43,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -137,6 +138,54 @@ class BudgetImportUseCaseTest {
         assertThatThrownBy(() -> useCase.importAnnualBudget(command))
                 .isInstanceOfSatisfying(BusinessRuleViolationException.class, ex ->
                         assertThat(ex.code()).isEqualTo("ANNUAL_BUDGET_MONTH_ALREADY_EXISTS"));
+    }
+
+    @Test
+    void previewReturnsParsedRowDataAndDoesNotCreate() {
+        givenAdminAccess();
+        ImportAnnualBudgetCommand command = command();
+        when(parserPort.parse(command)).thenReturn(List.of(
+                parsedRow(2, 2026, new AnnualBudgetImportMonthScope.AllMonths(), "Presupuesto 2026", "Mercado", "Mercado Casa", "800000")
+        ));
+        when(catalogValidationPort.findCategoryForValidation(1L, "mercado"))
+                .thenReturn(Optional.of(new CategoryValidationView(7L, 1L, CategoryType.EXPENSE, CatalogStatus.ACTIVE)));
+        for (int month = 1; month <= 12; month++) {
+            when(budgetRepository.findByAccountIdAndYearAndMonth(1L, 2026, month)).thenReturn(Optional.empty());
+        }
+
+        var response = useCase.previewAnnualBudget(command);
+
+        assertThat(response.createdBudgetsCount()).isZero();
+        assertThat(response.createdSubBudgetsCount()).isZero();
+        assertThat(response.rows().getFirst().year()).isEqualTo(2026);
+        assertThat(response.rows().getFirst().month()).isEqualTo("Todos");
+        assertThat(response.rows().getFirst().budgetName()).isEqualTo("Presupuesto 2026");
+        assertThat(response.rows().getFirst().categoryName()).isEqualTo("Mercado");
+        assertThat(response.rows().getFirst().categoryId()).isEqualTo(7L);
+        assertThat(response.rows().getFirst().subBudgetName()).isEqualTo("Mercado Casa");
+        assertThat(response.rows().getFirst().plannedAmount()).isEqualByComparingTo("800000");
+        verify(budgetRepository, never()).save(any(Budget.class));
+        verify(subBudgetRepository, never()).save(any(SubBudget.class));
+    }
+
+    @Test
+    void previewReturnsRowErrorWhenBudgetAlreadyExists() {
+        givenAdminAccess();
+        ImportAnnualBudgetCommand command = command();
+        when(parserPort.parse(command)).thenReturn(List.of(
+                parsedRow(2, 2026, new AnnualBudgetImportMonthScope.AllMonths(), "Presupuesto 2026", "Mercado", "Mercado Casa", "800000")
+        ));
+        when(catalogValidationPort.findCategoryForValidation(1L, "mercado"))
+                .thenReturn(Optional.of(new CategoryValidationView(7L, 1L, CategoryType.EXPENSE, CatalogStatus.ACTIVE)));
+        when(budgetRepository.findByAccountIdAndYearAndMonth(1L, 2026, 1))
+                .thenReturn(Optional.of(Budget.restore(1L, 1L, 2026, 1, "Enero", com.easyfinance.budgets.domain.model.BudgetStatus.ACTIVE, Instant.now(), Instant.now())));
+
+        var response = useCase.previewAnnualBudget(command);
+
+        assertThat(response.createdBudgetsCount()).isZero();
+        assertThat(response.rows().getFirst().valid()).isFalse();
+        assertThat(response.rows().getFirst().errors()).contains("ANNUAL_BUDGET_MONTH_ALREADY_EXISTS");
+        verify(budgetRepository, never()).save(any(Budget.class));
     }
 
     @Test

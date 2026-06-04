@@ -363,6 +363,7 @@ file=<xlsx-file>
 
 Expected:
 
+- `POST /api/v1/accounts/{accountId}/imports/incomes/preview` returns parsed row data, resolved `categoryId`, validity and errors without creating incomes.
 - Fully blank rows are ignored.
 - If any row is invalid, `createdCount` is `0` and no income is persisted.
 - If all rows are valid, all incomes are created in one transaction with status `ACTIVE`.
@@ -396,6 +397,7 @@ file=<xlsx-file>
 Expected:
 
 - Requires `ACCOUNT_ADMIN` on an active account.
+- `POST /api/v1/accounts/{accountId}/imports/categories/preview` returns parsed row data, validity and errors without creating categories.
 - Fully blank rows are ignored.
 - `Tipo` accepts `Gasto`, `Ingreso`, `EXPENSE`, `INCOME`.
 - If any row is invalid, `createdCount` is `0` and no category is persisted.
@@ -431,13 +433,41 @@ file=<xlsx-file>
 Expected:
 
 - Requires `ACCOUNT_ADMIN` on an active account.
+- `POST /api/v1/accounts/{accountId}/imports/payment-methods/preview` returns parsed row data, validity and errors without creating payment methods.
 - Fully blank rows are ignored.
 - `Tipo` accepts the visible labels and technical enum values.
 - If any row is invalid, `createdCount` is `0` and no payment method is persisted.
 - If all rows are valid, all payment methods are created in one transaction with status `ACTIVE`.
 - Duplicates inside the file and duplicates against active payment methods are rejected.
 
-## 18. Negative Security Checks
+## 18. Annual Budget Import Direct
+
+Template:
+
+```http
+GET /api/v1/accounts/{accountId}/imports/budgets/annual/template
+Authorization: Bearer <token>
+```
+
+Import:
+
+```http
+POST /api/v1/accounts/{accountId}/imports/budgets/annual
+Authorization: Bearer <token>
+Content-Type: multipart/form-data
+file=<xlsx-file>
+```
+
+Expected:
+
+- Requires `ACCOUNT_ADMIN` on an active account.
+- `POST /api/v1/accounts/{accountId}/imports/budgets/annual/preview` returns parsed row data, resolved `categoryId`, `appliedMonths`, validity and errors without creating budgets.
+- Rows with `Mes=Todos` define the yearly base; month-specific rows override the same category/sub-budget only for that month.
+- If any row is invalid, no budget is persisted.
+- If any budget already exists for the year, import fails with `ANNUAL_BUDGET_MONTH_ALREADY_EXISTS`.
+- If all rows are valid, 12 monthly budgets are created in one transaction with `MANUAL`/`ACTIVE` sub-budgets.
+
+## 19. Negative Security Checks
 
 Run:
 

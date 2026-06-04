@@ -9,6 +9,7 @@ import com.easyfinance.catalogs.domain.model.CategoryType;
 import com.easyfinance.imports.application.command.ImportIncomeCommand;
 import com.easyfinance.imports.application.port.in.GenerateIncomeImportTemplatePort;
 import com.easyfinance.imports.application.port.in.ImportIncomePort;
+import com.easyfinance.imports.application.port.in.PreviewIncomeImportPort;
 import com.easyfinance.imports.application.port.out.IncomeImportParserPort;
 import com.easyfinance.imports.application.port.out.IncomeImportTemplateGeneratorPort;
 import com.easyfinance.imports.application.response.IncomeImportResponse;
@@ -32,7 +33,7 @@ import java.util.List;
 import java.util.Locale;
 
 @Service
-public class IncomeImportUseCase implements GenerateIncomeImportTemplatePort, ImportIncomePort {
+public class IncomeImportUseCase implements GenerateIncomeImportTemplatePort, ImportIncomePort, PreviewIncomeImportPort {
 
     private static final String TEMPLATE_FILENAME = "easy-finance-income-import-template.xlsx";
     private static final String TEMPLATE_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -82,6 +83,44 @@ public class IncomeImportUseCase implements GenerateIncomeImportTemplatePort, Im
     @Transactional
     public IncomeImportResponse importIncomes(ImportIncomeCommand command) {
         accountAuthorizationService.requireActiveMemberForActiveAccount(command.accountId(), currentUser().participantId());
+        ValidatedIncomeImport validatedImport = validateImport(command);
+
+        if (validatedImport.hasErrors()) {
+            return new IncomeImportResponse(0, validatedImport.rows());
+        }
+
+        List<IncomeImportRowResponse> createdRows = new ArrayList<>();
+        for (ValidatedIncomeRow row : validatedImport.validRows()) {
+            var created = createIncomePort.createIncome(new CreateIncomeCommand(
+                    command.accountId(),
+                    row.categoryId(),
+                    row.description(),
+                    com.easyfinance.shared.domain.Money.cop(row.amount()),
+                    row.incomeDate()
+            ));
+            createdRows.add(new IncomeImportRowResponse(
+                    row.rowNumber(),
+                    row.incomeDate(),
+                    row.description(),
+                    row.categoryName(),
+                    row.categoryId(),
+                    row.amount(),
+                    true,
+                    created.id(),
+                    List.of()
+            ));
+        }
+        return new IncomeImportResponse(createdRows.size(), createdRows);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public IncomeImportResponse previewIncomes(ImportIncomeCommand command) {
+        accountAuthorizationService.requireActiveMemberForActiveAccount(command.accountId(), currentUser().participantId());
+        return new IncomeImportResponse(0, validateImport(command).rows());
+    }
+
+    private ValidatedIncomeImport validateImport(ImportIncomeCommand command) {
         validateFile(command);
 
         List<IncomeImportParsedRow> parsedRows = parserPort.parse(command, command.accountId());
@@ -91,35 +130,31 @@ public class IncomeImportUseCase implements GenerateIncomeImportTemplatePort, Im
         for (IncomeImportParsedRow parsedRow : parsedRows) {
             List<String> errors = new ArrayList<>(parsedRow.errors());
             Long categoryId = resolveCategory(command.accountId(), parsedRow.categoryName(), errors);
-            if (categoryId == null) {
-                validationRows.add(new IncomeImportRowResponse(parsedRow.rowNumber(), false, null, errors));
-                continue;
+            boolean valid = errors.isEmpty() && categoryId != null;
+            if (valid) {
+                validRows.add(new ValidatedIncomeRow(
+                        parsedRow.rowNumber(),
+                        parsedRow.incomeDate(),
+                        parsedRow.description(),
+                        parsedRow.categoryName(),
+                        parsedRow.amount(),
+                        categoryId
+                ));
             }
-            if (!errors.isEmpty()) {
-                validationRows.add(new IncomeImportRowResponse(parsedRow.rowNumber(), false, null, errors));
-                continue;
-            }
-            validRows.add(new ValidatedIncomeRow(parsedRow.rowNumber(), parsedRow.incomeDate(), parsedRow.description(), parsedRow.amount(), categoryId));
-            validationRows.add(new IncomeImportRowResponse(parsedRow.rowNumber(), true, null, List.of()));
-        }
-
-        boolean hasErrors = validationRows.stream().anyMatch(row -> !row.valid());
-        if (hasErrors) {
-            return new IncomeImportResponse(0, validationRows);
-        }
-
-        List<IncomeImportRowResponse> createdRows = new ArrayList<>();
-        for (ValidatedIncomeRow row : validRows) {
-            var created = createIncomePort.createIncome(new CreateIncomeCommand(
-                    command.accountId(),
-                    row.categoryId(),
-                    row.description(),
-                    com.easyfinance.shared.domain.Money.cop(row.amount()),
-                    row.incomeDate()
+            validationRows.add(new IncomeImportRowResponse(
+                    parsedRow.rowNumber(),
+                    parsedRow.incomeDate(),
+                    parsedRow.description(),
+                    parsedRow.categoryName(),
+                    categoryId,
+                    parsedRow.amount(),
+                    valid,
+                    null,
+                    errors
             ));
-            createdRows.add(new IncomeImportRowResponse(row.rowNumber(), true, created.id(), List.of()));
         }
-        return new IncomeImportResponse(createdRows.size(), createdRows);
+
+        return new ValidatedIncomeImport(validationRows, validRows);
     }
 
     private static String normalize(String value) {
@@ -166,9 +201,19 @@ public class IncomeImportUseCase implements GenerateIncomeImportTemplatePort, Im
             Integer rowNumber,
             java.time.LocalDate incomeDate,
             String description,
+            String categoryName,
             BigDecimal amount,
             Long categoryId
     ) {
+    }
+
+    private record ValidatedIncomeImport(
+            List<IncomeImportRowResponse> rows,
+            List<ValidatedIncomeRow> validRows
+    ) {
+        boolean hasErrors() {
+            return rows.stream().anyMatch(row -> !row.valid());
+        }
     }
 }
 

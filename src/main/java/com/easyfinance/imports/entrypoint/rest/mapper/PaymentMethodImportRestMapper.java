@@ -13,9 +13,16 @@ public final class PaymentMethodImportRestMapper {
         return new PaymentMethodImportResponseDto(
                 response.createdCount(),
                 response.rows().stream()
-                        .map(row -> new PaymentMethodImportRowResponseDto(row.rowNumber(), row.valid(), row.createdPaymentMethodId(), row.errors()))
+                        .map(row -> new PaymentMethodImportRowResponseDto(
+                                row.rowNumber(),
+                                row.name(),
+                                row.description(),
+                                row.type(),
+                                row.valid(),
+                                row.createdPaymentMethodId(),
+                                row.errors()
+                        ))
                         .toList()
         );
     }
 }
-

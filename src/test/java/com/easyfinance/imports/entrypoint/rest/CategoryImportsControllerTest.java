@@ -1,7 +1,9 @@
 package com.easyfinance.imports.entrypoint.rest;
 
+import com.easyfinance.catalogs.domain.model.CategoryType;
 import com.easyfinance.imports.application.port.in.GenerateCategoryImportTemplatePort;
 import com.easyfinance.imports.application.port.in.ImportCategoryPort;
+import com.easyfinance.imports.application.port.in.PreviewCategoryImportPort;
 import com.easyfinance.imports.application.response.CategoryImportResponse;
 import com.easyfinance.imports.application.response.CategoryImportRowResponse;
 import com.easyfinance.imports.application.response.CategoryImportTemplateResponse;
@@ -28,12 +30,13 @@ class CategoryImportsControllerTest {
 
     private final GenerateCategoryImportTemplatePort generateTemplatePort = mock(GenerateCategoryImportTemplatePort.class);
     private final ImportCategoryPort importCategoryPort = mock(ImportCategoryPort.class);
+    private final PreviewCategoryImportPort previewCategoryImportPort = mock(PreviewCategoryImportPort.class);
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new CategoryImportsController(generateTemplatePort, importCategoryPort))
+                .standaloneSetup(new CategoryImportsController(generateTemplatePort, importCategoryPort, previewCategoryImportPort))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }
@@ -54,22 +57,34 @@ class CategoryImportsControllerTest {
     }
 
     @Test
+    void previewReturnsParsedRowData() throws Exception {
+        when(previewCategoryImportPort.previewCategories(any())).thenReturn(new CategoryImportResponse(
+                0,
+                List.of(row(null))
+        ));
+        MockMultipartFile file = file();
+
+        mockMvc.perform(multipart("/api/v1/accounts/1/imports/categories/preview").file(file))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.createdCount").value(0))
+                .andExpect(jsonPath("$.rows[0].name").value("Mercado"))
+                .andExpect(jsonPath("$.rows[0].description").value("Compras de mercado"))
+                .andExpect(jsonPath("$.rows[0].type").value("EXPENSE"));
+    }
+
+    @Test
     void importDirectReturnsResponse() throws Exception {
         when(importCategoryPort.importCategories(any())).thenReturn(new CategoryImportResponse(
                 1,
-                List.of(new CategoryImportRowResponse(2, true, 10L, List.of()))
+                List.of(row(10L))
         ));
-        MockMultipartFile file = new MockMultipartFile(
-                "file",
-                "categories.xlsx",
-                MediaType.APPLICATION_OCTET_STREAM_VALUE,
-                new byte[]{1, 2, 3}
-        );
+        MockMultipartFile file = file();
 
         mockMvc.perform(multipart("/api/v1/accounts/1/imports/categories").file(file))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.createdCount").value(1))
-                .andExpect(jsonPath("$.rows[0].createdCategoryId").value(10));
+                .andExpect(jsonPath("$.rows[0].createdCategoryId").value(10))
+                .andExpect(jsonPath("$.rows[0].name").value("Mercado"));
     }
 
     @Test
@@ -78,5 +93,17 @@ class CategoryImportsControllerTest {
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.code").value("IMPORT_FILE_REQUIRED"));
     }
-}
 
+    private static MockMultipartFile file() {
+        return new MockMultipartFile(
+                "file",
+                "categories.xlsx",
+                MediaType.APPLICATION_OCTET_STREAM_VALUE,
+                new byte[]{1, 2, 3}
+        );
+    }
+
+    private static CategoryImportRowResponse row(Long createdId) {
+        return new CategoryImportRowResponse(2, "Mercado", "Compras de mercado", CategoryType.EXPENSE, true, createdId, List.of());
+    }
+}

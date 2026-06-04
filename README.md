@@ -855,7 +855,8 @@ Debt-payment row errors include `IMPORT_DEBT_PAYMENT_DEBT_REQUIRED`, `IMPORT_DEB
 Income imports are a direct Excel workflow scoped by account:
 
 1. Download template with active INCOME categories.
-2. Upload `.xlsx` file for direct validation and creation (no persisted preview batch).
+2. Upload `.xlsx` to `/preview` to validate without creating records.
+3. Upload `.xlsx` to the direct import endpoint to validate and create in one transaction.
 
 Download template:
 
@@ -873,11 +874,20 @@ curl -X POST http://localhost:8080/api/v1/accounts/1/imports/incomes \
   -F "file=@Plantilla-ingresos.xlsx"
 ```
 
+Preview:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/accounts/1/imports/incomes/preview \
+  -H "Authorization: Bearer <accessToken>" \
+  -F "file=@Plantilla-ingresos.xlsx"
+```
+
 Income import rules:
 
 - Template main sheet is `Ingresos` with columns `Fecha`, `Descripcion`, `Categoria`, `Monto`.
 - Template includes hidden `Valores` sheet with active account categories of type `INCOME`.
 - Fully empty rows are ignored.
+- Preview returns row values (`incomeDate`, `description`, `categoryName`, `categoryId`, `amount`), validity and row errors without creating incomes.
 - Import validates all rows first; if any row is invalid, no incomes are created.
 - If all rows are valid, incomes are created in one transaction.
 - Imported incomes are normal `incomes` records, status `ACTIVE`, participant from authenticated user.
@@ -885,7 +895,8 @@ Income import rules:
 Category imports are also a direct Excel workflow scoped by account:
 
 1. Download categories template.
-2. Upload `.xlsx` file for direct validation and creation (no persisted preview batch).
+2. Upload `.xlsx` to `/preview` to validate without creating records.
+3. Upload `.xlsx` to the direct import endpoint to validate and create in one transaction.
 
 Download template:
 
@@ -903,6 +914,14 @@ curl -X POST http://localhost:8080/api/v1/accounts/1/imports/categories \
   -F "file=@Plantilla-categorias.xlsx"
 ```
 
+Preview:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/accounts/1/imports/categories/preview \
+  -H "Authorization: Bearer <accessToken>" \
+  -F "file=@Plantilla-categorias.xlsx"
+```
+
 Category import rules:
 
 - Endpoint requires `ACCOUNT_ADMIN` and active account.
@@ -910,6 +929,7 @@ Category import rules:
 - Template includes hidden `Valores` sheet with allowed type labels `Gasto` and `Ingreso`.
 - `Tipo` accepts `Gasto`/`Ingreso` and technical values `EXPENSE`/`INCOME`.
 - Fully empty rows are ignored.
+- Preview returns row values (`name`, `description`, `type`), validity and row errors without creating categories.
 - Import validates all rows first; if any row is invalid, no categories are created.
 - Duplicates inside the same file are rejected by `(type, normalizedName)` case-insensitive key.
 - Duplicates against active categories are rejected with `CATEGORY_ALREADY_EXISTS`.
@@ -919,7 +939,8 @@ Category import rules:
 Payment method imports are direct and account-scoped:
 
 1. Download payment-method template.
-2. Upload `.xlsx` file for direct validation and creation (no persisted preview batch).
+2. Upload `.xlsx` to `/preview` to validate without creating records.
+3. Upload `.xlsx` to the direct import endpoint to validate and create in one transaction.
 
 Download template:
 
@@ -937,6 +958,14 @@ curl -X POST http://localhost:8080/api/v1/accounts/1/imports/payment-methods \
   -F "file=@Plantilla-medios-pago.xlsx"
 ```
 
+Preview:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/accounts/1/imports/payment-methods/preview \
+  -H "Authorization: Bearer <accessToken>" \
+  -F "file=@Plantilla-medios-pago.xlsx"
+```
+
 Payment method import rules:
 
 - Endpoint requires `ACCOUNT_ADMIN` and active account.
@@ -946,6 +975,7 @@ Payment method import rules:
 - `Tipo` accepts both labels and technical enum values:
   - `CASH`, `BANK_ACCOUNT`, `CREDIT_CARD`, `DEBIT_CARD`, `DIGITAL_WALLET`, `OTHER`.
 - Fully empty rows are ignored.
+- Preview returns row values (`name`, `description`, `type`), validity and row errors without creating payment methods.
 - Import validates all rows first; if any row is invalid, no payment methods are created.
 - Duplicates inside the same file are rejected by normalized name (case-insensitive), consistent with backend uniqueness.
 - Duplicates against active payment methods are rejected with `PAYMENT_METHOD_ALREADY_EXISTS`.
@@ -955,7 +985,8 @@ Payment method import rules:
 Annual budget import is direct and account-scoped:
 
 1. Download annual-budget template.
-2. Upload `.xlsx` file for direct validation and creation (no persisted preview batch).
+2. Upload `.xlsx` to `/preview` to validate without creating budgets.
+3. Upload `.xlsx` to the direct import endpoint to validate and create 12 monthly budgets in one transaction.
 
 Download template:
 
@@ -969,6 +1000,14 @@ Direct import:
 
 ```bash
 curl -X POST http://localhost:8080/api/v1/accounts/1/imports/budgets/annual \
+  -H "Authorization: Bearer <accessToken>" \
+  -F "file=@Plantilla-presupuesto-anual.xlsx"
+```
+
+Preview:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/accounts/1/imports/budgets/annual/preview \
   -H "Authorization: Bearer <accessToken>" \
   -F "file=@Plantilla-presupuesto-anual.xlsx"
 ```
@@ -989,6 +1028,7 @@ Annual budget import rules:
 - `Categoria` is required and must resolve to an active `EXPENSE` category in the same account.
 - `NombreSubpresupuesto` is required and must satisfy domain length rules.
 - `Valor` is required and must be greater than `0`.
+- Preview returns row values (`year`, `month`, `budgetName`, `categoryName`, `categoryId`, `subBudgetName`, `plannedAmount`), `appliedMonths`, validity and row errors without creating budgets.
 - Duplicate rows inside the same file are rejected for:
   - duplicated `Todos` entries with the same `(categoria, nombreSubpresupuesto)`,
   - duplicated entries for the same month with the same `(categoria, nombreSubpresupuesto)`.

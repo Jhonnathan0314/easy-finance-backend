@@ -13,9 +13,16 @@ public final class CategoryImportRestMapper {
         return new CategoryImportResponseDto(
                 response.createdCount(),
                 response.rows().stream()
-                        .map(row -> new CategoryImportRowResponseDto(row.rowNumber(), row.valid(), row.createdCategoryId(), row.errors()))
+                        .map(row -> new CategoryImportRowResponseDto(
+                                row.rowNumber(),
+                                row.name(),
+                                row.description(),
+                                row.type(),
+                                row.valid(),
+                                row.createdCategoryId(),
+                                row.errors()
+                        ))
                         .toList()
         );
     }
 }
-

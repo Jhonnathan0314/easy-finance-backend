@@ -92,6 +92,26 @@ class IncomeImportUseCaseTest {
     }
 
     @Test
+    void previewReturnsParsedRowDataAndDoesNotCreate() {
+        givenCurrentUser();
+        when(parserPort.parse(any(), any())).thenReturn(List.of(
+                new IncomeImportParsedRow(2, LocalDate.of(2026, 5, 10), "Nomina", "Salario", new BigDecimal("5000000"), List.of())
+        ));
+        when(catalogValidationPort.findCategoryForValidation(1L, "salario"))
+                .thenReturn(Optional.of(new CategoryValidationView(10L, 1L, CategoryType.INCOME, CatalogStatus.ACTIVE)));
+
+        var response = useCase.previewIncomes(command("incomes.xlsx"));
+
+        assertThat(response.createdCount()).isZero();
+        assertThat(response.rows().getFirst().incomeDate()).isEqualTo(LocalDate.of(2026, 5, 10));
+        assertThat(response.rows().getFirst().description()).isEqualTo("Nomina");
+        assertThat(response.rows().getFirst().categoryName()).isEqualTo("Salario");
+        assertThat(response.rows().getFirst().categoryId()).isEqualTo(10L);
+        assertThat(response.rows().getFirst().amount()).isEqualByComparingTo("5000000");
+        verify(createIncomePort, never()).createIncome(any());
+    }
+
+    @Test
     void importFailsForInvalidFileExtension() {
         givenCurrentUser();
 

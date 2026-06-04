@@ -263,12 +263,16 @@ GET /api/v1/accounts/{accountId}/imports/expenses/template
 POST /api/v1/accounts/{accountId}/imports/expenses/preview
 POST /api/v1/accounts/{accountId}/imports/expenses/{batchId}/confirm
 GET /api/v1/accounts/{accountId}/imports/incomes/template
+POST /api/v1/accounts/{accountId}/imports/incomes/preview
 POST /api/v1/accounts/{accountId}/imports/incomes
 GET /api/v1/accounts/{accountId}/imports/categories/template
+POST /api/v1/accounts/{accountId}/imports/categories/preview
 POST /api/v1/accounts/{accountId}/imports/categories
 GET /api/v1/accounts/{accountId}/imports/payment-methods/template
+POST /api/v1/accounts/{accountId}/imports/payment-methods/preview
 POST /api/v1/accounts/{accountId}/imports/payment-methods
 GET /api/v1/accounts/{accountId}/imports/budgets/annual/template
+POST /api/v1/accounts/{accountId}/imports/budgets/annual/preview
 POST /api/v1/accounts/{accountId}/imports/budgets/annual
 ```
 
@@ -283,6 +287,7 @@ an associated expense with `sourceType = DEBT_PAYMENT`, and persists both trace 
 Income import is direct and does not persist preview batches:
 - template sheet `Ingresos` with columns `Fecha`, `Descripcion`, `Categoria`, `Monto`
 - hidden `Valores` sheet with active account categories of type `INCOME`
+- `/preview` validates rows without creating incomes and returns parsed row data, resolved `categoryId`, validity and row errors
 - fully empty rows are ignored
 - all rows are validated first; if any row is invalid, no incomes are created
 - if all rows are valid, all incomes are created in one transaction as normal `incomes` rows with status `ACTIVE`
@@ -291,6 +296,7 @@ Category import is direct and does not persist preview batches:
 - template sheet `Categorias` with columns `Nombre`, `Tipo`, `Descripcion` (optional)
 - hidden `Valores` sheet with allowed type labels `Gasto` and `Ingreso`
 - `Tipo` also accepts technical values `EXPENSE` and `INCOME`
+- `/preview` validates rows without creating categories and returns parsed row data, validity and row errors
 - fully empty rows are ignored
 - all rows are validated first; if any row is invalid, no categories are created
 - if all rows are valid, all categories are created in one transaction as normal `categories` rows with status `ACTIVE`
@@ -302,6 +308,7 @@ Payment-method import is direct and does not persist preview batches:
   - `Efectivo`, `CuentaBancaria`, `TarjetaCredito`, `TarjetaDebito`, `BilleteraDigital`, `Otro`
 - `Tipo` also accepts technical values:
   - `CASH`, `BANK_ACCOUNT`, `CREDIT_CARD`, `DEBIT_CARD`, `DIGITAL_WALLET`, `OTHER`
+- `/preview` validates rows without creating payment methods and returns parsed row data, validity and row errors
 - fully empty rows are ignored
 - all rows are validated first; if any row is invalid, no payment methods are created
 - if all rows are valid, all payment methods are created in one transaction as normal `payment_methods` rows with status `ACTIVE`
@@ -317,6 +324,7 @@ Annual-budget import is direct and does not persist preview batches:
   - Spanish month names (`Enero`..`Diciembre`)
   - numeric `1..12`
 - `Todos` rows define the base yearly structure; month-specific rows override only the targeted month for the same `(categoria, nombreSubpresupuesto)`
+- `/preview` validates rows without creating budgets and returns parsed row data, resolved `categoryId`, `appliedMonths`, validity and row errors
 - fully empty rows are ignored
 - all rows are validated first; if any row is invalid, no budgets are created
 - if any budget already exists for that account/year, import fails with `ANNUAL_BUDGET_MONTH_ALREADY_EXISTS`

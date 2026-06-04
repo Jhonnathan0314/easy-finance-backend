@@ -13,9 +13,18 @@ public final class IncomeImportRestMapper {
         return new IncomeImportResponseDto(
                 response.createdCount(),
                 response.rows().stream()
-                        .map(row -> new IncomeImportRowResponseDto(row.rowNumber(), row.valid(), row.createdIncomeId(), row.errors()))
+                        .map(row -> new IncomeImportRowResponseDto(
+                                row.rowNumber(),
+                                row.incomeDate(),
+                                row.description(),
+                                row.categoryName(),
+                                row.categoryId(),
+                                row.amount(),
+                                row.valid(),
+                                row.createdIncomeId(),
+                                row.errors()
+                        ))
                         .toList()
         );
     }
 }
-

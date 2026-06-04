@@ -2,6 +2,7 @@ package com.easyfinance.imports.entrypoint.rest;
 
 import com.easyfinance.imports.application.port.in.GenerateAnnualBudgetImportTemplatePort;
 import com.easyfinance.imports.application.port.in.ImportAnnualBudgetPort;
+import com.easyfinance.imports.application.port.in.PreviewAnnualBudgetImportPort;
 import com.easyfinance.shared.infrastructure.security.JwtAuthenticationException;
 import com.easyfinance.shared.infrastructure.security.JwtAuthenticationFilter;
 import com.easyfinance.shared.infrastructure.security.JwtTokenService;
@@ -77,6 +78,7 @@ class BudgetImportsControllerSecurityTest {
     static class TestConfig {
         @Bean GenerateAnnualBudgetImportTemplatePort generateAnnualBudgetImportTemplatePort() { return mock(GenerateAnnualBudgetImportTemplatePort.class); }
         @Bean ImportAnnualBudgetPort importAnnualBudgetPort() { return mock(ImportAnnualBudgetPort.class); }
+        @Bean PreviewAnnualBudgetImportPort previewAnnualBudgetImportPort() { return mock(PreviewAnnualBudgetImportPort.class); }
         @Bean JwtTokenService jwtTokenService() { return mock(JwtTokenService.class); }
         @Bean ObjectMapper objectMapper() { return new ObjectMapper().findAndRegisterModules(); }
     }

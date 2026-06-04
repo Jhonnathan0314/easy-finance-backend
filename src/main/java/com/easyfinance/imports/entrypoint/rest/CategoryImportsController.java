@@ -3,6 +3,7 @@ package com.easyfinance.imports.entrypoint.rest;
 import com.easyfinance.imports.application.command.ImportCategoryCommand;
 import com.easyfinance.imports.application.port.in.GenerateCategoryImportTemplatePort;
 import com.easyfinance.imports.application.port.in.ImportCategoryPort;
+import com.easyfinance.imports.application.port.in.PreviewCategoryImportPort;
 import com.easyfinance.imports.entrypoint.rest.dto.CategoryImportResponseDto;
 import com.easyfinance.imports.entrypoint.rest.mapper.CategoryImportRestMapper;
 import com.easyfinance.shared.domain.BusinessRuleViolationException;
@@ -27,13 +28,16 @@ public class CategoryImportsController {
 
     private final GenerateCategoryImportTemplatePort generateCategoryImportTemplatePort;
     private final ImportCategoryPort importCategoryPort;
+    private final PreviewCategoryImportPort previewCategoryImportPort;
 
     public CategoryImportsController(
             GenerateCategoryImportTemplatePort generateCategoryImportTemplatePort,
-            ImportCategoryPort importCategoryPort
+            ImportCategoryPort importCategoryPort,
+            PreviewCategoryImportPort previewCategoryImportPort
     ) {
         this.generateCategoryImportTemplatePort = generateCategoryImportTemplatePort;
         this.importCategoryPort = importCategoryPort;
+        this.previewCategoryImportPort = previewCategoryImportPort;
     }
 
     @GetMapping("/template")
@@ -45,6 +49,20 @@ public class CategoryImportsController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(template.filename()).build().toString())
                 .contentLength(template.content().length)
                 .body(resource);
+    }
+
+    @PostMapping(path = "/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public CategoryImportResponseDto preview(@PathVariable Long accountId, @RequestPart(value = "file", required = false) MultipartFile file) throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessRuleViolationException("IMPORT_FILE_REQUIRED", "Import file is required.");
+        }
+        return CategoryImportRestMapper.toDto(previewCategoryImportPort.previewCategories(new ImportCategoryCommand(
+                accountId,
+                file.getOriginalFilename(),
+                file.getContentType(),
+                file.getSize(),
+                file.getInputStream()
+        )));
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

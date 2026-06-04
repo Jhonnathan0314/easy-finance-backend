@@ -15,9 +15,20 @@ public final class BudgetImportRestMapper {
                 response.createdBudgetsCount(),
                 response.createdSubBudgetsCount(),
                 response.rows().stream()
-                        .map(row -> new AnnualBudgetImportRowResponseDto(row.rowNumber(), row.valid(), row.appliedMonths(), row.errors()))
+                        .map(row -> new AnnualBudgetImportRowResponseDto(
+                                row.rowNumber(),
+                                row.year(),
+                                row.month(),
+                                row.budgetName(),
+                                row.categoryName(),
+                                row.categoryId(),
+                                row.subBudgetName(),
+                                row.plannedAmount(),
+                                row.valid(),
+                                row.appliedMonths(),
+                                row.errors()
+                        ))
                         .toList()
         );
     }
 }
-

@@ -102,6 +102,22 @@ class PaymentMethodImportUseCaseTest {
     }
 
     @Test
+    void previewReturnsParsedRowDataAndDoesNotCreate() {
+        givenCurrentUser();
+        when(parserPort.parse(any())).thenReturn(List.of(
+                new PaymentMethodImportParsedRow(2, "Efectivo", "Caja principal", PaymentMethodType.CASH, List.of())
+        ));
+
+        var response = useCase.previewPaymentMethods(command("payment-methods.xlsx"));
+
+        assertThat(response.createdCount()).isZero();
+        assertThat(response.rows().getFirst().name()).isEqualTo("Efectivo");
+        assertThat(response.rows().getFirst().description()).isEqualTo("Caja principal");
+        assertThat(response.rows().getFirst().type()).isEqualTo(PaymentMethodType.CASH);
+        verify(createPaymentMethodPort, never()).createPaymentMethod(any());
+    }
+
+    @Test
     void importAllowsSameNameWhenOnlyInactiveExists() {
         givenCurrentUser();
         when(parserPort.parse(any())).thenReturn(List.of(

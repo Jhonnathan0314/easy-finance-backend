@@ -2,6 +2,7 @@ package com.easyfinance.imports.entrypoint.rest;
 
 import com.easyfinance.imports.application.port.in.GenerateCategoryImportTemplatePort;
 import com.easyfinance.imports.application.port.in.ImportCategoryPort;
+import com.easyfinance.imports.application.port.in.PreviewCategoryImportPort;
 import com.easyfinance.shared.infrastructure.security.JwtAuthenticationException;
 import com.easyfinance.shared.infrastructure.security.JwtAuthenticationFilter;
 import com.easyfinance.shared.infrastructure.security.JwtTokenService;
@@ -65,6 +66,7 @@ class CategoryImportsControllerSecurityTest {
     static class TestConfig {
         @Bean GenerateCategoryImportTemplatePort generateCategoryImportTemplatePort() { return mock(GenerateCategoryImportTemplatePort.class); }
         @Bean ImportCategoryPort importCategoryPort() { return mock(ImportCategoryPort.class); }
+        @Bean PreviewCategoryImportPort previewCategoryImportPort() { return mock(PreviewCategoryImportPort.class); }
         @Bean JwtTokenService jwtTokenService() { return mock(JwtTokenService.class); }
         @Bean ObjectMapper objectMapper() { return new ObjectMapper().findAndRegisterModules(); }
     }

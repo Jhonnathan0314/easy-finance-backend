@@ -3,6 +3,7 @@ package com.easyfinance.imports.entrypoint.rest;
 import com.easyfinance.imports.application.command.ImportAnnualBudgetCommand;
 import com.easyfinance.imports.application.port.in.GenerateAnnualBudgetImportTemplatePort;
 import com.easyfinance.imports.application.port.in.ImportAnnualBudgetPort;
+import com.easyfinance.imports.application.port.in.PreviewAnnualBudgetImportPort;
 import com.easyfinance.imports.entrypoint.rest.dto.AnnualBudgetImportResponseDto;
 import com.easyfinance.imports.entrypoint.rest.mapper.BudgetImportRestMapper;
 import com.easyfinance.shared.domain.BusinessRuleViolationException;
@@ -27,13 +28,16 @@ public class BudgetImportsController {
 
     private final GenerateAnnualBudgetImportTemplatePort generateTemplatePort;
     private final ImportAnnualBudgetPort importPort;
+    private final PreviewAnnualBudgetImportPort previewPort;
 
     public BudgetImportsController(
             GenerateAnnualBudgetImportTemplatePort generateTemplatePort,
-            ImportAnnualBudgetPort importPort
+            ImportAnnualBudgetPort importPort,
+            PreviewAnnualBudgetImportPort previewPort
     ) {
         this.generateTemplatePort = generateTemplatePort;
         this.importPort = importPort;
+        this.previewPort = previewPort;
     }
 
     @GetMapping("/template")
@@ -45,6 +49,20 @@ public class BudgetImportsController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(template.filename()).build().toString())
                 .contentLength(template.content().length)
                 .body(resource);
+    }
+
+    @PostMapping(path = "/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public AnnualBudgetImportResponseDto preview(@PathVariable Long accountId, @RequestPart(value = "file", required = false) MultipartFile file) throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessRuleViolationException("IMPORT_FILE_REQUIRED", "Import file is required.");
+        }
+        return BudgetImportRestMapper.toDto(previewPort.previewAnnualBudget(new ImportAnnualBudgetCommand(
+                accountId,
+                file.getOriginalFilename(),
+                file.getContentType(),
+                file.getSize(),
+                file.getInputStream()
+        )));
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

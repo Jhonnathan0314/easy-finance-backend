@@ -3,6 +3,7 @@ package com.easyfinance.imports.entrypoint.rest;
 import com.easyfinance.imports.application.command.ImportIncomeCommand;
 import com.easyfinance.imports.application.port.in.GenerateIncomeImportTemplatePort;
 import com.easyfinance.imports.application.port.in.ImportIncomePort;
+import com.easyfinance.imports.application.port.in.PreviewIncomeImportPort;
 import com.easyfinance.imports.entrypoint.rest.dto.IncomeImportResponseDto;
 import com.easyfinance.imports.entrypoint.rest.mapper.IncomeImportRestMapper;
 import com.easyfinance.shared.domain.BusinessRuleViolationException;
@@ -27,13 +28,16 @@ public class IncomeImportsController {
 
     private final GenerateIncomeImportTemplatePort generateIncomeImportTemplatePort;
     private final ImportIncomePort importIncomePort;
+    private final PreviewIncomeImportPort previewIncomeImportPort;
 
     public IncomeImportsController(
             GenerateIncomeImportTemplatePort generateIncomeImportTemplatePort,
-            ImportIncomePort importIncomePort
+            ImportIncomePort importIncomePort,
+            PreviewIncomeImportPort previewIncomeImportPort
     ) {
         this.generateIncomeImportTemplatePort = generateIncomeImportTemplatePort;
         this.importIncomePort = importIncomePort;
+        this.previewIncomeImportPort = previewIncomeImportPort;
     }
 
     @GetMapping("/template")
@@ -45,6 +49,20 @@ public class IncomeImportsController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(template.filename()).build().toString())
                 .contentLength(template.content().length)
                 .body(resource);
+    }
+
+    @PostMapping(path = "/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public IncomeImportResponseDto preview(@PathVariable Long accountId, @RequestPart(value = "file", required = false) MultipartFile file) throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessRuleViolationException("IMPORT_FILE_REQUIRED", "Import file is required.");
+        }
+        return IncomeImportRestMapper.toDto(previewIncomeImportPort.previewIncomes(new ImportIncomeCommand(
+                accountId,
+                file.getOriginalFilename(),
+                file.getContentType(),
+                file.getSize(),
+                file.getInputStream()
+        )));
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

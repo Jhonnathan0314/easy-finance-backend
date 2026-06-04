@@ -8,6 +8,7 @@ import com.easyfinance.catalogs.domain.model.CategoryType;
 import com.easyfinance.imports.application.command.ImportCategoryCommand;
 import com.easyfinance.imports.application.port.in.GenerateCategoryImportTemplatePort;
 import com.easyfinance.imports.application.port.in.ImportCategoryPort;
+import com.easyfinance.imports.application.port.in.PreviewCategoryImportPort;
 import com.easyfinance.imports.application.port.out.CategoryImportParserPort;
 import com.easyfinance.imports.application.port.out.CategoryImportTemplateGeneratorPort;
 import com.easyfinance.imports.application.response.CategoryImportResponse;
@@ -28,7 +29,7 @@ import java.util.List;
 import java.util.Locale;
 
 @Service
-public class CategoryImportUseCase implements GenerateCategoryImportTemplatePort, ImportCategoryPort {
+public class CategoryImportUseCase implements GenerateCategoryImportTemplatePort, ImportCategoryPort, PreviewCategoryImportPort {
 
     private static final String TEMPLATE_FILENAME = "easy-finance-category-import-template.xlsx";
     private static final String TEMPLATE_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -71,6 +72,47 @@ public class CategoryImportUseCase implements GenerateCategoryImportTemplatePort
     @Transactional
     public CategoryImportResponse importCategories(ImportCategoryCommand command) {
         accountAuthorizationService.requireActiveAdminForActiveAccount(command.accountId(), currentUser().participantId());
+        ValidatedCategoryImport validatedImport = validateImport(command);
+
+        if (validatedImport.hasErrors()) {
+            return new CategoryImportResponse(0, validatedImport.rows());
+        }
+
+        try {
+            List<CategoryImportRowResponse> createdRows = new ArrayList<>();
+            for (ValidatedCategoryRow row : validatedImport.validRows()) {
+                var created = createCategoryPort.createCategory(
+                        new CreateCategoryCommand(command.accountId(), row.name(), row.description(), row.type())
+                );
+                createdRows.add(new CategoryImportRowResponse(
+                        row.rowNumber(),
+                        row.name(),
+                        row.description(),
+                        row.type(),
+                        true,
+                        created.id(),
+                        List.of()
+                ));
+            }
+            return new CategoryImportResponse(createdRows.size(), createdRows);
+        } catch (BusinessRuleViolationException ex) {
+            if ("CATEGORY_ALREADY_EXISTS".equals(ex.code())) {
+                throw ex;
+            }
+            throw ex;
+        } catch (DataIntegrityViolationException ex) {
+            throw new BusinessRuleViolationException("CATEGORY_ALREADY_EXISTS", "Category already exists.", ex);
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CategoryImportResponse previewCategories(ImportCategoryCommand command) {
+        accountAuthorizationService.requireActiveAdminForActiveAccount(command.accountId(), currentUser().participantId());
+        return new CategoryImportResponse(0, validateImport(command).rows());
+    }
+
+    private ValidatedCategoryImport validateImport(ImportCategoryCommand command) {
         validateFile(command);
 
         List<CategoryImportParsedRow> parsedRows = parserPort.parse(command);
@@ -89,41 +131,27 @@ public class CategoryImportUseCase implements GenerateCategoryImportTemplatePort
                 }
             }
 
-            if (!errors.isEmpty()) {
-                validationRows.add(new CategoryImportRowResponse(parsedRow.rowNumber(), false, null, errors));
-                continue;
+            boolean valid = errors.isEmpty();
+            if (valid) {
+                validRows.add(new ValidatedCategoryRow(
+                        parsedRow.rowNumber(),
+                        parsedRow.name().trim(),
+                        parsedRow.description(),
+                        parsedRow.type()
+                ));
             }
-            validRows.add(new ValidatedCategoryRow(
+            validationRows.add(new CategoryImportRowResponse(
                     parsedRow.rowNumber(),
-                    parsedRow.name().trim(),
+                    parsedRow.name(),
                     parsedRow.description(),
-                    parsedRow.type()
+                    parsedRow.type(),
+                    valid,
+                    null,
+                    errors
             ));
-            validationRows.add(new CategoryImportRowResponse(parsedRow.rowNumber(), true, null, List.of()));
         }
 
-        boolean hasErrors = validationRows.stream().anyMatch(row -> !row.valid());
-        if (hasErrors) {
-            return new CategoryImportResponse(0, validationRows);
-        }
-
-        try {
-            List<CategoryImportRowResponse> createdRows = new ArrayList<>();
-            for (ValidatedCategoryRow row : validRows) {
-                var created = createCategoryPort.createCategory(
-                        new CreateCategoryCommand(command.accountId(), row.name(), row.description(), row.type())
-                );
-                createdRows.add(new CategoryImportRowResponse(row.rowNumber(), true, created.id(), List.of()));
-            }
-            return new CategoryImportResponse(createdRows.size(), createdRows);
-        } catch (BusinessRuleViolationException ex) {
-            if ("CATEGORY_ALREADY_EXISTS".equals(ex.code())) {
-                throw ex;
-            }
-            throw ex;
-        } catch (DataIntegrityViolationException ex) {
-            throw new BusinessRuleViolationException("CATEGORY_ALREADY_EXISTS", "Category already exists.", ex);
-        }
+        return new ValidatedCategoryImport(validationRows, validRows);
     }
 
     private void validateFile(ImportCategoryCommand command) {
@@ -150,5 +178,14 @@ public class CategoryImportUseCase implements GenerateCategoryImportTemplatePort
             String description,
             CategoryType type
     ) {
+    }
+
+    private record ValidatedCategoryImport(
+            List<CategoryImportRowResponse> rows,
+            List<ValidatedCategoryRow> validRows
+    ) {
+        boolean hasErrors() {
+            return rows.stream().anyMatch(row -> !row.valid());
+        }
     }
 }

@@ -2,6 +2,7 @@ package com.easyfinance.imports.entrypoint.rest;
 
 import com.easyfinance.imports.application.port.in.GeneratePaymentMethodImportTemplatePort;
 import com.easyfinance.imports.application.port.in.ImportPaymentMethodPort;
+import com.easyfinance.imports.application.port.in.PreviewPaymentMethodImportPort;
 import com.easyfinance.shared.infrastructure.security.JwtAuthenticationException;
 import com.easyfinance.shared.infrastructure.security.JwtAuthenticationFilter;
 import com.easyfinance.shared.infrastructure.security.JwtTokenService;
@@ -65,6 +66,7 @@ class PaymentMethodImportsControllerSecurityTest {
     static class TestConfig {
         @Bean GeneratePaymentMethodImportTemplatePort generatePaymentMethodImportTemplatePort() { return mock(GeneratePaymentMethodImportTemplatePort.class); }
         @Bean ImportPaymentMethodPort importPaymentMethodPort() { return mock(ImportPaymentMethodPort.class); }
+        @Bean PreviewPaymentMethodImportPort previewPaymentMethodImportPort() { return mock(PreviewPaymentMethodImportPort.class); }
         @Bean JwtTokenService jwtTokenService() { return mock(JwtTokenService.class); }
         @Bean ObjectMapper objectMapper() { return new ObjectMapper().findAndRegisterModules(); }
     }

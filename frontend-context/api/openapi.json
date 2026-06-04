@@ -278,6 +278,54 @@
     "/api/v1/accounts/{accountId}/imports/expenses/{batchId}/confirm": {
       "parameters": [{ "$ref": "#/components/parameters/accountId" }, { "$ref": "#/components/parameters/batchId" }],
       "post": { "tags": ["Imports"], "summary": "Confirm import batch", "description": "Creates simple expenses and registers debt payments for rows with appliesDebtPayment=true.", "responses": { "200": { "description": "Confirmed batch", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ExpenseImportBatchResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/imports/incomes/template": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }],
+      "get": { "tags": ["Imports"], "summary": "Download income import template", "responses": { "200": { "description": "Excel income import template", "content": { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": { "schema": { "type": "string", "format": "binary" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/imports/incomes/preview": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }],
+      "post": { "tags": ["Imports"], "summary": "Preview income import", "requestBody": { "required": true, "content": { "multipart/form-data": { "schema": { "type": "object", "properties": { "file": { "type": "string", "format": "binary" } }, "required": ["file"] } } } }, "responses": { "200": { "description": "Income import preview without creation", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/IncomeImportResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/imports/incomes": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }],
+      "post": { "tags": ["Imports"], "summary": "Direct income import", "requestBody": { "required": true, "content": { "multipart/form-data": { "schema": { "type": "object", "properties": { "file": { "type": "string", "format": "binary" } }, "required": ["file"] } } } }, "responses": { "200": { "description": "Income import result", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/IncomeImportResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/imports/categories/template": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }],
+      "get": { "tags": ["Imports"], "summary": "Download category import template", "responses": { "200": { "description": "Excel category import template", "content": { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": { "schema": { "type": "string", "format": "binary" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/imports/categories/preview": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }],
+      "post": { "tags": ["Imports"], "summary": "Preview category import", "requestBody": { "required": true, "content": { "multipart/form-data": { "schema": { "type": "object", "properties": { "file": { "type": "string", "format": "binary" } }, "required": ["file"] } } } }, "responses": { "200": { "description": "Category import preview without creation", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CategoryImportResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/imports/categories": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }],
+      "post": { "tags": ["Imports"], "summary": "Direct category import", "requestBody": { "required": true, "content": { "multipart/form-data": { "schema": { "type": "object", "properties": { "file": { "type": "string", "format": "binary" } }, "required": ["file"] } } } }, "responses": { "200": { "description": "Category import result", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CategoryImportResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/imports/payment-methods/template": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }],
+      "get": { "tags": ["Imports"], "summary": "Download payment method import template", "responses": { "200": { "description": "Excel payment method import template", "content": { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": { "schema": { "type": "string", "format": "binary" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/imports/payment-methods/preview": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }],
+      "post": { "tags": ["Imports"], "summary": "Preview payment method import", "requestBody": { "required": true, "content": { "multipart/form-data": { "schema": { "type": "object", "properties": { "file": { "type": "string", "format": "binary" } }, "required": ["file"] } } } }, "responses": { "200": { "description": "Payment method import preview without creation", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PaymentMethodImportResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/imports/payment-methods": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }],
+      "post": { "tags": ["Imports"], "summary": "Direct payment method import", "requestBody": { "required": true, "content": { "multipart/form-data": { "schema": { "type": "object", "properties": { "file": { "type": "string", "format": "binary" } }, "required": ["file"] } } } }, "responses": { "200": { "description": "Payment method import result", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PaymentMethodImportResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/imports/budgets/annual/template": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }],
+      "get": { "tags": ["Imports"], "summary": "Download annual budget import template", "responses": { "200": { "description": "Excel annual budget import template", "content": { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": { "schema": { "type": "string", "format": "binary" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/imports/budgets/annual/preview": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }],
+      "post": { "tags": ["Imports"], "summary": "Preview annual budget import", "requestBody": { "required": true, "content": { "multipart/form-data": { "schema": { "type": "object", "properties": { "file": { "type": "string", "format": "binary" } }, "required": ["file"] } } } }, "responses": { "200": { "description": "Annual budget import preview without creation", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AnnualBudgetImportResponse" } } } } } }
+    },
+    "/api/v1/accounts/{accountId}/imports/budgets/annual": {
+      "parameters": [{ "$ref": "#/components/parameters/accountId" }],
+      "post": { "tags": ["Imports"], "summary": "Direct annual budget import", "requestBody": { "required": true, "content": { "multipart/form-data": { "schema": { "type": "object", "properties": { "file": { "type": "string", "format": "binary" } }, "required": ["file"] } } } }, "responses": { "200": { "description": "Annual budget import result", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AnnualBudgetImportResponse" } } } } } }
     }
   },
   "components": {
@@ -367,6 +415,14 @@
       "ImportRowError": { "type": "object", "properties": { "column": { "type": "string" }, "code": { "type": "string" }, "message": { "type": "string" } } },
       "ExpenseImportRowResponse": { "type": "object", "properties": { "id": { "type": "integer", "format": "int64" }, "rowNumber": { "type": "integer" }, "expenseDate": { "type": "string", "format": "date", "nullable": true }, "description": { "type": "string", "nullable": true }, "amount": { "type": "number", "nullable": true }, "currency": { "type": "string", "nullable": true }, "categoryName": { "type": "string", "nullable": true }, "categoryId": { "type": "integer", "format": "int64", "nullable": true }, "paymentMethodName": { "type": "string", "nullable": true }, "paymentMethodId": { "type": "integer", "format": "int64", "nullable": true }, "paymentState": { "$ref": "#/components/schemas/ExpensePaymentState" }, "appliesDebtPayment": { "type": "boolean" }, "debtId": { "type": "integer", "format": "int64", "nullable": true }, "debtLabel": { "type": "string", "nullable": true }, "debtPaymentType": { "$ref": "#/components/schemas/DebtPaymentType" }, "debtPaymentNotes": { "type": "string", "nullable": true }, "valid": { "type": "boolean" }, "errors": { "type": "array", "items": { "$ref": "#/components/schemas/ImportRowError" } }, "createdExpenseId": { "type": "integer", "format": "int64", "nullable": true }, "createdDebtPaymentId": { "type": "integer", "format": "int64", "nullable": true } } },
       "ExpenseImportBatchResponse": { "type": "object", "properties": { "batchId": { "type": "integer", "format": "int64" }, "accountId": { "type": "integer", "format": "int64" }, "participantId": { "type": "integer", "format": "int64" }, "originalFilename": { "type": "string" }, "status": { "$ref": "#/components/schemas/ExpenseImportStatus" }, "totalRows": { "type": "integer" }, "validRows": { "type": "integer" }, "invalidRows": { "type": "integer" }, "confirmedAt": { "type": "string", "format": "date-time", "nullable": true }, "rows": { "type": "array", "items": { "$ref": "#/components/schemas/ExpenseImportRowResponse" } } } },
+      "IncomeImportRowResponse": { "type": "object", "properties": { "rowNumber": { "type": "integer" }, "incomeDate": { "type": "string", "format": "date", "nullable": true }, "description": { "type": "string", "nullable": true }, "categoryName": { "type": "string", "nullable": true }, "categoryId": { "type": "integer", "format": "int64", "nullable": true }, "amount": { "type": "number", "nullable": true }, "valid": { "type": "boolean" }, "createdIncomeId": { "type": "integer", "format": "int64", "nullable": true }, "errors": { "type": "array", "items": { "type": "string" } } } },
+      "IncomeImportResponse": { "type": "object", "properties": { "createdCount": { "type": "integer" }, "rows": { "type": "array", "items": { "$ref": "#/components/schemas/IncomeImportRowResponse" } } } },
+      "CategoryImportRowResponse": { "type": "object", "properties": { "rowNumber": { "type": "integer" }, "name": { "type": "string", "nullable": true }, "description": { "type": "string", "nullable": true }, "type": { "$ref": "#/components/schemas/CategoryType" }, "valid": { "type": "boolean" }, "createdCategoryId": { "type": "integer", "format": "int64", "nullable": true }, "errors": { "type": "array", "items": { "type": "string" } } } },
+      "CategoryImportResponse": { "type": "object", "properties": { "createdCount": { "type": "integer" }, "rows": { "type": "array", "items": { "$ref": "#/components/schemas/CategoryImportRowResponse" } } } },
+      "PaymentMethodImportRowResponse": { "type": "object", "properties": { "rowNumber": { "type": "integer" }, "name": { "type": "string", "nullable": true }, "description": { "type": "string", "nullable": true }, "type": { "$ref": "#/components/schemas/PaymentMethodType" }, "valid": { "type": "boolean" }, "createdPaymentMethodId": { "type": "integer", "format": "int64", "nullable": true }, "errors": { "type": "array", "items": { "type": "string" } } } },
+      "PaymentMethodImportResponse": { "type": "object", "properties": { "createdCount": { "type": "integer" }, "rows": { "type": "array", "items": { "$ref": "#/components/schemas/PaymentMethodImportRowResponse" } } } },
+      "AnnualBudgetImportRowResponse": { "type": "object", "properties": { "rowNumber": { "type": "integer" }, "year": { "type": "integer", "nullable": true }, "month": { "type": "string", "nullable": true }, "budgetName": { "type": "string", "nullable": true }, "categoryName": { "type": "string", "nullable": true }, "categoryId": { "type": "integer", "format": "int64", "nullable": true }, "subBudgetName": { "type": "string", "nullable": true }, "plannedAmount": { "type": "number", "nullable": true }, "valid": { "type": "boolean" }, "appliedMonths": { "type": "array", "items": { "type": "integer" } }, "errors": { "type": "array", "items": { "type": "string" } } } },
+      "AnnualBudgetImportResponse": { "type": "object", "properties": { "year": { "type": "integer", "nullable": true }, "createdBudgetsCount": { "type": "integer" }, "createdSubBudgetsCount": { "type": "integer" }, "rows": { "type": "array", "items": { "$ref": "#/components/schemas/AnnualBudgetImportRowResponse" } } } },
       "ApiErrorResponse": { "type": "object", "properties": { "timestamp": { "type": "string", "format": "date-time" }, "status": { "type": "integer" }, "error": { "type": "string" }, "code": { "type": "string" }, "message": { "type": "string" }, "path": { "type": "string" }, "correlationId": { "type": "string", "nullable": true }, "details": { "type": "array", "items": { "$ref": "#/components/schemas/FieldErrorResponse" } } } },
       "FieldErrorResponse": { "type": "object", "properties": { "field": { "type": "string" }, "message": { "type": "string" } } },
       "AccountPage": { "allOf": [{ "$ref": "#/components/schemas/Page" }, { "type": "object", "properties": { "content": { "type": "array", "items": { "$ref": "#/components/schemas/AccountResponse" } } } }] },
