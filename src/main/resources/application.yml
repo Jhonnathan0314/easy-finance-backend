@@ -81,4 +81,4 @@ easy-finance:
   imports:
     expenses:
       max-file-size-bytes: ${EXPENSE_IMPORT_MAX_FILE_SIZE_BYTES:5242880}
-      max-rows: ${EXPENSE_IMPORT_MAX_ROWS:1000}
+      max-rows: ${EXPENSE_IMPORT_MAX_ROWS:1500}

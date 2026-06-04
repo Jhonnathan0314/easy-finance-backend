@@ -41,7 +41,7 @@ public class ApachePoiExpenseImportParser implements ExpenseImportParserPort {
     private static final String DEBT_ID_HEADER = "DeudaId";
     private final int maxRows;
 
-    public ApachePoiExpenseImportParser(@Value("${easy-finance.imports.expenses.max-rows:1000}") int maxRows) {
+    public ApachePoiExpenseImportParser(@Value("${easy-finance.imports.expenses.max-rows:1500}") int maxRows) {
         this.maxRows = maxRows;
     }
 

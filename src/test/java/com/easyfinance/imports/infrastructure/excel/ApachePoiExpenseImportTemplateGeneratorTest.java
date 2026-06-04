@@ -47,6 +47,9 @@ class ApachePoiExpenseImportTemplateGeneratorTest {
             assertThat(valores.getRow(2).getCell(5).getStringCellValue()).isEqualTo("NO");
             assertThat(valores.getRow(1).getCell(6).getStringCellValue()).isEqualTo("INSTALLMENT");
             assertThat(valores.getRow(2).getCell(6).getStringCellValue()).isEqualTo("CAPITAL_PAYMENT");
+            assertThat(valores.getRow(0).getCell(9).getStringCellValue()).contains("1500 filas");
+            assertThat(gastos.getRow(1500)).isNotNull();
+            assertThat(gastos.getRow(1501)).isNull();
             assertThat(gastos.getDataValidations()).hasSizeGreaterThanOrEqualTo(8);
         }
     }

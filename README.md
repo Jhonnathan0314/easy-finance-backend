@@ -835,7 +835,7 @@ Import rules:
 - The generated template contains the required headers, a hidden `Valores` sheet, dropdowns for active `EXPENSE` categories, active payment methods, `EstadoPago`, `AplicaPagoDeuda`, active account debts, and `TipoPagoDeuda`.
 - Only `.xlsx` files are accepted.
 - Default maximum file size is `5MB`, configurable with `EXPENSE_IMPORT_MAX_FILE_SIZE_BYTES`.
-- Default maximum row count is `1000`, configurable with `EXPENSE_IMPORT_MAX_ROWS`.
+- Default maximum row count is `1500`, configurable with `EXPENSE_IMPORT_MAX_ROWS`.
 - Empty rows are ignored.
 - Formula cells are rejected for imported values.
 - Category names must match an active account category of type `EXPENSE`.

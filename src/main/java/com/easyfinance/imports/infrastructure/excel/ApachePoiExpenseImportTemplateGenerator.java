@@ -32,7 +32,7 @@ import java.util.List;
 @Component
 public class ApachePoiExpenseImportTemplateGenerator implements ExpenseImportTemplateGeneratorPort {
 
-    private static final int MAX_DATA_ROWS = 1000;
+    private static final int MAX_DATA_ROWS = 1500;
     private static final String EXPENSES_SHEET = "Gastos";
     private static final String VALUES_SHEET = "Valores";
     private static final String CATEGORY_RANGE = "CategoriasGastos";
@@ -121,7 +121,7 @@ public class ApachePoiExpenseImportTemplateGenerator implements ExpenseImportTem
         header.createCell(5).setCellValue("AplicaPagoDeuda");
         header.createCell(6).setCellValue("TiposPagoDeuda");
         header.createCell(8).setCellValue("Instrucciones");
-        header.createCell(9).setCellValue("No modificar las cabeceras de la hoja Gastos. MÃ¡ximo 1000 filas. CategorÃ­as, medios y deudas deben existir activos.");
+        header.createCell(9).setCellValue("No modificar las cabeceras de la hoja Gastos. MÃ¡ximo 1500 filas. CategorÃ­as, medios y deudas deben existir activos.");
 
         int maxRows = max(categoryNames.size(), paymentMethodNames.size(), PAYMENT_STATES.length, debtOptions.size(), DEBT_PAYMENT_FLAGS.length, DEBT_PAYMENT_TYPES.length);
         for (int i = 0; i < Math.max(maxRows, 1); i++) {
@@ -267,7 +267,7 @@ public class ApachePoiExpenseImportTemplateGenerator implements ExpenseImportTem
             case 7 -> "Seleccione una deuda ACTIVE de esta cuenta cuando AplicaPagoDeuda sea SI.";
             case 8 -> "Seleccione INSTALLMENT o CAPITAL_PAYMENT cuando AplicaPagoDeuda sea SI.";
             case 9 -> "Notas opcionales para el pago de deuda.";
-            default -> "MÃ¡ximo 1000 filas.";
+            default -> "MÃ¡ximo 1500 filas.";
         };
     }
 

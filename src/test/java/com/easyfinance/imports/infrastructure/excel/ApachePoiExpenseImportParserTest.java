@@ -179,12 +179,29 @@ class ApachePoiExpenseImportParserTest {
                 .isInstanceOfSatisfying(BusinessRuleViolationException.class, ex -> assertThat(ex.code()).isEqualTo("IMPORT_ROW_LIMIT_EXCEEDED"));
     }
 
+    @Test
+    void parsesExpenseRowsAtConfiguredLimitOfFifteenHundred() throws Exception {
+        byte[] file = legacyWorkbookWithRows(rows(1500));
+
+        var rows = new ApachePoiExpenseImportParser(1500).parse(command(file), 1L);
+
+        assertThat(rows).hasSize(1500);
+    }
+
     private static PreviewExpenseImportCommand command(byte[] bytes) {
         return new PreviewExpenseImportCommand(1L, "expenses.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", bytes.length, new ByteArrayInputStream(bytes));
     }
 
     private static byte[] legacyWorkbookWithRows(Object[][] data) throws Exception {
         return workbookWithRows(new String[]{"Fecha", "DescripciÃ³n", "Monto", "CategorÃ­a", "MedioPago", "EstadoPago"}, data, false);
+    }
+
+    private static Object[][] rows(int count) {
+        Object[][] data = new Object[count][];
+        for (int i = 0; i < count; i++) {
+            data[i] = new Object[]{"2026-05-01", "Expense " + i, 1, "Food", "Cash", "PAID"};
+        }
+        return data;
     }
 
     private static byte[] debtWorkbookWithRows(Object[][] data) throws Exception {
