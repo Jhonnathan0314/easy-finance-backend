@@ -328,7 +328,7 @@ curl -X POST http://localhost:8080/api/v1/accounts/1/expenses \
 List expenses:
 
 ```bash
-curl "http://localhost:8080/api/v1/accounts/1/expenses?from=2026-05-01&to=2026-05-31&status=ACTIVE&search=almuerzo&page=0&size=20&sort=expenseDate,desc" \
+curl "http://localhost:8080/api/v1/accounts/1/expenses?from=2026-05-01&to=2026-05-31&status=ACTIVE&expenseType=SIMPLE&search=almuerzo&page=0&size=20&sort=expenseDate,desc" \
   -H "Authorization: Bearer <accessToken>"
 ```
 

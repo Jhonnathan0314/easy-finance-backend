@@ -10,6 +10,7 @@ import com.easyfinance.expenses.application.port.in.UpdateExpensePort;
 import com.easyfinance.expenses.application.query.ListExpensesQuery;
 import com.easyfinance.expenses.domain.model.ExpensePaymentState;
 import com.easyfinance.expenses.domain.model.ExpenseStatus;
+import com.easyfinance.expenses.domain.model.ExpenseType;
 import com.easyfinance.expenses.entrypoint.rest.dto.CreateExpenseRequest;
 import com.easyfinance.expenses.entrypoint.rest.dto.CreateInstallmentExpenseRequest;
 import com.easyfinance.expenses.entrypoint.rest.dto.DuplicateExpenseRequest;
@@ -87,6 +88,7 @@ public class ExpensesController {
             @RequestParam(required = false) Long participantId,
             @RequestParam(required = false) ExpensePaymentStateDto paymentState,
             @RequestParam(required = false) ExpenseStatusDto status,
+            @RequestParam(required = false) ExpenseType expenseType,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size,
@@ -101,6 +103,7 @@ public class ExpensesController {
                 participantId,
                 paymentState == null ? null : ExpensePaymentState.valueOf(paymentState.name()),
                 status == null ? null : ExpenseStatus.valueOf(status.name()),
+                expenseType,
                 search,
                 PageQuery.of(page, size),
                 sort

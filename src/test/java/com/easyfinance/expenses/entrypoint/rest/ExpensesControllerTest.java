@@ -10,6 +10,7 @@ import com.easyfinance.expenses.application.port.in.UpdateExpensePort;
 import com.easyfinance.expenses.application.query.ListExpensesQuery;
 import com.easyfinance.expenses.application.response.ExpenseResponse;
 import com.easyfinance.expenses.application.response.PageResponse;
+import com.easyfinance.expenses.domain.model.ExpenseType;
 import com.easyfinance.shared.infrastructure.error.GlobalExceptionHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -146,6 +147,18 @@ class ExpensesControllerTest {
         ArgumentCaptor<ListExpensesQuery> captor = ArgumentCaptor.forClass(ListExpensesQuery.class);
         verify(listExpensesPort).listExpenses(captor.capture());
         assertThat(captor.getValue().search()).isNull();
+    }
+
+    @Test
+    void listReceivesExpenseTypeParam() throws Exception {
+        when(listExpensesPort.listExpenses(any())).thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0));
+
+        mockMvc.perform(get("/api/v1/accounts/1/expenses?expenseType=INSTALLMENT"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<ListExpensesQuery> captor = ArgumentCaptor.forClass(ListExpensesQuery.class);
+        verify(listExpensesPort).listExpenses(captor.capture());
+        assertThat(captor.getValue().expenseType()).isEqualTo(ExpenseType.INSTALLMENT);
     }
 
     @Test

@@ -178,7 +178,7 @@ Use explicit query parameters.
 Examples:
 
 ```text
-GET /api/v1/accounts/1/expenses?from=2026-01-01&to=2026-01-31&categoryId=10&search=mercado
+GET /api/v1/accounts/1/expenses?from=2026-01-01&to=2026-01-31&categoryId=10&expenseType=SIMPLE&search=mercado
 GET /api/v1/accounts/1/debts?state=ACTIVE&participantId=5
 ```
 

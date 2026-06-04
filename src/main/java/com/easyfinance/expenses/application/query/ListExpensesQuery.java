@@ -2,6 +2,7 @@ package com.easyfinance.expenses.application.query;
 
 import com.easyfinance.expenses.domain.model.ExpensePaymentState;
 import com.easyfinance.expenses.domain.model.ExpenseStatus;
+import com.easyfinance.expenses.domain.model.ExpenseType;
 import com.easyfinance.shared.application.PageQuery;
 import com.easyfinance.shared.domain.BusinessRuleViolationException;
 
@@ -16,6 +17,7 @@ public record ListExpensesQuery(
         Long participantId,
         ExpensePaymentState paymentState,
         ExpenseStatus status,
+        ExpenseType expenseType,
         String search,
         PageQuery pageQuery,
         String sort

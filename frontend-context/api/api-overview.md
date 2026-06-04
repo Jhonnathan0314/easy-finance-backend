@@ -61,7 +61,7 @@ Authorization: Bearer <accessToken>
 |---|---|---|
 | POST | `/api/v1/accounts/{accountId}/expenses` | Create simple expense. |
 | POST | `/api/v1/accounts/{accountId}/expenses/installments` | Create installment expense, derived debt, and budget impacts. |
-| GET | `/api/v1/accounts/{accountId}/expenses` | List expenses. Query: `from`, `to`, `categoryId`, `paymentMethodId`, `participantId`, `paymentState`, `status`, `search`, `page`, `size`, `sort`. |
+| GET | `/api/v1/accounts/{accountId}/expenses` | List expenses. Query: `from`, `to`, `categoryId`, `paymentMethodId`, `participantId`, `paymentState`, `status`, `expenseType`, `search`, `page`, `size`, `sort`. |
 | GET | `/api/v1/accounts/{accountId}/expenses/{expenseId}` | Get expense. |
 | PUT | `/api/v1/accounts/{accountId}/expenses/{expenseId}` | Update simple active expense if owner or admin. |
 | PATCH | `/api/v1/accounts/{accountId}/expenses/{expenseId}/cancel` | Cancel simple active expense if owner or admin. |

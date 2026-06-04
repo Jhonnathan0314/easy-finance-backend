@@ -4,6 +4,7 @@ import com.easyfinance.bootstrap.EasyFinanceApplication;
 import com.easyfinance.expenses.application.port.out.ExpenseRepositoryPort;
 import com.easyfinance.expenses.application.query.ListExpensesQuery;
 import com.easyfinance.expenses.domain.model.ExpensePaymentState;
+import com.easyfinance.expenses.domain.model.ExpenseType;
 import com.easyfinance.shared.application.PageQuery;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -156,6 +157,7 @@ class ExpensesSchemaIT {
                 null,
                 null,
                 null,
+                null,
                 "mercado",
                 PageQuery.of(0, 20),
                 "expenseDate,asc"
@@ -179,6 +181,7 @@ class ExpensesSchemaIT {
                 null,
                 null,
                 null,
+                null,
                 "   ",
                 PageQuery.of(0, 20),
                 "expenseDate,asc"
@@ -192,6 +195,7 @@ class ExpensesSchemaIT {
                 null,
                 ExpensePaymentState.PAID,
                 null,
+                null,
                 "MERcado",
                 PageQuery.of(0, 20),
                 "expenseDate,asc"
@@ -199,6 +203,62 @@ class ExpensesSchemaIT {
 
         assertThat(blankSearchPage.content()).hasSize(2);
         assertThat(filteredPage.content()).extracting("description").containsExactly("Mercado Pagado");
+    }
+
+    @Test
+    void listExpensesCanFilterByExpenseType() {
+        var fixture = createFixture();
+        var other = createFixture();
+        insertExpense(fixture.accountId(), fixture.categoryId(), fixture.paymentMethodId(), fixture.participantId(), "Simple", "PAID", "ACTIVE", "SIMPLE");
+        insertExpense(fixture.accountId(), fixture.categoryId(), fixture.paymentMethodId(), fixture.participantId(), "Installment", "PENDING", "ACTIVE", "INSTALLMENT");
+        insertExpense(other.accountId(), other.categoryId(), other.paymentMethodId(), other.participantId(), "Other Installment", "PENDING", "ACTIVE", "INSTALLMENT");
+
+        var allTypesPage = expenseRepository.findAll(new ListExpensesQuery(
+                fixture.accountId(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                PageQuery.of(0, 20),
+                "expenseDate,asc"
+        ));
+        var simplePage = expenseRepository.findAll(new ListExpensesQuery(
+                fixture.accountId(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                ExpenseType.SIMPLE,
+                null,
+                PageQuery.of(0, 20),
+                "expenseDate,asc"
+        ));
+        var installmentPage = expenseRepository.findAll(new ListExpensesQuery(
+                fixture.accountId(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                ExpenseType.INSTALLMENT,
+                null,
+                PageQuery.of(0, 20),
+                "expenseDate,asc"
+        ));
+
+        assertThat(allTypesPage.content()).extracting("description").containsExactlyInAnyOrder("Simple", "Installment");
+        assertThat(simplePage.content()).extracting("description").containsExactly("Simple");
+        assertThat(installmentPage.content()).extracting("description").containsExactly("Installment");
     }
 
     private Fixture createFixture() {
@@ -268,6 +328,19 @@ class ExpensesSchemaIT {
             String paymentState,
             String status
     ) {
+        insertExpense(accountId, categoryId, paymentMethodId, participantId, description, paymentState, status, "SIMPLE");
+    }
+
+    private void insertExpense(
+            Long accountId,
+            Long categoryId,
+            Long paymentMethodId,
+            Long participantId,
+            String description,
+            String paymentState,
+            String status,
+            String expenseType
+    ) {
         jdbcTemplate.update(
                 """
                 INSERT INTO expenses (account_id, category_id, payment_method_id, participant_id, description, amount, currency, expense_date, payment_state, status, expense_type)
@@ -283,7 +356,7 @@ class ExpensesSchemaIT {
                 "2026-05-09",
                 paymentState,
                 status,
-                "SIMPLE"
+                expenseType
         );
     }
 
