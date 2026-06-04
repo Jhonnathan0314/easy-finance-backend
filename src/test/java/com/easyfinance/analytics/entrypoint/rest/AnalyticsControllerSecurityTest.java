@@ -8,6 +8,7 @@ import com.easyfinance.analytics.application.port.in.GetDebtSummaryPort;
 import com.easyfinance.analytics.application.port.in.GetExpenseSummaryPort;
 import com.easyfinance.analytics.application.port.in.GetExpensesByCategoryPort;
 import com.easyfinance.analytics.application.port.in.GetExpensesByPaymentMethodPort;
+import com.easyfinance.analytics.application.port.in.GetExpensesByPaymentMethodTypePort;
 import com.easyfinance.analytics.application.port.in.GetIncomesByCategoryPort;
 import com.easyfinance.analytics.application.port.in.GetMonthlySummaryPort;
 import com.easyfinance.shared.infrastructure.security.JwtAuthenticationException;
@@ -82,6 +83,7 @@ class AnalyticsControllerSecurityTest {
         @Bean GetCashflowPort getCashflowPort() { return mock(GetCashflowPort.class); }
         @Bean GetExpensesByCategoryPort getExpensesByCategoryPort() { return mock(GetExpensesByCategoryPort.class); }
         @Bean GetExpensesByPaymentMethodPort getExpensesByPaymentMethodPort() { return mock(GetExpensesByPaymentMethodPort.class); }
+        @Bean GetExpensesByPaymentMethodTypePort getExpensesByPaymentMethodTypePort() { return mock(GetExpensesByPaymentMethodTypePort.class); }
         @Bean GetIncomesByCategoryPort getIncomesByCategoryPort() { return mock(GetIncomesByCategoryPort.class); }
         @Bean GetDebtSummaryPort getDebtSummaryPort() { return mock(GetDebtSummaryPort.class); }
         @Bean GetBudgetSummaryPort getBudgetSummaryPort() { return mock(GetBudgetSummaryPort.class); }

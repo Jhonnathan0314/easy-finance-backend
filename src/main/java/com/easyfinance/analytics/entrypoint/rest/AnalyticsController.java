@@ -8,6 +8,7 @@ import com.easyfinance.analytics.application.port.in.GetDebtSummaryPort;
 import com.easyfinance.analytics.application.port.in.GetExpenseSummaryPort;
 import com.easyfinance.analytics.application.port.in.GetExpensesByCategoryPort;
 import com.easyfinance.analytics.application.port.in.GetExpensesByPaymentMethodPort;
+import com.easyfinance.analytics.application.port.in.GetExpensesByPaymentMethodTypePort;
 import com.easyfinance.analytics.application.port.in.GetIncomesByCategoryPort;
 import com.easyfinance.analytics.application.port.in.GetMonthlySummaryPort;
 import com.easyfinance.analytics.application.query.CashflowGroupBy;
@@ -26,6 +27,7 @@ import com.easyfinance.analytics.entrypoint.rest.dto.DebtSummaryResponseDto;
 import com.easyfinance.analytics.entrypoint.rest.dto.ExpenseSummaryResponseDto;
 import com.easyfinance.analytics.entrypoint.rest.dto.MonthlySummaryResponseDto;
 import com.easyfinance.analytics.entrypoint.rest.dto.PaymentMethodBreakdownResponseDto;
+import com.easyfinance.analytics.entrypoint.rest.dto.PaymentMethodTypeBreakdownResponseDto;
 import com.easyfinance.analytics.entrypoint.rest.mapper.AnalyticsRestMapper;
 import com.easyfinance.expenses.domain.model.ExpensePaymentState;
 import com.easyfinance.expenses.domain.model.ExpenseStatus;
@@ -49,6 +51,7 @@ public class AnalyticsController {
     private final GetCashflowPort getCashflowPort;
     private final GetExpensesByCategoryPort getExpensesByCategoryPort;
     private final GetExpensesByPaymentMethodPort getExpensesByPaymentMethodPort;
+    private final GetExpensesByPaymentMethodTypePort getExpensesByPaymentMethodTypePort;
     private final GetIncomesByCategoryPort getIncomesByCategoryPort;
     private final GetDebtSummaryPort getDebtSummaryPort;
     private final GetBudgetSummaryPort getBudgetSummaryPort;
@@ -61,6 +64,7 @@ public class AnalyticsController {
             GetCashflowPort getCashflowPort,
             GetExpensesByCategoryPort getExpensesByCategoryPort,
             GetExpensesByPaymentMethodPort getExpensesByPaymentMethodPort,
+            GetExpensesByPaymentMethodTypePort getExpensesByPaymentMethodTypePort,
             GetIncomesByCategoryPort getIncomesByCategoryPort,
             GetDebtSummaryPort getDebtSummaryPort,
             GetBudgetSummaryPort getBudgetSummaryPort,
@@ -72,6 +76,7 @@ public class AnalyticsController {
         this.getCashflowPort = getCashflowPort;
         this.getExpensesByCategoryPort = getExpensesByCategoryPort;
         this.getExpensesByPaymentMethodPort = getExpensesByPaymentMethodPort;
+        this.getExpensesByPaymentMethodTypePort = getExpensesByPaymentMethodTypePort;
         this.getIncomesByCategoryPort = getIncomesByCategoryPort;
         this.getDebtSummaryPort = getDebtSummaryPort;
         this.getBudgetSummaryPort = getBudgetSummaryPort;
@@ -185,6 +190,30 @@ public class AnalyticsController {
                 to,
                 categoryId,
                 paymentMethodId,
+                participantId,
+                status,
+                paymentState,
+                expenseType
+        )));
+    }
+
+    @GetMapping("/expenses-by-payment-method-type")
+    public PaymentMethodTypeBreakdownResponseDto expensesByPaymentMethodType(
+            @PathVariable Long accountId,
+            @RequestParam LocalDate from,
+            @RequestParam LocalDate to,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) Long participantId,
+            @RequestParam(required = false) ExpenseStatus status,
+            @RequestParam(required = false) ExpensePaymentState paymentState,
+            @RequestParam(required = false) ExpenseType expenseType
+    ) {
+        return AnalyticsRestMapper.toDto(getExpensesByPaymentMethodTypePort.getExpensesByPaymentMethodType(new ExpenseBreakdownQuery(
+                accountId,
+                from,
+                to,
+                categoryId,
+                null,
                 participantId,
                 status,
                 paymentState,

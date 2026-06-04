@@ -345,6 +345,7 @@ GET /api/v1/accounts/{accountId}/analytics/expense-summary
 GET /api/v1/accounts/{accountId}/analytics/cashflow
 GET /api/v1/accounts/{accountId}/analytics/expenses-by-category
 GET /api/v1/accounts/{accountId}/analytics/expenses-by-payment-method
+GET /api/v1/accounts/{accountId}/analytics/expenses-by-payment-method-type
 GET /api/v1/accounts/{accountId}/analytics/incomes-by-category
 GET /api/v1/accounts/{accountId}/analytics/debt-summary
 GET /api/v1/accounts/{accountId}/analytics/budget-summary

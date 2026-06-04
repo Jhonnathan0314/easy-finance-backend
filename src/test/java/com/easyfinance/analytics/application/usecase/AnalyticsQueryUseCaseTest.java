@@ -21,6 +21,7 @@ import com.easyfinance.analytics.application.response.BudgetVsExpensesCategoryIt
 import com.easyfinance.analytics.application.response.CategoryAmountItem;
 import com.easyfinance.analytics.application.response.DebtSummaryResponse;
 import com.easyfinance.analytics.application.response.MonthlySummaryResponse;
+import com.easyfinance.analytics.application.response.PaymentMethodTypeAmountItem;
 import com.easyfinance.shared.application.CurrentUser;
 import com.easyfinance.shared.application.CurrentUserProvider;
 import com.easyfinance.shared.domain.BusinessRuleViolationException;
@@ -75,6 +76,22 @@ class AnalyticsQueryUseCaseTest {
                 null, null, null, null, null, null));
 
         assertThat(response.items()).hasSize(1);
+    }
+
+    @Test
+    void expensesByPaymentMethodTypeReturnsItems() {
+        givenMemberAccess();
+        when(analyticsQueryPort.getExpensesByPaymentMethodType(any(ExpenseBreakdownQuery.class)))
+                .thenReturn(List.of(new PaymentMethodTypeAmountItem("CREDIT_CARD", new BigDecimal("120.00"), 2L)));
+
+        var response = useCase.getExpensesByPaymentMethodType(new ExpenseBreakdownQuery(1L, LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 31),
+                null, null, null, null, null, null));
+
+        assertThat(response.items()).singleElement().satisfies(item -> {
+            assertThat(item.paymentMethodType()).isEqualTo("CREDIT_CARD");
+            assertThat(item.amount()).isEqualByComparingTo("120.00");
+            assertThat(item.count()).isEqualTo(2L);
+        });
     }
 
     @Test

@@ -14,6 +14,7 @@ import com.easyfinance.analytics.application.response.DebtSummaryResponse;
 import com.easyfinance.analytics.application.response.ExpenseSummaryResponse;
 import com.easyfinance.analytics.application.response.MonthlySummaryResponse;
 import com.easyfinance.analytics.application.response.PaymentMethodAmountItem;
+import com.easyfinance.analytics.application.response.PaymentMethodTypeAmountItem;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -32,6 +33,8 @@ public interface AnalyticsQueryPort {
     List<CategoryAmountItem> getIncomesByCategory(IncomeBreakdownQuery query);
 
     List<PaymentMethodAmountItem> getExpensesByPaymentMethod(ExpenseBreakdownQuery query);
+
+    List<PaymentMethodTypeAmountItem> getExpensesByPaymentMethodType(ExpenseBreakdownQuery query);
 
     DebtSummaryResponse getDebtSummary(Long accountId);
 

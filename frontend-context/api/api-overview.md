@@ -117,6 +117,7 @@ Authorization: Bearer <accessToken>
 | GET | `/api/v1/accounts/{accountId}/analytics/cashflow?from=&to=&groupBy=` | Real-money cashflow series grouped by `DAY`, `WEEK`, or `MONTH`. Query: `participantId`. |
 | GET | `/api/v1/accounts/{accountId}/analytics/expenses-by-category?from=&to=` | Expense category breakdown. Query: `categoryId`, `paymentMethodId`, `participantId`, `status`, `paymentState`, `expenseType`. |
 | GET | `/api/v1/accounts/{accountId}/analytics/expenses-by-payment-method?from=&to=` | Expense payment-method breakdown. Query: `categoryId`, `paymentMethodId`, `participantId`, `status`, `paymentState`, `expenseType`. |
+| GET | `/api/v1/accounts/{accountId}/analytics/expenses-by-payment-method-type?from=&to=` | Expense payment-method type breakdown. Query: `categoryId`, `participantId`, `status`, `paymentState`, `expenseType`. |
 | GET | `/api/v1/accounts/{accountId}/analytics/incomes-by-category?from=&to=` | Income category breakdown. Query: `categoryId`, `participantId`, `status`. |
 | GET | `/api/v1/accounts/{accountId}/analytics/debt-summary` | Debt totals and counts. |
 | GET | `/api/v1/accounts/{accountId}/analytics/budget-summary?year=&month=` | Monthly budget summary combining manual sub-budgets, dynamic manual expense execution, and debt impacts. |

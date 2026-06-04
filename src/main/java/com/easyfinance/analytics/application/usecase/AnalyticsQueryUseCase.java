@@ -9,6 +9,7 @@ import com.easyfinance.analytics.application.port.in.GetDebtSummaryPort;
 import com.easyfinance.analytics.application.port.in.GetExpenseSummaryPort;
 import com.easyfinance.analytics.application.port.in.GetExpensesByCategoryPort;
 import com.easyfinance.analytics.application.port.in.GetExpensesByPaymentMethodPort;
+import com.easyfinance.analytics.application.port.in.GetExpensesByPaymentMethodTypePort;
 import com.easyfinance.analytics.application.port.in.GetIncomesByCategoryPort;
 import com.easyfinance.analytics.application.port.in.GetMonthlySummaryPort;
 import com.easyfinance.analytics.application.port.out.AnalyticsQueryPort;
@@ -27,6 +28,7 @@ import com.easyfinance.analytics.application.response.DebtSummaryResponse;
 import com.easyfinance.analytics.application.response.ExpenseSummaryResponse;
 import com.easyfinance.analytics.application.response.MonthlySummaryResponse;
 import com.easyfinance.analytics.application.response.PaymentMethodBreakdownResponse;
+import com.easyfinance.analytics.application.response.PaymentMethodTypeBreakdownResponse;
 import com.easyfinance.shared.application.CurrentUser;
 import com.easyfinance.shared.application.CurrentUserProvider;
 import com.easyfinance.shared.domain.UnauthorizedOperationException;
@@ -43,6 +45,7 @@ public class AnalyticsQueryUseCase implements
         GetCashflowPort,
         GetExpensesByCategoryPort,
         GetExpensesByPaymentMethodPort,
+        GetExpensesByPaymentMethodTypePort,
         GetIncomesByCategoryPort,
         GetDebtSummaryPort,
         GetBudgetSummaryPort,
@@ -118,6 +121,18 @@ public class AnalyticsQueryUseCase implements
                 query.from(),
                 query.to(),
                 analyticsQueryPort.getExpensesByPaymentMethod(query)
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PaymentMethodTypeBreakdownResponse getExpensesByPaymentMethodType(ExpenseBreakdownQuery query) {
+        requireActiveMember(query.accountId());
+        return new PaymentMethodTypeBreakdownResponse(
+                query.accountId(),
+                query.from(),
+                query.to(),
+                analyticsQueryPort.getExpensesByPaymentMethodType(query)
         );
     }
 

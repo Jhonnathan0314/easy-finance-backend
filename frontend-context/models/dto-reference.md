@@ -129,6 +129,8 @@ interface CategoryAmountItem { categoryId: number; categoryName: string; amount:
 interface CategoryBreakdownResponse { accountId: number; from: string; to: string; items: CategoryAmountItem[]; }
 interface PaymentMethodAmountItem { paymentMethodId?: number | null; paymentMethodName: string; amount: number; count: number; }
 interface PaymentMethodBreakdownResponse { accountId: number; from: string; to: string; items: PaymentMethodAmountItem[]; }
+interface PaymentMethodTypeAmountItem { paymentMethodType: "CASH" | "BANK_ACCOUNT" | "CREDIT_CARD" | "DEBIT_CARD" | "DIGITAL_WALLET" | "OTHER"; amount: number; count: number; }
+interface PaymentMethodTypeBreakdownResponse { accountId: number; from: string; to: string; items: PaymentMethodTypeAmountItem[]; }
 interface DebtSummaryResponse { accountId: number; activeDebtsCount: number; paidDebtsCount: number; cancelledDebtsCount: number; totalDebtAmount: number; totalRemainingBalance: number; totalPaidAmount: number; manualDebtsCount: number; installmentExpenseDebtsCount: number; }
 interface BudgetSummaryResponse { accountId: number; year: number; month: number; budgetId?: number | null; expectedAmount: number; paidAmount: number; pendingAmount: number; impactsCount: number; paidImpactsCount: number; activeImpactsCount: number; subBudgetsCount: number; }
 ```

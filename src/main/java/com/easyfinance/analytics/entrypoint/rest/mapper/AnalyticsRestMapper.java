@@ -13,6 +13,8 @@ import com.easyfinance.analytics.application.response.ExpenseSummaryResponse;
 import com.easyfinance.analytics.application.response.MonthlySummaryResponse;
 import com.easyfinance.analytics.application.response.PaymentMethodAmountItem;
 import com.easyfinance.analytics.application.response.PaymentMethodBreakdownResponse;
+import com.easyfinance.analytics.application.response.PaymentMethodTypeAmountItem;
+import com.easyfinance.analytics.application.response.PaymentMethodTypeBreakdownResponse;
 import com.easyfinance.analytics.entrypoint.rest.dto.BudgetSummaryResponseDto;
 import com.easyfinance.analytics.entrypoint.rest.dto.BudgetVsExpensesByCategoryResponseDto;
 import com.easyfinance.analytics.entrypoint.rest.dto.BudgetVsExpensesCategoryItemDto;
@@ -26,6 +28,8 @@ import com.easyfinance.analytics.entrypoint.rest.dto.ExpenseSummaryResponseDto;
 import com.easyfinance.analytics.entrypoint.rest.dto.MonthlySummaryResponseDto;
 import com.easyfinance.analytics.entrypoint.rest.dto.PaymentMethodAmountItemDto;
 import com.easyfinance.analytics.entrypoint.rest.dto.PaymentMethodBreakdownResponseDto;
+import com.easyfinance.analytics.entrypoint.rest.dto.PaymentMethodTypeAmountItemDto;
+import com.easyfinance.analytics.entrypoint.rest.dto.PaymentMethodTypeBreakdownResponseDto;
 
 public final class AnalyticsRestMapper {
 
@@ -147,6 +151,15 @@ public final class AnalyticsRestMapper {
         );
     }
 
+    public static PaymentMethodTypeBreakdownResponseDto toDto(PaymentMethodTypeBreakdownResponse response) {
+        return new PaymentMethodTypeBreakdownResponseDto(
+                response.accountId(),
+                response.from(),
+                response.to(),
+                response.items().stream().map(AnalyticsRestMapper::toDto).toList()
+        );
+    }
+
     private static CategoryAmountItemDto toDto(CategoryAmountItem item) {
         return new CategoryAmountItemDto(item.categoryId(), item.categoryName(), item.amount(), item.count());
     }
@@ -164,6 +177,10 @@ public final class AnalyticsRestMapper {
 
     private static PaymentMethodAmountItemDto toDto(PaymentMethodAmountItem item) {
         return new PaymentMethodAmountItemDto(item.paymentMethodId(), item.paymentMethodName(), item.amount(), item.count());
+    }
+
+    private static PaymentMethodTypeAmountItemDto toDto(PaymentMethodTypeAmountItem item) {
+        return new PaymentMethodTypeAmountItemDto(item.paymentMethodType(), item.amount(), item.count());
     }
 
     private static BudgetVsExpensesCategoryItemDto toDto(BudgetVsExpensesCategoryItem item) {

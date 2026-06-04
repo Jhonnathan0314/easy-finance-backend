@@ -15,6 +15,7 @@ import com.easyfinance.analytics.application.response.DebtSummaryResponse;
 import com.easyfinance.analytics.application.response.ExpenseSummaryResponse;
 import com.easyfinance.analytics.application.response.MonthlySummaryResponse;
 import com.easyfinance.analytics.application.response.PaymentMethodAmountItem;
+import com.easyfinance.analytics.application.response.PaymentMethodTypeAmountItem;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -271,6 +272,25 @@ public class JpaAnalyticsQueryAdapter implements AnalyticsQueryPort {
                 """.formatted(expenseFilter("e", query.status(), true, query.categoryId(), query.paymentMethodId(), query.participantId(), query.paymentState(), query.expenseType()));
 
         return namedJdbcTemplate.query(sql, params, (rs, rowNum) -> paymentMethodItem(rs));
+    }
+
+    @Override
+    public List<PaymentMethodTypeAmountItem> getExpensesByPaymentMethodType(ExpenseBreakdownQuery query) {
+        MapSqlParameterSource params = expenseParams(query.accountId(), query.from(), query.to(), query.categoryId(), null, query.participantId())
+                .addValue("paymentState", enumName(query.paymentState()))
+                .addValue("expenseType", enumName(query.expenseType()))
+                .addValue("status", enumName(query.status()));
+
+        String sql = """
+                SELECT pm.type AS payment_method_type, COALESCE(SUM(e.amount), 0) AS amount, COUNT(e.id) AS movement_count
+                FROM expenses e
+                JOIN payment_methods pm ON pm.account_id = e.account_id AND pm.id = e.payment_method_id
+                WHERE %s
+                GROUP BY pm.type
+                ORDER BY amount DESC, pm.type ASC
+                """.formatted(expenseFilter("e", query.status(), true, query.categoryId(), null, query.participantId(), query.paymentState(), query.expenseType()));
+
+        return namedJdbcTemplate.query(sql, params, (rs, rowNum) -> paymentMethodTypeItem(rs));
     }
 
     @Override
@@ -617,6 +637,14 @@ public class JpaAnalyticsQueryAdapter implements AnalyticsQueryPort {
         return new PaymentMethodAmountItem(
                 rs.getLong("payment_method_id"),
                 rs.getString("payment_method_name"),
+                money(rs, "amount"),
+                count(rs, "movement_count")
+        );
+    }
+
+    private static PaymentMethodTypeAmountItem paymentMethodTypeItem(ResultSet rs) throws SQLException {
+        return new PaymentMethodTypeAmountItem(
+                rs.getString("payment_method_type"),
                 money(rs, "amount"),
                 count(rs, "movement_count")
         );

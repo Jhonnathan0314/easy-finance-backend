@@ -721,6 +721,13 @@ curl "http://localhost:8080/api/v1/accounts/1/analytics/expenses-by-payment-meth
   -H "Authorization: Bearer <accessToken>"
 ```
 
+Expenses by payment method type:
+
+```bash
+curl "http://localhost:8080/api/v1/accounts/1/analytics/expenses-by-payment-method-type?from=2026-05-01&to=2026-05-31&paymentState=PAID" \
+  -H "Authorization: Bearer <accessToken>"
+```
+
 Debt summary:
 
 ```bash
@@ -751,7 +758,7 @@ Analytics definitions:
 - Cashflow includes active incomes, active simple expenses with `paymentState = PAID`, and active debt payments for non-cancelled debts.
 - Cashflow excludes expenses with `sourceType = DEBT_PAYMENT` because the real outflow is already represented by the debt payment.
 - Cashflow excludes full `INSTALLMENT` expense purchase amounts from the purchase date and excludes `SIMPLE` expenses with `PENDING` or `PARTIAL` payment state until partial payment amounts exist in the model.
-- `expense-summary`, `expenses-by-category`, and `expenses-by-payment-method` are conceptual purchase/gasto analytics; they can include `SIMPLE` and `INSTALLMENT` expenses according to filters and do not represent real cash outflow.
+- `expense-summary`, `expenses-by-category`, `expenses-by-payment-method`, and `expenses-by-payment-method-type` are conceptual purchase/gasto analytics; they can include `SIMPLE` and `INSTALLMENT` expenses according to filters and do not represent real cash outflow.
 - `totalDebtRemaining`: remaining balance of active debts.
 - `totalDebtPaidInMonth`: active debt payments in the requested month.
 - Debt financial totals exclude `CANCELLED` debts, but cancelled debts are still counted separately.

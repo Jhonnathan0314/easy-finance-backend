@@ -8,6 +8,7 @@ import com.easyfinance.analytics.application.port.in.GetDebtSummaryPort;
 import com.easyfinance.analytics.application.port.in.GetExpenseSummaryPort;
 import com.easyfinance.analytics.application.port.in.GetExpensesByCategoryPort;
 import com.easyfinance.analytics.application.port.in.GetExpensesByPaymentMethodPort;
+import com.easyfinance.analytics.application.port.in.GetExpensesByPaymentMethodTypePort;
 import com.easyfinance.analytics.application.port.in.GetIncomesByCategoryPort;
 import com.easyfinance.analytics.application.port.in.GetMonthlySummaryPort;
 import com.easyfinance.analytics.application.query.CashflowGroupBy;
@@ -24,6 +25,8 @@ import com.easyfinance.analytics.application.response.ExpenseSummaryResponse;
 import com.easyfinance.analytics.application.response.MonthlySummaryResponse;
 import com.easyfinance.analytics.application.response.PaymentMethodAmountItem;
 import com.easyfinance.analytics.application.response.PaymentMethodBreakdownResponse;
+import com.easyfinance.analytics.application.response.PaymentMethodTypeAmountItem;
+import com.easyfinance.analytics.application.response.PaymentMethodTypeBreakdownResponse;
 import com.easyfinance.shared.infrastructure.error.GlobalExceptionHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -50,6 +53,7 @@ class AnalyticsControllerTest {
     private final GetCashflowPort getCashflowPort = mock(GetCashflowPort.class);
     private final GetExpensesByCategoryPort getExpensesByCategoryPort = mock(GetExpensesByCategoryPort.class);
     private final GetExpensesByPaymentMethodPort getExpensesByPaymentMethodPort = mock(GetExpensesByPaymentMethodPort.class);
+    private final GetExpensesByPaymentMethodTypePort getExpensesByPaymentMethodTypePort = mock(GetExpensesByPaymentMethodTypePort.class);
     private final GetIncomesByCategoryPort getIncomesByCategoryPort = mock(GetIncomesByCategoryPort.class);
     private final GetDebtSummaryPort getDebtSummaryPort = mock(GetDebtSummaryPort.class);
     private final GetBudgetSummaryPort getBudgetSummaryPort = mock(GetBudgetSummaryPort.class);
@@ -61,7 +65,8 @@ class AnalyticsControllerTest {
         mockMvc = MockMvcBuilders
                 .standaloneSetup(new AnalyticsController(getMonthlySummaryPort, getCashflowSummaryPort,
                         getExpenseSummaryPort, getCashflowPort, getExpensesByCategoryPort,
-                        getExpensesByPaymentMethodPort, getIncomesByCategoryPort, getDebtSummaryPort,
+                        getExpensesByPaymentMethodPort, getExpensesByPaymentMethodTypePort,
+                        getIncomesByCategoryPort, getDebtSummaryPort,
                         getBudgetSummaryPort, getBudgetVsExpensesByCategoryPort))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
@@ -262,6 +267,22 @@ class AnalyticsControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[0].paymentMethodId").value(3))
                 .andExpect(jsonPath("$.items[0].paymentMethodName").value("Credit Card"))
+                .andExpect(jsonPath("$.items[0].amount").value(420.00))
+                .andExpect(jsonPath("$.items[0].count").value(2));
+    }
+
+    @Test
+    void expensesByPaymentMethodTypeEndpointDelegates() throws Exception {
+        when(getExpensesByPaymentMethodTypePort.getExpensesByPaymentMethodType(any())).thenReturn(new PaymentMethodTypeBreakdownResponse(
+                1L,
+                LocalDate.of(2026, 5, 1),
+                LocalDate.of(2026, 5, 31),
+                List.of(new PaymentMethodTypeAmountItem("CREDIT_CARD", new BigDecimal("420.00"), 2L))
+        ));
+
+        mockMvc.perform(get("/api/v1/accounts/1/analytics/expenses-by-payment-method-type?from=2026-05-01&to=2026-05-31&categoryId=2&participantId=7&expenseType=SIMPLE&paymentState=PAID&status=ACTIVE"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].paymentMethodType").value("CREDIT_CARD"))
                 .andExpect(jsonPath("$.items[0].amount").value(420.00))
                 .andExpect(jsonPath("$.items[0].count").value(2));
     }

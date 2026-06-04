@@ -358,6 +358,42 @@ class AnalyticsQueryAdapterIT {
     }
 
     @Test
+    void expenseBreakdownByPaymentMethodTypeGroupsAndSupportsFilters() {
+        Fixture fixture = createFixture("payment-method-type");
+        Fixture other = createFixture("payment-method-type-other");
+        Long secondCashPaymentMethodId = insertPaymentMethod(fixture.accountId(), "Cash backup " + System.nanoTime(), "CASH");
+        Long debitPaymentMethodId = insertPaymentMethod(fixture.accountId(), "Debit " + System.nanoTime(), "DEBIT_CARD");
+
+        insertExpense(fixture.accountId(), fixture.expenseCategoryId(), fixture.paymentMethodId(), fixture.participantId(), 200, "2026-05-11", "PAID", "ACTIVE", "SIMPLE");
+        insertExpense(fixture.accountId(), fixture.expenseCategoryId(), secondCashPaymentMethodId, fixture.participantId(), 250, "2026-05-12", "PAID", "ACTIVE", "SIMPLE");
+        insertExpense(fixture.accountId(), fixture.expenseCategoryId(), debitPaymentMethodId, fixture.participantId(), 75, "2026-05-13", "PAID", "ACTIVE", "SIMPLE");
+        insertExpense(fixture.accountId(), fixture.expenseCategoryId(), secondCashPaymentMethodId, fixture.participantId(), 999, "2026-05-14", "PENDING", "ACTIVE", "SIMPLE");
+        insertExpense(fixture.accountId(), fixture.expenseCategoryId(), secondCashPaymentMethodId, fixture.participantId(), 999, "2026-05-15", "PAID", "CANCELLED", "SIMPLE");
+        insertExpense(fixture.accountId(), fixture.expenseCategoryId(), secondCashPaymentMethodId, fixture.participantId(), 999, "2026-06-01", "PAID", "ACTIVE", "SIMPLE");
+        insertExpense(fixture.accountId(), fixture.expenseCategoryId(), secondCashPaymentMethodId, fixture.participantId(), 999, "2026-05-16", "PAID", "ACTIVE", "INSTALLMENT");
+        insertExpense(other.accountId(), other.expenseCategoryId(), other.paymentMethodId(), other.participantId(), 999, "2026-05-11", "PAID", "ACTIVE", "SIMPLE");
+
+        var items = analyticsQueryPort.getExpensesByPaymentMethodType(new ExpenseBreakdownQuery(
+                fixture.accountId(), LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 31),
+                fixture.expenseCategoryId(), null, fixture.participantId(),
+                ExpenseStatus.ACTIVE, ExpensePaymentState.PAID, ExpenseType.SIMPLE));
+
+        assertThat(items).hasSize(2);
+        assertThat(items).filteredOn(item -> item.paymentMethodType().equals("CASH"))
+                .singleElement()
+                .satisfies(item -> {
+                    assertThat(item.amount()).isEqualByComparingTo("450.00");
+                    assertThat(item.count()).isEqualTo(2L);
+                });
+        assertThat(items).filteredOn(item -> item.paymentMethodType().equals("DEBIT_CARD"))
+                .singleElement()
+                .satisfies(item -> {
+                    assertThat(item.amount()).isEqualByComparingTo("75.00");
+                    assertThat(item.count()).isEqualTo(1L);
+                });
+    }
+
+    @Test
     void cashflowCanBeGroupedByDayAndMonth() {
         Fixture fixture = createFixture("cashflow-series");
         insertIncome(fixture.accountId(), fixture.incomeCategoryId(), fixture.participantId(), 1000, "2026-05-10");
@@ -507,13 +543,17 @@ class AnalyticsQueryAdapterIT {
     }
 
     private Long insertPaymentMethod(Long accountId, String name) {
+        return insertPaymentMethod(accountId, name, "DEBIT_CARD");
+    }
+
+    private Long insertPaymentMethod(Long accountId, String name, String type) {
         return jdbcTemplate.queryForObject(
                 "INSERT INTO payment_methods (account_id, name, normalized_name, type, status) VALUES (?, ?, ?, ?, ?) RETURNING id",
                 Long.class,
                 accountId,
                 name,
                 name.toLowerCase().replace(" ", "-") + "-" + System.nanoTime(),
-                "DEBIT_CARD",
+                type,
                 "ACTIVE"
         );
     }
