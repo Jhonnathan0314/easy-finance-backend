@@ -6,6 +6,7 @@ import java.time.LocalDate;
 
 public record CreateInstallmentExpenseCommand(
         Long accountId,
+        Long participantId,
         Long categoryId,
         Long paymentMethodId,
         String description,

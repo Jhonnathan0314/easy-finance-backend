@@ -73,6 +73,8 @@ class IncomeImportsControllerTest {
                 .andExpect(jsonPath("$.rows[0].description").value("Salario"))
                 .andExpect(jsonPath("$.rows[0].categoryName").value("Nomina"))
                 .andExpect(jsonPath("$.rows[0].categoryId").value(7))
+                .andExpect(jsonPath("$.rows[0].participantLabel").value("Usuario Actual <user@example.com>"))
+                .andExpect(jsonPath("$.rows[0].participantId").value(10))
                 .andExpect(jsonPath("$.rows[0].amount").value(1500000));
     }
 
@@ -117,6 +119,8 @@ class IncomeImportsControllerTest {
                 "Salario",
                 "Nomina",
                 7L,
+                "Usuario Actual <user@example.com>",
+                10L,
                 new BigDecimal("1500000"),
                 true,
                 createdId,

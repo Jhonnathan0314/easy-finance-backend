@@ -28,6 +28,7 @@ public class ApachePoiIncomeImportParser implements IncomeImportParserPort {
 
     private static final String DATE_HEADER = "Fecha";
     private static final String DATE_HEADER_WITH_FORMAT = "Fecha (yyyy-MM-dd)";
+    private static final String PARTICIPANT_HEADER = "Participante";
     private static final List<String> REQUIRED_HEADERS = List.of("Descripcion", "Categoria", "Monto");
     private final int maxRows;
 
@@ -87,10 +88,11 @@ public class ApachePoiIncomeImportParser implements IncomeImportParserPort {
         String description = requiredText(row.getCell(columns.get("Descripcion")), "Descripcion", errors);
         String category = requiredText(row.getCell(columns.get("Categoria")), "Categoria", errors);
         BigDecimal amount = readAmount(row.getCell(columns.get("Monto")), errors);
+        String participant = optionalText(optionalCell(row, columns, PARTICIPANT_HEADER));
         if (description != null) {
             description = description.trim();
         }
-        return new IncomeImportParsedRow(row.getRowNum() + 1, date, description, category, amount, errors);
+        return new IncomeImportParsedRow(row.getRowNum() + 1, date, description, category, participant, amount, errors);
     }
 
     private LocalDate readDate(Cell cell, List<String> errors) {
@@ -148,6 +150,19 @@ public class ApachePoiIncomeImportParser implements IncomeImportParserPort {
             return null;
         }
         return text(cell).trim();
+    }
+
+    private String optionalText(Cell cell) {
+        if (cell == null || cell.getCellType() == CellType.BLANK || cell.getCellType() == CellType.FORMULA) {
+            return null;
+        }
+        String value = text(cell).trim();
+        return value.isBlank() ? null : value;
+    }
+
+    private static Cell optionalCell(Row row, Map<String, Integer> columns, String header) {
+        Integer column = columns.get(header);
+        return column == null ? null : row.getCell(column);
     }
 
     private static boolean isBlank(Row row) {

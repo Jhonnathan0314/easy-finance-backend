@@ -7,4 +7,14 @@ import java.util.Map;
 
 public interface BudgetExpenseExecutionQueryPort {
     Map<Long, BigDecimal> sumManualExecutionByCategory(Long accountId, LocalDate from, LocalDate to, List<Long> categoryIds);
+
+    Map<CategoryParticipantKey, BigDecimal> sumManualExecutionByCategoryAndParticipant(
+            Long accountId,
+            LocalDate from,
+            LocalDate to,
+            List<CategoryParticipantKey> keys
+    );
+
+    record CategoryParticipantKey(Long categoryId, Long participantId) {
+    }
 }

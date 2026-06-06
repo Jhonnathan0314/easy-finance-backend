@@ -2,6 +2,7 @@ package com.easyfinance.expenses.application.usecase;
 
 import com.easyfinance.accounts.application.service.AccountAccess;
 import com.easyfinance.accounts.application.service.AccountAuthorizationService;
+import com.easyfinance.accounts.application.service.AssignedParticipantValidator;
 import com.easyfinance.accounts.domain.model.AccountParticipantRole;
 import com.easyfinance.catalogs.application.port.in.CatalogValidationPort;
 import com.easyfinance.catalogs.application.validation.CategoryValidationView;
@@ -60,6 +61,7 @@ public class ExpenseManagementUseCase implements
     private final CurrentUserProvider currentUserProvider;
     private final AccountAuthorizationService accountAuthorizationService;
     private final CatalogValidationPort catalogValidationPort;
+    private final AssignedParticipantValidator assignedParticipantValidator;
     private final CreateInstallmentExpenseDebtPort createInstallmentExpenseDebtPort;
     private final ExpenseRepositoryPort expenseRepository;
 
@@ -67,12 +69,14 @@ public class ExpenseManagementUseCase implements
             CurrentUserProvider currentUserProvider,
             AccountAuthorizationService accountAuthorizationService,
             CatalogValidationPort catalogValidationPort,
+            AssignedParticipantValidator assignedParticipantValidator,
             CreateInstallmentExpenseDebtPort createInstallmentExpenseDebtPort,
             ExpenseRepositoryPort expenseRepository
     ) {
         this.currentUserProvider = currentUserProvider;
         this.accountAuthorizationService = accountAuthorizationService;
         this.catalogValidationPort = catalogValidationPort;
+        this.assignedParticipantValidator = assignedParticipantValidator;
         this.createInstallmentExpenseDebtPort = createInstallmentExpenseDebtPort;
         this.expenseRepository = expenseRepository;
     }
@@ -81,14 +85,15 @@ public class ExpenseManagementUseCase implements
     @Transactional
     public ExpenseResponse createExpense(CreateExpenseCommand command) {
         CurrentUser currentUser = currentUser();
-        accountAuthorizationService.requireActiveMemberForActiveAccount(command.accountId(), currentUser.participantId());
+        AccountAccess access = accountAuthorizationService.requireActiveMemberForActiveAccount(command.accountId(), currentUser.participantId());
+        Long assignedParticipantId = assignedParticipantValidator.resolveAssignedParticipantId(access, command.participantId());
         validateCategory(command.accountId(), command.categoryId());
         validatePaymentMethod(command.accountId(), command.paymentMethodId());
         Expense expense = Expense.createSimple(
                 command.accountId(),
                 command.categoryId(),
                 command.paymentMethodId(),
-                currentUser.participantId(),
+                assignedParticipantId,
                 command.description(),
                 command.amount(),
                 command.expenseDate(),
@@ -137,7 +142,8 @@ public class ExpenseManagementUseCase implements
     @Transactional
     public ExpenseResponse createInstallmentExpense(CreateInstallmentExpenseCommand command) {
         CurrentUser currentUser = currentUser();
-        accountAuthorizationService.requireActiveMemberForActiveAccount(command.accountId(), currentUser.participantId());
+        AccountAccess access = accountAuthorizationService.requireActiveMemberForActiveAccount(command.accountId(), currentUser.participantId());
+        Long assignedParticipantId = assignedParticipantValidator.resolveAssignedParticipantId(access, command.participantId());
         validateCategory(command.accountId(), command.categoryId());
         validatePaymentMethod(command.accountId(), command.paymentMethodId());
         validateInstallmentData(command.installmentCount(), command.installmentAmount(), command.firstInstallmentDate());
@@ -146,7 +152,7 @@ public class ExpenseManagementUseCase implements
                 command.accountId(),
                 command.categoryId(),
                 command.paymentMethodId(),
-                currentUser.participantId(),
+                assignedParticipantId,
                 command.description(),
                 command.totalAmount(),
                 command.expenseDate()
@@ -155,7 +161,7 @@ public class ExpenseManagementUseCase implements
         try {
             createInstallmentExpenseDebtPort.createInstallmentExpenseDebt(new CreateInstallmentExpenseDebtCommand(
                     command.accountId(),
-                    currentUser.participantId(),
+                    assignedParticipantId,
                     savedExpense.id(),
                     savedExpense.categoryId(),
                     command.debtName() == null || command.debtName().isBlank() ? command.description() : command.debtName(),
@@ -204,9 +210,13 @@ public class ExpenseManagementUseCase implements
         ensureCanMutate(expense, access, currentUser.participantId(), "EXPENSE_UPDATE_NOT_ALLOWED");
         validateCategory(command.accountId(), command.categoryId());
         validatePaymentMethod(command.accountId(), command.paymentMethodId());
+        Long assignedParticipantId = command.participantId() == null
+                ? expense.participantId()
+                : assignedParticipantValidator.resolveAssignedParticipantId(access, command.participantId());
         Expense updated = expense.update(
                 command.categoryId(),
                 command.paymentMethodId(),
+                assignedParticipantId,
                 command.description(),
                 command.amount(),
                 command.expenseDate(),

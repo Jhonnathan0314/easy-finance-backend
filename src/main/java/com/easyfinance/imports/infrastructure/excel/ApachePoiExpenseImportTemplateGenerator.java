@@ -41,7 +41,8 @@ public class ApachePoiExpenseImportTemplateGenerator implements ExpenseImportTem
     private static final String DEBT_RANGE = "DeudasActivas";
     private static final String DEBT_PAYMENT_FLAG_RANGE = "AplicaPagoDeudaValores";
     private static final String DEBT_PAYMENT_TYPE_RANGE = "TiposPagoDeuda";
-    private static final String[] HEADERS = {"Fecha", "DescripciÃ³n", "Monto", "CategorÃ­a", "MedioPago", "EstadoPago", "AplicaPagoDeuda", "Deuda", "TipoPagoDeuda", "NotasPagoDeuda"};
+    private static final String PARTICIPANT_RANGE = "ParticipantesGastos";
+    private static final String[] HEADERS = {"Fecha", "DescripciÃ³n", "Monto", "CategorÃ­a", "MedioPago", "EstadoPago", "AplicaPagoDeuda", "Deuda", "TipoPagoDeuda", "NotasPagoDeuda", "Participante"};
     private static final String[] PAYMENT_STATES = {"PENDING", "PARTIAL", "PAID"};
     private static final String[] DEBT_PAYMENT_FLAGS = {"SI", "NO"};
     private static final String[] DEBT_PAYMENT_TYPES = {"INSTALLMENT", "CAPITAL_PAYMENT"};
@@ -54,7 +55,7 @@ public class ApachePoiExpenseImportTemplateGenerator implements ExpenseImportTem
             CreationHelper creationHelper = workbook.getCreationHelper();
 
             createValuesSheet(values, data);
-            createNamedRanges(workbook, data.categoryNames().size(), data.paymentMethodNames().size(), data.debtOptions().size());
+            createNamedRanges(workbook, data.categoryNames().size(), data.paymentMethodNames().size(), data.debtOptions().size(), data.participantLabels().size());
             createExpensesSheet(workbook, expenses, creationHelper);
             workbook.setSheetHidden(workbook.getSheetIndex(values), true);
 
@@ -97,6 +98,7 @@ public class ApachePoiExpenseImportTemplateGenerator implements ExpenseImportTem
         sheet.setColumnWidth(7, 56 * 256);
         sheet.setColumnWidth(8, 22 * 256);
         sheet.setColumnWidth(9, 32 * 256);
+        sheet.setColumnWidth(10, 34 * 256);
 
         addDateValidation(sheet);
         addAmountValidation(sheet);
@@ -106,12 +108,14 @@ public class ApachePoiExpenseImportTemplateGenerator implements ExpenseImportTem
         addFormulaListValidation(sheet, 6, DEBT_PAYMENT_FLAG_RANGE, "Valor invÃ¡lido", "Use SI o NO.");
         addFormulaListValidation(sheet, 7, DEBT_RANGE, "Deuda invÃ¡lida", "Use una deuda ACTIVE de la hoja Valores.");
         addFormulaListValidation(sheet, 8, DEBT_PAYMENT_TYPE_RANGE, "Tipo invÃ¡lido", "Use INSTALLMENT o CAPITAL_PAYMENT.");
+        addFormulaListValidation(sheet, 10, PARTICIPANT_RANGE, "Participante invalido", "Use un participante activo de la hoja Valores o deje vacio para usar el usuario actual.");
     }
 
     private static void createValuesSheet(Sheet sheet, ExpenseImportTemplateData data) {
         List<String> categoryNames = data.categoryNames();
         List<String> paymentMethodNames = data.paymentMethodNames();
         List<ExpenseImportTemplateData.DebtOption> debtOptions = data.debtOptions();
+        List<String> participantLabels = data.participantLabels();
         Row header = sheet.createRow(0);
         header.createCell(0).setCellValue("CategorÃ­as");
         header.createCell(1).setCellValue("MediosPago");
@@ -120,10 +124,11 @@ public class ApachePoiExpenseImportTemplateGenerator implements ExpenseImportTem
         header.createCell(4).setCellValue("DeudaId");
         header.createCell(5).setCellValue("AplicaPagoDeuda");
         header.createCell(6).setCellValue("TiposPagoDeuda");
+        header.createCell(7).setCellValue("Participantes");
         header.createCell(8).setCellValue("Instrucciones");
         header.createCell(9).setCellValue("No modificar las cabeceras de la hoja Gastos. MÃ¡ximo 1500 filas. CategorÃ­as, medios y deudas deben existir activos.");
 
-        int maxRows = max(categoryNames.size(), paymentMethodNames.size(), PAYMENT_STATES.length, debtOptions.size(), DEBT_PAYMENT_FLAGS.length, DEBT_PAYMENT_TYPES.length);
+        int maxRows = max(categoryNames.size(), paymentMethodNames.size(), PAYMENT_STATES.length, debtOptions.size(), DEBT_PAYMENT_FLAGS.length, DEBT_PAYMENT_TYPES.length, participantLabels.size());
         for (int i = 0; i < Math.max(maxRows, 1); i++) {
             Row row = sheet.createRow(i + 1);
             if (i < categoryNames.size()) {
@@ -145,6 +150,9 @@ public class ApachePoiExpenseImportTemplateGenerator implements ExpenseImportTem
             if (i < DEBT_PAYMENT_TYPES.length) {
                 row.createCell(6).setCellValue(DEBT_PAYMENT_TYPES[i]);
             }
+            if (i < participantLabels.size()) {
+                row.createCell(7).setCellValue(participantLabels.get(i));
+            }
         }
         if (categoryNames.isEmpty()) {
             sheet.getRow(1).createCell(8).setCellValue("No hay categorÃ­as EXPENSE activas para esta cuenta.");
@@ -155,6 +163,9 @@ public class ApachePoiExpenseImportTemplateGenerator implements ExpenseImportTem
         if (debtOptions.isEmpty()) {
             sheet.getRow(1).createCell(10).setCellValue("No hay deudas ACTIVE para esta cuenta.");
         }
+        if (participantLabels.isEmpty()) {
+            sheet.getRow(1).createCell(11).setCellValue("No hay participantes activos para esta cuenta.");
+        }
 
         sheet.setColumnWidth(0, 30 * 256);
         sheet.setColumnWidth(1, 30 * 256);
@@ -163,18 +174,21 @@ public class ApachePoiExpenseImportTemplateGenerator implements ExpenseImportTem
         sheet.setColumnWidth(4, 14 * 256);
         sheet.setColumnWidth(5, 18 * 256);
         sheet.setColumnWidth(6, 22 * 256);
+        sheet.setColumnWidth(7, 34 * 256);
         sheet.setColumnWidth(8, 18 * 256);
         sheet.setColumnWidth(9, 90 * 256);
         sheet.setColumnWidth(10, 40 * 256);
+        sheet.setColumnWidth(11, 42 * 256);
     }
 
-    private static void createNamedRanges(Workbook workbook, int categoryCount, int paymentMethodCount, int debtCount) {
+    private static void createNamedRanges(Workbook workbook, int categoryCount, int paymentMethodCount, int debtCount, int participantCount) {
         createNamedRange(workbook, CATEGORY_RANGE, 0, Math.max(categoryCount, 1));
         createNamedRange(workbook, PAYMENT_METHOD_RANGE, 1, Math.max(paymentMethodCount, 1));
         createNamedRange(workbook, PAYMENT_STATE_RANGE, 2, PAYMENT_STATES.length);
         createNamedRange(workbook, DEBT_RANGE, 3, Math.max(debtCount, 1));
         createNamedRange(workbook, DEBT_PAYMENT_FLAG_RANGE, 5, DEBT_PAYMENT_FLAGS.length);
         createNamedRange(workbook, DEBT_PAYMENT_TYPE_RANGE, 6, DEBT_PAYMENT_TYPES.length);
+        createNamedRange(workbook, PARTICIPANT_RANGE, 7, Math.max(participantCount, 1));
     }
 
     private static void createNamedRange(Workbook workbook, String name, int columnIndex, int valueCount) {
@@ -267,6 +281,7 @@ public class ApachePoiExpenseImportTemplateGenerator implements ExpenseImportTem
             case 7 -> "Seleccione una deuda ACTIVE de esta cuenta cuando AplicaPagoDeuda sea SI.";
             case 8 -> "Seleccione INSTALLMENT o CAPITAL_PAYMENT cuando AplicaPagoDeuda sea SI.";
             case 9 -> "Notas opcionales para el pago de deuda.";
+            case 10 -> "Participante opcional. Vacio usa el participante logueado; admin puede seleccionar otro activo.";
             default -> "MÃ¡ximo 1500 filas.";
         };
     }
@@ -279,3 +294,4 @@ public class ApachePoiExpenseImportTemplateGenerator implements ExpenseImportTem
         return result;
     }
 }
+

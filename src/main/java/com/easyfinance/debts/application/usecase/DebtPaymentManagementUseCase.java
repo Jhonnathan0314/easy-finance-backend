@@ -1,6 +1,8 @@
 package com.easyfinance.debts.application.usecase;
 
 import com.easyfinance.accounts.application.service.AccountAuthorizationService;
+import com.easyfinance.accounts.application.service.AccountAccess;
+import com.easyfinance.accounts.application.service.AssignedParticipantValidator;
 import com.easyfinance.budgets.application.command.ApplyDebtPaymentImpactCommand;
 import com.easyfinance.budgets.application.port.in.BudgetDebtImpactPort;
 import com.easyfinance.debts.application.command.RegisterDebtPaymentCommand;
@@ -35,6 +37,7 @@ public class DebtPaymentManagementUseCase implements
 
     private final CurrentUserProvider currentUserProvider;
     private final AccountAuthorizationService accountAuthorizationService;
+    private final AssignedParticipantValidator assignedParticipantValidator;
     private final DebtRepositoryPort debtRepository;
     private final DebtPaymentRepositoryPort paymentRepository;
     private final BudgetDebtImpactPort budgetDebtImpactPort;
@@ -43,6 +46,7 @@ public class DebtPaymentManagementUseCase implements
     public DebtPaymentManagementUseCase(
             CurrentUserProvider currentUserProvider,
             AccountAuthorizationService accountAuthorizationService,
+            AssignedParticipantValidator assignedParticipantValidator,
             DebtRepositoryPort debtRepository,
             DebtPaymentRepositoryPort paymentRepository,
             BudgetDebtImpactPort budgetDebtImpactPort,
@@ -50,6 +54,7 @@ public class DebtPaymentManagementUseCase implements
     ) {
         this.currentUserProvider = currentUserProvider;
         this.accountAuthorizationService = accountAuthorizationService;
+        this.assignedParticipantValidator = assignedParticipantValidator;
         this.debtRepository = debtRepository;
         this.paymentRepository = paymentRepository;
         this.budgetDebtImpactPort = budgetDebtImpactPort;
@@ -60,13 +65,14 @@ public class DebtPaymentManagementUseCase implements
     @Transactional
     public RegisterDebtPaymentResponse registerDebtPayment(RegisterDebtPaymentCommand command) {
         CurrentUser currentUser = currentUser();
-        accountAuthorizationService.requireActiveMemberForActiveAccount(command.accountId(), currentUser.participantId());
+        AccountAccess access = accountAuthorizationService.requireActiveMemberForActiveAccount(command.accountId(), currentUser.participantId());
+        Long assignedParticipantId = assignedParticipantValidator.resolveAssignedParticipantId(access, command.participantId());
         Debt debt = debtRepository.findByAccountIdAndIdForUpdate(command.accountId(), command.debtId())
                 .orElseThrow(() -> new NotFoundException("DEBT_NOT_FOUND", "Debt was not found."));
         DebtPayment payment = DebtPayment.create(
                 command.accountId(),
                 command.debtId(),
-                currentUser.participantId(),
+                assignedParticipantId,
                 command.paymentType(),
                 command.amount(),
                 command.paymentDate(),
@@ -85,7 +91,7 @@ public class DebtPaymentManagementUseCase implements
                     command.accountId(),
                     command.categoryId(),
                     command.paymentMethodId(),
-                    currentUser.participantId(),
+                    assignedParticipantId,
                     savedPayment.id(),
                     command.expenseDescription(),
                     command.amount(),

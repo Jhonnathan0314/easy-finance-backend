@@ -12,6 +12,8 @@ public record AnnualBudgetImportRowResponseDto(
         Long categoryId,
         String subBudgetName,
         BigDecimal plannedAmount,
+        String participantLabel,
+        Long participantId,
         boolean valid,
         List<Integer> appliedMonths,
         List<String> errors

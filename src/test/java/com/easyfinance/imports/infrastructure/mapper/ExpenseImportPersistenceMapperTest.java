@@ -31,6 +31,8 @@ class ExpenseImportPersistenceMapperTest {
                 "Cash",
                 20L,
                 ExpensePaymentState.PAID,
+                "Ana Finance <ana@example.com>",
+                11L,
                 true,
                 30L,
                 "Loan | Saldo: 120.00 | Inicio: 2026-05-01 | MANUAL",
@@ -51,6 +53,8 @@ class ExpenseImportPersistenceMapperTest {
         assertThat(entity.getDebtLabel()).isEqualTo("Loan | Saldo: 120.00 | Inicio: 2026-05-01 | MANUAL");
         assertThat(entity.getDebtPaymentType()).isEqualTo("INSTALLMENT");
         assertThat(entity.getDebtPaymentNotes()).isEqualTo("Installment from import");
+        assertThat(entity.getParticipantLabel()).isEqualTo("Ana Finance <ana@example.com>");
+        assertThat(entity.getParticipantId()).isEqualTo(11L);
         assertThat(entity.getCreatedDebtPaymentId()).isEqualTo(600L);
     }
 
@@ -69,6 +73,8 @@ class ExpenseImportPersistenceMapperTest {
                 "Cash",
                 20L,
                 ExpensePaymentState.PAID,
+                "Ana Finance <ana@example.com>",
+                11L,
                 true,
                 30L,
                 "Loan | Saldo: 120.00 | Inicio: 2026-05-01 | MANUAL",
@@ -89,6 +95,8 @@ class ExpenseImportPersistenceMapperTest {
         assertThat(row.debtLabel()).isEqualTo("Loan | Saldo: 120.00 | Inicio: 2026-05-01 | MANUAL");
         assertThat(row.debtPaymentType()).isEqualTo(DebtPaymentType.CAPITAL_PAYMENT);
         assertThat(row.debtPaymentNotes()).isEqualTo("Capital from import");
+        assertThat(row.participantLabel()).isEqualTo("Ana Finance <ana@example.com>");
+        assertThat(row.participantId()).isEqualTo(11L);
         assertThat(row.createdDebtPaymentId()).isEqualTo(600L);
     }
 }

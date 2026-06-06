@@ -21,6 +21,7 @@ public final class DebtRestMapper {
     public static CreateManualDebtCommand toCommand(Long accountId, CreateManualDebtRequest request) {
         return new CreateManualDebtCommand(
                 accountId,
+                request.participantId(),
                 request.name(),
                 request.description(),
                 toPositiveCop(request.totalAmount(), "DEBT_AMOUNT_INVALID"),

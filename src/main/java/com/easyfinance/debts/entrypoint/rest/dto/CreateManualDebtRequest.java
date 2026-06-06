@@ -11,6 +11,7 @@ import java.time.LocalDate;
 
 public record CreateManualDebtRequest(
         @NotBlank @Size(max = 150) String name,
+        Long participantId,
         @Size(max = 500) String description,
         @NotNull @DecimalMin(value = "0.01") BigDecimal totalAmount,
         @Min(1) Integer installmentCount,

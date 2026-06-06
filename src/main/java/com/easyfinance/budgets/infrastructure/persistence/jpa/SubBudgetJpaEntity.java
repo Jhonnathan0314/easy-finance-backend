@@ -29,6 +29,9 @@ public class SubBudgetJpaEntity extends AuditableJpaEntity {
     @Column(name = "category_id")
     private Long categoryId;
 
+    @Column(name = "participant_id")
+    private Long participantId;
+
     @Column(name = "debt_id")
     private Long debtId;
 
@@ -63,6 +66,8 @@ public class SubBudgetJpaEntity extends AuditableJpaEntity {
     public void setBudgetId(Long budgetId) { this.budgetId = budgetId; }
     public Long getCategoryId() { return categoryId; }
     public void setCategoryId(Long categoryId) { this.categoryId = categoryId; }
+    public Long getParticipantId() { return participantId; }
+    public void setParticipantId(Long participantId) { this.participantId = participantId; }
     public Long getDebtId() { return debtId; }
     public void setDebtId(Long debtId) { this.debtId = debtId; }
     public String getName() { return name; }

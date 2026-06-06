@@ -60,6 +60,7 @@ class InstallmentExpenseBudgetHappyPathIT {
 
         createInstallmentExpensePort.createInstallmentExpense(new CreateInstallmentExpenseCommand(
                 fixture.accountId(),
+                null,
                 fixture.categoryId(),
                 fixture.paymentMethodId(),
                 "Budget happy path laptop",

@@ -127,7 +127,7 @@ Authorization: Bearer <accessToken>
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/v1/accounts/{accountId}/imports/expenses/template` | Download account-scoped `.xlsx` template with valid categories, payment methods, payment states, and active debt options for preview. |
+| GET | `/api/v1/accounts/{accountId}/imports/expenses/template` | Download account-scoped `.xlsx` template with valid categories, payment methods, payment states, participants, and active debt options for preview. |
 | POST | `/api/v1/accounts/{accountId}/imports/expenses/preview` | Multipart `.xlsx` preview; field name `file`. |
 | POST | `/api/v1/accounts/{accountId}/imports/expenses/{batchId}/confirm` | Confirm valid rows, create expenses, and register debt payments for rows marked as debt payments. |
 | GET | `/api/v1/accounts/{accountId}/imports/expenses/{batchId}` | Get import batch and row errors. |
@@ -136,7 +136,7 @@ Authorization: Bearer <accessToken>
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/v1/accounts/{accountId}/imports/incomes/template` | Download direct import `.xlsx` template with active `INCOME` categories. |
+| GET | `/api/v1/accounts/{accountId}/imports/incomes/template` | Download direct import `.xlsx` template with active `INCOME` categories and participants. |
 | POST | `/api/v1/accounts/{accountId}/imports/incomes/preview` | Multipart `.xlsx` preview; validates without creating and returns parsed row data plus errors. |
 | POST | `/api/v1/accounts/{accountId}/imports/incomes` | Direct multipart `.xlsx` import; validates all rows then creates all incomes in one transaction. |
 
@@ -160,8 +160,8 @@ Authorization: Bearer <accessToken>
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/v1/accounts/{accountId}/imports/budgets/annual/template` | Download direct annual budget `.xlsx` template with monthly base/override support. |
-| POST | `/api/v1/accounts/{accountId}/imports/budgets/annual/preview` | Multipart `.xlsx` preview; validates without creating and returns parsed row data, `categoryId`, `appliedMonths` and errors. |
+| GET | `/api/v1/accounts/{accountId}/imports/budgets/annual/template` | Download direct annual budget `.xlsx` template with monthly base/override and optional participant scope support. |
+| POST | `/api/v1/accounts/{accountId}/imports/budgets/annual/preview` | Multipart `.xlsx` preview; validates without creating and returns parsed row data, `categoryId`, `participantId`, `participantLabel`, `appliedMonths` and errors. |
 | POST | `/api/v1/accounts/{accountId}/imports/budgets/annual` | Direct multipart `.xlsx` import; admin-only, validates all rows then creates 12 monthly budgets in one transaction. |
 
 Debt payment registration accepts optional `createExpense`, `categoryId`, `paymentMethodId`, and `expenseDescription`. When `createExpense=true`, backend creates a conceptual expense with `sourceType=DEBT_PAYMENT`; cashflow still counts only the debt payment outflow.

@@ -1,6 +1,12 @@
 package com.easyfinance.imports.application.usecase;
 
 import com.easyfinance.accounts.application.service.AccountAuthorizationService;
+import com.easyfinance.accounts.application.port.out.AccountParticipantRepositoryPort;
+import com.easyfinance.accounts.application.port.out.ParticipantLookupPort;
+import com.easyfinance.accounts.application.response.ParticipantInfo;
+import com.easyfinance.accounts.application.service.AccountAccess;
+import com.easyfinance.accounts.application.service.AssignedParticipantValidator;
+import com.easyfinance.accounts.domain.model.AccountParticipantStatus;
 import com.easyfinance.catalogs.application.port.in.CatalogValidationPort;
 import com.easyfinance.catalogs.application.port.out.CategoryRepositoryPort;
 import com.easyfinance.catalogs.application.validation.CategoryValidationView;
@@ -22,6 +28,7 @@ import com.easyfinance.income.application.port.in.CreateIncomePort;
 import com.easyfinance.shared.application.CurrentUser;
 import com.easyfinance.shared.application.CurrentUserProvider;
 import com.easyfinance.shared.domain.BusinessRuleViolationException;
+import com.easyfinance.shared.domain.DomainException;
 import com.easyfinance.shared.domain.UnauthorizedOperationException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -29,8 +36,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class IncomeImportUseCase implements GenerateIncomeImportTemplatePort, ImportIncomePort, PreviewIncomeImportPort {
@@ -40,6 +52,9 @@ public class IncomeImportUseCase implements GenerateIncomeImportTemplatePort, Im
 
     private final CurrentUserProvider currentUserProvider;
     private final AccountAuthorizationService accountAuthorizationService;
+    private final AssignedParticipantValidator assignedParticipantValidator;
+    private final AccountParticipantRepositoryPort accountParticipantRepository;
+    private final ParticipantLookupPort participantLookupPort;
     private final CatalogValidationPort catalogValidationPort;
     private final CategoryRepositoryPort categoryRepository;
     private final IncomeImportParserPort parserPort;
@@ -50,6 +65,9 @@ public class IncomeImportUseCase implements GenerateIncomeImportTemplatePort, Im
     public IncomeImportUseCase(
             CurrentUserProvider currentUserProvider,
             AccountAuthorizationService accountAuthorizationService,
+            AssignedParticipantValidator assignedParticipantValidator,
+            AccountParticipantRepositoryPort accountParticipantRepository,
+            ParticipantLookupPort participantLookupPort,
             CatalogValidationPort catalogValidationPort,
             CategoryRepositoryPort categoryRepository,
             IncomeImportParserPort parserPort,
@@ -59,6 +77,9 @@ public class IncomeImportUseCase implements GenerateIncomeImportTemplatePort, Im
     ) {
         this.currentUserProvider = currentUserProvider;
         this.accountAuthorizationService = accountAuthorizationService;
+        this.assignedParticipantValidator = assignedParticipantValidator;
+        this.accountParticipantRepository = accountParticipantRepository;
+        this.participantLookupPort = participantLookupPort;
         this.catalogValidationPort = catalogValidationPort;
         this.categoryRepository = categoryRepository;
         this.parserPort = parserPort;
@@ -75,15 +96,15 @@ public class IncomeImportUseCase implements GenerateIncomeImportTemplatePort, Im
                 .stream()
                 .map(category -> category.name())
                 .toList();
-        byte[] content = templateGeneratorPort.generate(new IncomeImportTemplateData(categoryNames));
+        byte[] content = templateGeneratorPort.generate(new IncomeImportTemplateData(categoryNames, activeParticipantLabels(accountId)));
         return new IncomeImportTemplateResponse(TEMPLATE_FILENAME, TEMPLATE_CONTENT_TYPE, content);
     }
 
     @Override
     @Transactional
     public IncomeImportResponse importIncomes(ImportIncomeCommand command) {
-        accountAuthorizationService.requireActiveMemberForActiveAccount(command.accountId(), currentUser().participantId());
-        ValidatedIncomeImport validatedImport = validateImport(command);
+        AccountAccess access = accountAuthorizationService.requireActiveMemberForActiveAccount(command.accountId(), currentUser().participantId());
+        ValidatedIncomeImport validatedImport = validateImport(command, access);
 
         if (validatedImport.hasErrors()) {
             return new IncomeImportResponse(0, validatedImport.rows());
@@ -93,6 +114,7 @@ public class IncomeImportUseCase implements GenerateIncomeImportTemplatePort, Im
         for (ValidatedIncomeRow row : validatedImport.validRows()) {
             var created = createIncomePort.createIncome(new CreateIncomeCommand(
                     command.accountId(),
+                    row.participantId(),
                     row.categoryId(),
                     row.description(),
                     com.easyfinance.shared.domain.Money.cop(row.amount()),
@@ -104,6 +126,8 @@ public class IncomeImportUseCase implements GenerateIncomeImportTemplatePort, Im
                     row.description(),
                     row.categoryName(),
                     row.categoryId(),
+                    row.participantLabel(),
+                    row.participantId(),
                     row.amount(),
                     true,
                     created.id(),
@@ -116,27 +140,31 @@ public class IncomeImportUseCase implements GenerateIncomeImportTemplatePort, Im
     @Override
     @Transactional(readOnly = true)
     public IncomeImportResponse previewIncomes(ImportIncomeCommand command) {
-        accountAuthorizationService.requireActiveMemberForActiveAccount(command.accountId(), currentUser().participantId());
-        return new IncomeImportResponse(0, validateImport(command).rows());
+        AccountAccess access = accountAuthorizationService.requireActiveMemberForActiveAccount(command.accountId(), currentUser().participantId());
+        return new IncomeImportResponse(0, validateImport(command, access).rows());
     }
 
-    private ValidatedIncomeImport validateImport(ImportIncomeCommand command) {
+    private ValidatedIncomeImport validateImport(ImportIncomeCommand command, AccountAccess access) {
         validateFile(command);
 
         List<IncomeImportParsedRow> parsedRows = parserPort.parse(command, command.accountId());
+        ParticipantCatalog participantCatalog = participantCatalog(command.accountId());
         List<IncomeImportRowResponse> validationRows = new ArrayList<>();
         List<ValidatedIncomeRow> validRows = new ArrayList<>();
 
         for (IncomeImportParsedRow parsedRow : parsedRows) {
             List<String> errors = new ArrayList<>(parsedRow.errors());
             Long categoryId = resolveCategory(command.accountId(), parsedRow.categoryName(), errors);
-            boolean valid = errors.isEmpty() && categoryId != null;
+            ParticipantResolution participant = resolveParticipant(access, participantCatalog, parsedRow.participantLabel(), errors);
+            boolean valid = errors.isEmpty() && categoryId != null && participant != null;
             if (valid) {
                 validRows.add(new ValidatedIncomeRow(
                         parsedRow.rowNumber(),
                         parsedRow.incomeDate(),
                         parsedRow.description(),
                         parsedRow.categoryName(),
+                        participant.label(),
+                        participant.participantId(),
                         parsedRow.amount(),
                         categoryId
                 ));
@@ -147,6 +175,8 @@ public class IncomeImportUseCase implements GenerateIncomeImportTemplatePort, Im
                     parsedRow.description(),
                     parsedRow.categoryName(),
                     categoryId,
+                    participant == null ? parsedRow.participantLabel() : participant.label(),
+                    participant == null ? null : participant.participantId(),
                     parsedRow.amount(),
                     valid,
                     null,
@@ -179,6 +209,92 @@ public class IncomeImportUseCase implements GenerateIncomeImportTemplatePort, Im
         return category.id();
     }
 
+    private List<String> activeParticipantLabels(Long accountId) {
+        return participantCatalog(accountId).byId().values()
+                .stream()
+                .map(ParticipantCandidate::label)
+                .sorted()
+                .toList();
+    }
+
+    private ParticipantCatalog participantCatalog(Long accountId) {
+        var activeMemberships = accountParticipantRepository.findByAccountId(accountId)
+                .stream()
+                .filter(membership -> membership.status() == AccountParticipantStatus.ACTIVE)
+                .toList();
+        Map<Long, ParticipantInfo> participants = participantLookupPort.findByParticipantIds(
+                activeMemberships.stream().map(membership -> membership.participantId()).toList()
+        );
+        Map<Long, ParticipantCandidate> byId = activeMemberships.stream()
+                .map(membership -> participants.get(membership.participantId()))
+                .filter(Objects::nonNull)
+                .filter(ParticipantInfo::active)
+                .map(info -> new ParticipantCandidate(info.participantId(), participantLabel(info), info.displayName(), info.email()))
+                .collect(Collectors.toMap(ParticipantCandidate::participantId, Function.identity(), (first, second) -> first));
+        Map<String, List<ParticipantCandidate>> aliases = new HashMap<>();
+        for (ParticipantCandidate candidate : byId.values()) {
+            addAlias(aliases, candidate.label(), candidate);
+            addAlias(aliases, candidate.displayName(), candidate);
+            addAlias(aliases, candidate.email(), candidate);
+        }
+        return new ParticipantCatalog(byId, aliases);
+    }
+
+    private ParticipantResolution resolveParticipant(
+            AccountAccess access,
+            ParticipantCatalog participantCatalog,
+            String participantLabel,
+            List<String> errors
+    ) {
+        Long requestedParticipantId = null;
+        if (participantLabel != null && !participantLabel.isBlank()) {
+            List<ParticipantCandidate> candidates = participantCatalog.aliases().get(normalize(participantLabel));
+            if (candidates == null || candidates.isEmpty()) {
+                errors.add("Participante no encontrado o inactivo");
+                return null;
+            }
+            if (candidates.size() > 1) {
+                errors.add("Participante ambiguo");
+                return null;
+            }
+            requestedParticipantId = candidates.getFirst().participantId();
+        }
+        try {
+            Long resolvedParticipantId = assignedParticipantValidator.resolveAssignedParticipantId(access, requestedParticipantId);
+            ParticipantCandidate candidate = participantCatalog.byId().get(resolvedParticipantId);
+            return new ParticipantResolution(resolvedParticipantId, candidate == null ? participantLabel : candidate.label());
+        } catch (DomainException ex) {
+            errors.add(participantErrorMessage(ex));
+            return null;
+        }
+    }
+
+    private static void addAlias(Map<String, List<ParticipantCandidate>> aliases, String alias, ParticipantCandidate candidate) {
+        String normalized = normalize(alias);
+        if (normalized.isBlank()) {
+            return;
+        }
+        aliases.computeIfAbsent(normalized, ignored -> new ArrayList<>());
+        if (aliases.get(normalized).stream().noneMatch(existing -> existing.participantId().equals(candidate.participantId()))) {
+            aliases.get(normalized).add(candidate);
+        }
+    }
+
+    private static String participantLabel(ParticipantInfo participant) {
+        if (participant.email() == null || participant.email().isBlank()) {
+            return participant.displayName();
+        }
+        return participant.displayName() + " <" + participant.email() + ">";
+    }
+
+    private static String participantErrorMessage(DomainException ex) {
+        return switch (ex.code()) {
+            case "ASSIGNED_PARTICIPANT_NOT_ALLOWED" -> "Participante no permitido para el usuario actual";
+            case "ASSIGNED_PARTICIPANT_NOT_FOUND", "ASSIGNED_PARTICIPANT_NOT_ACTIVE" -> "Participante no encontrado o inactivo";
+            default -> "Participante invalido";
+        };
+    }
+
     private void validateFile(ImportIncomeCommand command) {
         if (command.inputStream() == null || command.originalFilename() == null || command.originalFilename().isBlank()) {
             throw new BusinessRuleViolationException("IMPORT_FILE_REQUIRED", "Import file is required.");
@@ -202,8 +318,30 @@ public class IncomeImportUseCase implements GenerateIncomeImportTemplatePort, Im
             java.time.LocalDate incomeDate,
             String description,
             String categoryName,
+            String participantLabel,
+            Long participantId,
             BigDecimal amount,
             Long categoryId
+    ) {
+    }
+
+    private record ParticipantCandidate(
+            Long participantId,
+            String label,
+            String displayName,
+            String email
+    ) {
+    }
+
+    private record ParticipantCatalog(
+            Map<Long, ParticipantCandidate> byId,
+            Map<String, List<ParticipantCandidate>> aliases
+    ) {
+    }
+
+    private record ParticipantResolution(
+            Long participantId,
+            String label
     ) {
     }
 

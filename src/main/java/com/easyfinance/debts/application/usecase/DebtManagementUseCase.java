@@ -2,6 +2,7 @@ package com.easyfinance.debts.application.usecase;
 
 import com.easyfinance.accounts.application.service.AccountAccess;
 import com.easyfinance.accounts.application.service.AccountAuthorizationService;
+import com.easyfinance.accounts.application.service.AssignedParticipantValidator;
 import com.easyfinance.accounts.domain.model.AccountParticipantRole;
 import com.easyfinance.budgets.application.command.CreateDebtBudgetImpactsCommand;
 import com.easyfinance.budgets.application.port.in.BudgetDebtImpactPort;
@@ -39,6 +40,7 @@ public class DebtManagementUseCase implements
 
     private final CurrentUserProvider currentUserProvider;
     private final AccountAuthorizationService accountAuthorizationService;
+    private final AssignedParticipantValidator assignedParticipantValidator;
     private final ExpenseOriginValidationPort expenseOriginValidationPort;
     private final BudgetDebtImpactPort budgetDebtImpactPort;
     private final DebtRepositoryPort debtRepository;
@@ -47,6 +49,7 @@ public class DebtManagementUseCase implements
     public DebtManagementUseCase(
             CurrentUserProvider currentUserProvider,
             AccountAuthorizationService accountAuthorizationService,
+            AssignedParticipantValidator assignedParticipantValidator,
             ExpenseOriginValidationPort expenseOriginValidationPort,
             BudgetDebtImpactPort budgetDebtImpactPort,
             DebtRepositoryPort debtRepository,
@@ -54,6 +57,7 @@ public class DebtManagementUseCase implements
     ) {
         this.currentUserProvider = currentUserProvider;
         this.accountAuthorizationService = accountAuthorizationService;
+        this.assignedParticipantValidator = assignedParticipantValidator;
         this.expenseOriginValidationPort = expenseOriginValidationPort;
         this.budgetDebtImpactPort = budgetDebtImpactPort;
         this.debtRepository = debtRepository;
@@ -64,10 +68,11 @@ public class DebtManagementUseCase implements
     @Transactional
     public DebtResponse createManualDebt(CreateManualDebtCommand command) {
         CurrentUser currentUser = currentUser();
-        accountAuthorizationService.requireActiveMemberForActiveAccount(command.accountId(), currentUser.participantId());
+        AccountAccess access = accountAuthorizationService.requireActiveMemberForActiveAccount(command.accountId(), currentUser.participantId());
+        Long assignedParticipantId = assignedParticipantValidator.resolveAssignedParticipantId(access, command.participantId());
         Debt debt = Debt.createManual(
                 command.accountId(),
-                currentUser.participantId(),
+                assignedParticipantId,
                 command.name(),
                 command.description(),
                 command.totalAmount(),
@@ -83,10 +88,13 @@ public class DebtManagementUseCase implements
     @Override
     @Transactional
     public DebtResponse createInstallmentExpenseDebt(CreateInstallmentExpenseDebtCommand command) {
+        CurrentUser currentUser = currentUser();
+        AccountAccess access = accountAuthorizationService.requireActiveMemberForActiveAccount(command.accountId(), currentUser.participantId());
+        Long assignedParticipantId = assignedParticipantValidator.resolveAssignedParticipantId(access, command.participantId());
         expenseOriginValidationPort.validateInstallmentOrigin(command.accountId(), command.originExpenseId());
         Debt debt = Debt.createFromInstallmentExpense(
                 command.accountId(),
-                command.participantId(),
+                assignedParticipantId,
                 command.originExpenseId(),
                 command.name(),
                 command.description(),
@@ -102,6 +110,7 @@ public class DebtManagementUseCase implements
                 savedDebt.id(),
                 savedDebt.originExpenseId(),
                 command.categoryId(),
+                savedDebt.participantId(),
                 savedDebt.name(),
                 savedDebt.scheduledTotalAmount(),
                 savedDebt.installmentCount(),

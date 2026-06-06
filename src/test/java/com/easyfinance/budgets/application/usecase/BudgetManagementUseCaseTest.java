@@ -3,6 +3,7 @@ package com.easyfinance.budgets.application.usecase;
 import com.easyfinance.accounts.application.port.out.AccountParticipantRepositoryPort;
 import com.easyfinance.accounts.application.port.out.AccountRepositoryPort;
 import com.easyfinance.accounts.application.service.AccountAuthorizationService;
+import com.easyfinance.accounts.application.service.AssignedParticipantValidator;
 import com.easyfinance.accounts.domain.model.Account;
 import com.easyfinance.accounts.domain.model.AccountParticipant;
 import com.easyfinance.accounts.domain.model.AccountParticipantRole;
@@ -14,6 +15,7 @@ import com.easyfinance.budgets.application.command.CreateAnnualSubBudgetBaseComm
 import com.easyfinance.budgets.application.command.CreateDebtBudgetImpactsCommand;
 import com.easyfinance.budgets.application.command.CreateSubBudgetCommand;
 import com.easyfinance.budgets.application.command.DuplicateBudgetCommand;
+import com.easyfinance.budgets.application.command.UpdateSubBudgetCommand;
 import com.easyfinance.budgets.application.command.UpsertBudgetCommand;
 import com.easyfinance.budgets.application.port.out.BudgetImpactRepositoryPort;
 import com.easyfinance.budgets.application.port.out.BudgetExpenseExecutionQueryPort;
@@ -68,7 +70,8 @@ class BudgetManagementUseCaseTest {
     private final BudgetImpactRepositoryPort impactRepository = mock(BudgetImpactRepositoryPort.class);
     private final BudgetExpenseExecutionQueryPort expenseExecutionQueryPort = mock(BudgetExpenseExecutionQueryPort.class);
     private final AccountAuthorizationService authorizationService = new AccountAuthorizationService(accountRepository, accountParticipantRepository);
-    private final BudgetManagementUseCase useCase = new BudgetManagementUseCase(currentUserProvider, authorizationService, catalogValidationPort, budgetRepository, subBudgetRepository, impactRepository, expenseExecutionQueryPort);
+    private final AssignedParticipantValidator assignedParticipantValidator = new AssignedParticipantValidator(accountParticipantRepository);
+    private final BudgetManagementUseCase useCase = new BudgetManagementUseCase(currentUserProvider, authorizationService, assignedParticipantValidator, catalogValidationPort, budgetRepository, subBudgetRepository, impactRepository, expenseExecutionQueryPort);
 
     @BeforeEach
     void setUp() {
@@ -301,10 +304,40 @@ class BudgetManagementUseCaseTest {
         when(catalogValidationPort.findCategoryForValidation(1L, 7L)).thenReturn(Optional.of(new CategoryValidationView(7L, 1L, CategoryType.EXPENSE, CatalogStatus.ACTIVE)));
         when(subBudgetRepository.save(any(SubBudget.class))).thenAnswer(invocation -> persistedSubBudget(invocation.getArgument(0), 70L));
 
-        var response = useCase.createSubBudget(new CreateSubBudgetCommand(1L, 50L, 7L, "Food", Money.cop(new BigDecimal("100000"))));
+        var response = useCase.createSubBudget(new CreateSubBudgetCommand(1L, 50L, 7L, null, "Food", Money.cop(new BigDecimal("100000"))));
 
         assertThat(response.sourceType()).isEqualTo("MANUAL");
         assertThat(response.spentAmount()).isEqualByComparingTo("0.00");
+    }
+
+    @Test
+    void adminCreatesManualSubBudgetAssignedToParticipant() {
+        givenAccess(AccountParticipantRole.ACCOUNT_ADMIN, AccountStatus.ACTIVE);
+        givenAssignedParticipant(20L, AccountParticipantStatus.ACTIVE);
+        when(budgetRepository.findByAccountIdAndId(1L, 50L)).thenReturn(Optional.of(persistedBudget(Budget.create(1L, 2026, 5, "May"), 50L)));
+        when(catalogValidationPort.findCategoryForValidation(1L, 7L)).thenReturn(Optional.of(new CategoryValidationView(7L, 1L, CategoryType.EXPENSE, CatalogStatus.ACTIVE)));
+        when(subBudgetRepository.save(any(SubBudget.class))).thenAnswer(invocation -> persistedSubBudget(invocation.getArgument(0), 70L));
+
+        var response = useCase.createSubBudget(new CreateSubBudgetCommand(1L, 50L, 7L, 20L, "Food", Money.cop(new BigDecimal("100000"))));
+
+        assertThat(response.participantId()).isEqualTo(20L);
+        verify(subBudgetRepository).save(org.mockito.ArgumentMatchers.argThat(subBudget -> subBudget.participantId().equals(20L)));
+    }
+
+    @Test
+    void adminUpdatesManualSubBudgetParticipantAssignment() {
+        givenAccess(AccountParticipantRole.ACCOUNT_ADMIN, AccountStatus.ACTIVE);
+        givenAssignedParticipant(20L, AccountParticipantStatus.ACTIVE);
+        SubBudget existing = SubBudget.restore(70L, 1L, 50L, 7L, null, null, "Food", Money.cop(new BigDecimal("100000")), Money.zeroCop(), SubBudgetStatus.ACTIVE, SubBudgetSourceType.MANUAL, Instant.now(), Instant.now());
+        when(budgetRepository.findByAccountIdAndId(1L, 50L)).thenReturn(Optional.of(persistedBudget(Budget.create(1L, 2026, 5, "May"), 50L)));
+        when(catalogValidationPort.findCategoryForValidation(1L, 7L)).thenReturn(Optional.of(new CategoryValidationView(7L, 1L, CategoryType.EXPENSE, CatalogStatus.ACTIVE)));
+        when(subBudgetRepository.findByAccountIdAndBudgetIdAndId(1L, 50L, 70L)).thenReturn(Optional.of(existing));
+        when(subBudgetRepository.save(any(SubBudget.class))).thenAnswer(invocation -> persistedSubBudget(invocation.getArgument(0), 70L));
+
+        var response = useCase.updateSubBudget(new UpdateSubBudgetCommand(1L, 50L, 70L, 7L, 20L, "Food", Money.cop(new BigDecimal("120000"))));
+
+        assertThat(response.participantId()).isEqualTo(20L);
+        assertThat(response.plannedAmount()).isEqualByComparingTo("120000.00");
     }
 
     @Test
@@ -322,6 +355,26 @@ class BudgetManagementUseCaseTest {
 
         assertThat(response.subBudgets()).singleElement().satisfies(subBudget ->
                 assertThat(subBudget.spentAmount()).isEqualByComparingTo("45000.00"));
+    }
+
+    @Test
+    void budgetDetailUsesParticipantExecutionForAssignedManualSubBudget() {
+        givenAccess(AccountParticipantRole.ACCOUNT_MEMBER, AccountStatus.ACTIVE);
+        Budget budget = persistedBudget(Budget.create(1L, 2026, 5, "May"), 50L);
+        SubBudget food = SubBudget.restore(70L, 1L, 50L, 7L, 20L, null, "Food", Money.cop(new BigDecimal("100000")), Money.zeroCop(), SubBudgetStatus.ACTIVE, SubBudgetSourceType.MANUAL, Instant.now(), Instant.now());
+        BudgetExpenseExecutionQueryPort.CategoryParticipantKey key = new BudgetExpenseExecutionQueryPort.CategoryParticipantKey(7L, 20L);
+        when(budgetRepository.findByAccountIdAndYearAndMonth(1L, 2026, 5)).thenReturn(Optional.of(budget));
+        when(subBudgetRepository.findByAccountIdAndBudgetId(1L, 50L)).thenReturn(List.of(food));
+        when(impactRepository.findByAccountIdAndBudgetId(1L, 50L)).thenReturn(List.of());
+        when(expenseExecutionQueryPort.sumManualExecutionByCategoryAndParticipant(1L, LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 31), List.of(key)))
+                .thenReturn(Map.of(key, new BigDecimal("25000.00")));
+
+        var response = useCase.getBudget(1L, 2026, 5);
+
+        assertThat(response.subBudgets()).singleElement().satisfies(subBudget -> {
+            assertThat(subBudget.participantId()).isEqualTo(20L);
+            assertThat(subBudget.spentAmount()).isEqualByComparingTo("25000.00");
+        });
     }
 
     @Test
@@ -385,11 +438,13 @@ class BudgetManagementUseCaseTest {
         when(impactRepository.findByAccountIdAndDebtIdAndPeriod(any(), any(), any(), any())).thenReturn(Optional.empty());
         when(impactRepository.save(any(BudgetImpact.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        useCase.createImpactsForInstallmentDebt(new CreateDebtBudgetImpactsCommand(1L, 5L, 9L, 7L, "Laptop", Money.cop(new BigDecimal("300000")), 3, Money.cop(new BigDecimal("100000")), LocalDate.of(2026, 1, 31)));
+        useCase.createImpactsForInstallmentDebt(new CreateDebtBudgetImpactsCommand(1L, 5L, 9L, 7L, 10L, "Laptop", Money.cop(new BigDecimal("300000")), 3, Money.cop(new BigDecimal("100000")), LocalDate.of(2026, 1, 31)));
 
         verify(impactRepository).findByAccountIdAndDebtIdAndPeriod(1L, 5L, 2026, 1);
         verify(impactRepository).findByAccountIdAndDebtIdAndPeriod(1L, 5L, 2026, 2);
         verify(impactRepository).findByAccountIdAndDebtIdAndPeriod(1L, 5L, 2026, 3);
+        verify(subBudgetRepository, times(3)).save(org.mockito.ArgumentMatchers.argThat(subBudget ->
+                subBudget.sourceType() == SubBudgetSourceType.DEBT_DERIVED && subBudget.participantId().equals(10L)));
     }
 
     @Test
@@ -401,7 +456,7 @@ class BudgetManagementUseCaseTest {
         when(impactRepository.findByAccountIdAndDebtIdAndPeriod(any(), any(), any(), any())).thenReturn(Optional.empty());
         when(impactRepository.save(any(BudgetImpact.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        useCase.createImpactsForInstallmentDebt(new CreateDebtBudgetImpactsCommand(1L, 5L, 9L, 7L, "Advance", Money.cop(new BigDecimal("1200000")), 12, Money.cop(new BigDecimal("100000")), LocalDate.of(2026, 1, 1)));
+        useCase.createImpactsForInstallmentDebt(new CreateDebtBudgetImpactsCommand(1L, 5L, 9L, 7L, 10L, "Advance", Money.cop(new BigDecimal("1200000")), 12, Money.cop(new BigDecimal("100000")), LocalDate.of(2026, 1, 1)));
 
         ArgumentCaptor<BudgetImpact> impactCaptor = ArgumentCaptor.forClass(BudgetImpact.class);
         verify(impactRepository, times(12)).save(impactCaptor.capture());
@@ -420,8 +475,8 @@ class BudgetManagementUseCaseTest {
         when(impactRepository.findByAccountIdAndDebtIdAndPeriod(any(), any(), any(), any())).thenReturn(Optional.empty());
         when(impactRepository.save(any(BudgetImpact.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        useCase.createImpactsForInstallmentDebt(new CreateDebtBudgetImpactsCommand(1L, 5L, 9L, 7L, "Laptop", Money.cop(new BigDecimal("100000")), 1, Money.cop(new BigDecimal("100000")), LocalDate.of(2026, 5, 1)));
-        useCase.createImpactsForInstallmentDebt(new CreateDebtBudgetImpactsCommand(1L, 6L, 10L, 7L, "Laptop", Money.cop(new BigDecimal("100000")), 1, Money.cop(new BigDecimal("100000")), LocalDate.of(2026, 5, 1)));
+        useCase.createImpactsForInstallmentDebt(new CreateDebtBudgetImpactsCommand(1L, 5L, 9L, 7L, 10L, "Laptop", Money.cop(new BigDecimal("100000")), 1, Money.cop(new BigDecimal("100000")), LocalDate.of(2026, 5, 1)));
+        useCase.createImpactsForInstallmentDebt(new CreateDebtBudgetImpactsCommand(1L, 6L, 10L, 7L, 10L, "Laptop", Money.cop(new BigDecimal("100000")), 1, Money.cop(new BigDecimal("100000")), LocalDate.of(2026, 5, 1)));
 
         verify(subBudgetRepository).findDebtDerivedByAccountIdAndBudgetIdAndDebtId(1L, 100L, 5L);
         verify(subBudgetRepository).findDebtDerivedByAccountIdAndBudgetIdAndDebtId(1L, 100L, 6L);
@@ -434,7 +489,7 @@ class BudgetManagementUseCaseTest {
 
     @Test
     void installmentDebtTotalMismatchFails() {
-        assertThatThrownBy(() -> useCase.createImpactsForInstallmentDebt(new CreateDebtBudgetImpactsCommand(1L, 5L, 9L, 7L, "Laptop", Money.cop(new BigDecimal("300001")), 3, Money.cop(new BigDecimal("100000")), LocalDate.of(2026, 1, 1))))
+        assertThatThrownBy(() -> useCase.createImpactsForInstallmentDebt(new CreateDebtBudgetImpactsCommand(1L, 5L, 9L, 7L, 10L, "Laptop", Money.cop(new BigDecimal("300001")), 3, Money.cop(new BigDecimal("100000")), LocalDate.of(2026, 1, 1))))
                 .hasMessage("Installment amount multiplied by installment count must match financed debt total amount.");
     }
 
@@ -486,12 +541,17 @@ class BudgetManagementUseCaseTest {
                 .thenReturn(Optional.of(AccountParticipant.restore(1L, 1L, 10L, role, AccountParticipantStatus.ACTIVE, Instant.now(), null, null)));
     }
 
+    private void givenAssignedParticipant(Long participantId, AccountParticipantStatus status) {
+        when(accountParticipantRepository.findByAccountIdAndParticipantId(1L, participantId))
+                .thenReturn(Optional.of(AccountParticipant.restore(participantId, 1L, participantId, AccountParticipantRole.ACCOUNT_MEMBER, status, Instant.now(), null, null)));
+    }
+
     private static Budget persistedBudget(Budget budget, Long id) {
         return Budget.restore(id, budget.accountId(), budget.year(), budget.month(), budget.name(), budget.status(), Instant.now(), Instant.now());
     }
 
     private static SubBudget persistedSubBudget(SubBudget subBudget, Long id) {
-        return SubBudget.restore(id, subBudget.accountId(), subBudget.budgetId(), subBudget.categoryId(), subBudget.debtId(), subBudget.name(), subBudget.plannedAmount(), subBudget.spentAmount(), subBudget.status(), subBudget.sourceType(), Instant.now(), Instant.now());
+        return SubBudget.restore(id, subBudget.accountId(), subBudget.budgetId(), subBudget.categoryId(), subBudget.participantId(), subBudget.debtId(), subBudget.name(), subBudget.plannedAmount(), subBudget.spentAmount(), subBudget.status(), subBudget.sourceType(), Instant.now(), Instant.now());
     }
 
     private static BudgetImpact impact(Long id, Integer year, Integer month, BigDecimal expected, BigDecimal paid) {

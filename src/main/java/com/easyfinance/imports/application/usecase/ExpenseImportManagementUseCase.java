@@ -1,6 +1,12 @@
 package com.easyfinance.imports.application.usecase;
 
 import com.easyfinance.accounts.application.service.AccountAuthorizationService;
+import com.easyfinance.accounts.application.port.out.AccountParticipantRepositoryPort;
+import com.easyfinance.accounts.application.port.out.ParticipantLookupPort;
+import com.easyfinance.accounts.application.response.ParticipantInfo;
+import com.easyfinance.accounts.application.service.AccountAccess;
+import com.easyfinance.accounts.application.service.AssignedParticipantValidator;
+import com.easyfinance.accounts.domain.model.AccountParticipantStatus;
 import com.easyfinance.catalogs.application.port.out.CategoryRepositoryPort;
 import com.easyfinance.catalogs.application.port.out.PaymentMethodRepositoryPort;
 import com.easyfinance.catalogs.application.port.in.CatalogValidationPort;
@@ -46,8 +52,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class ExpenseImportManagementUseCase implements PreviewExpenseImportPort, ConfirmExpenseImportPort, GetExpenseImportBatchPort, GenerateExpenseImportTemplatePort {
@@ -58,6 +69,9 @@ public class ExpenseImportManagementUseCase implements PreviewExpenseImportPort,
 
     private final CurrentUserProvider currentUserProvider;
     private final AccountAuthorizationService accountAuthorizationService;
+    private final AssignedParticipantValidator assignedParticipantValidator;
+    private final AccountParticipantRepositoryPort accountParticipantRepository;
+    private final ParticipantLookupPort participantLookupPort;
     private final CatalogValidationPort catalogValidationPort;
     private final CategoryRepositoryPort categoryRepository;
     private final PaymentMethodRepositoryPort paymentMethodRepository;
@@ -73,6 +87,9 @@ public class ExpenseImportManagementUseCase implements PreviewExpenseImportPort,
     public ExpenseImportManagementUseCase(
             CurrentUserProvider currentUserProvider,
             AccountAuthorizationService accountAuthorizationService,
+            AssignedParticipantValidator assignedParticipantValidator,
+            AccountParticipantRepositoryPort accountParticipantRepository,
+            ParticipantLookupPort participantLookupPort,
             CatalogValidationPort catalogValidationPort,
             CategoryRepositoryPort categoryRepository,
             PaymentMethodRepositoryPort paymentMethodRepository,
@@ -87,6 +104,9 @@ public class ExpenseImportManagementUseCase implements PreviewExpenseImportPort,
     ) {
         this.currentUserProvider = currentUserProvider;
         this.accountAuthorizationService = accountAuthorizationService;
+        this.assignedParticipantValidator = assignedParticipantValidator;
+        this.accountParticipantRepository = accountParticipantRepository;
+        this.participantLookupPort = participantLookupPort;
         this.catalogValidationPort = catalogValidationPort;
         this.categoryRepository = categoryRepository;
         this.paymentMethodRepository = paymentMethodRepository;
@@ -104,12 +124,14 @@ public class ExpenseImportManagementUseCase implements PreviewExpenseImportPort,
     @Transactional
     public ExpenseImportBatchResponse preview(PreviewExpenseImportCommand command) {
         CurrentUser currentUser = currentUser();
-        accountAuthorizationService.requireActiveMemberForActiveAccount(command.accountId(), currentUser.participantId());
+        AccountAccess access = accountAuthorizationService.requireActiveMemberForActiveAccount(command.accountId(), currentUser.participantId());
         validateFile(command);
         List<ExpenseImportRow> parsedRows = parserPort.parse(command, command.accountId());
+        ParticipantCatalog participantCatalog = participantCatalog(command.accountId());
         List<ExpenseImportRow> validatedRows = parsedRows.stream()
                 .map(this::validateCatalogs)
                 .map(this::validateDebtPayment)
+                .map(row -> validateParticipant(row, access, participantCatalog))
                 .toList();
         ExpenseImportBatch batch = ExpenseImportBatch.preview(command.accountId(), currentUser.participantId(), command.originalFilename(), validatedRows);
         return toResponse(importRepository.savePreview(batch));
@@ -126,9 +148,11 @@ public class ExpenseImportManagementUseCase implements PreviewExpenseImportPort,
         List<ExpenseImportRow> validRows = batch.rows().stream().filter(ExpenseImportRow::valid).toList();
         try {
             for (ExpenseImportRow row : validRows) {
+                Long rowParticipantId = rowParticipantId(row, batch);
                 if (row.appliesDebtPayment()) {
                     var debtPayment = registerDebtPaymentPort.registerDebtPayment(new RegisterDebtPaymentCommand(
                             accountId,
+                            rowParticipantId,
                             row.debtId(),
                             row.debtPaymentType(),
                             row.amount(),
@@ -143,7 +167,7 @@ public class ExpenseImportManagementUseCase implements PreviewExpenseImportPort,
                             accountId,
                             row.categoryId(),
                             row.paymentMethodId(),
-                            batch.participantId(),
+                            rowParticipantId,
                             debtPayment.payment().id(),
                             row.description(),
                             row.amount(),
@@ -156,7 +180,7 @@ public class ExpenseImportManagementUseCase implements PreviewExpenseImportPort,
                             accountId,
                             row.categoryId(),
                             row.paymentMethodId(),
-                            batch.participantId(),
+                            rowParticipantId,
                             row.description(),
                             row.amount(),
                             row.expenseDate(),
@@ -196,7 +220,7 @@ public class ExpenseImportManagementUseCase implements PreviewExpenseImportPort,
                 .stream()
                 .map(debt -> new ExpenseImportTemplateData.DebtOption(debt.id(), debtLabel(debt)))
                 .toList();
-        byte[] content = templateGeneratorPort.generate(new ExpenseImportTemplateData(categoryNames, paymentMethodNames, debtOptions));
+        byte[] content = templateGeneratorPort.generate(new ExpenseImportTemplateData(categoryNames, paymentMethodNames, debtOptions, activeParticipantLabels(accountId)));
         return new ExpenseImportTemplateResponse(TEMPLATE_FILENAME, TEMPLATE_CONTENT_TYPE, content);
     }
 
@@ -264,12 +288,121 @@ public class ExpenseImportManagementUseCase implements PreviewExpenseImportPort,
         return copyWithDebtValidation(row, debtId, errors);
     }
 
+    private ExpenseImportRow validateParticipant(ExpenseImportRow row, AccountAccess access, ParticipantCatalog participantCatalog) {
+        List<ImportRowError> errors = new ArrayList<>(row.errors());
+        ParticipantResolution participant = resolveParticipant(access, participantCatalog, row.participantLabel(), errors);
+        return copyWithParticipantValidation(
+                row,
+                participant == null ? row.participantLabel() : participant.label(),
+                participant == null ? null : participant.participantId(),
+                errors
+        );
+    }
+
+    private List<String> activeParticipantLabels(Long accountId) {
+        return participantCatalog(accountId).byId().values()
+                .stream()
+                .map(ParticipantCandidate::label)
+                .sorted()
+                .toList();
+    }
+
+    private ParticipantCatalog participantCatalog(Long accountId) {
+        var activeMemberships = accountParticipantRepository.findByAccountId(accountId)
+                .stream()
+                .filter(membership -> membership.status() == AccountParticipantStatus.ACTIVE)
+                .toList();
+        Map<Long, ParticipantInfo> participants = participantLookupPort.findByParticipantIds(
+                activeMemberships.stream().map(membership -> membership.participantId()).toList()
+        );
+        Map<Long, ParticipantCandidate> byId = activeMemberships.stream()
+                .map(membership -> participants.get(membership.participantId()))
+                .filter(Objects::nonNull)
+                .filter(ParticipantInfo::active)
+                .map(info -> new ParticipantCandidate(info.participantId(), participantLabel(info), info.displayName(), info.email()))
+                .collect(Collectors.toMap(ParticipantCandidate::participantId, Function.identity(), (first, second) -> first));
+        Map<String, List<ParticipantCandidate>> aliases = new HashMap<>();
+        for (ParticipantCandidate candidate : byId.values()) {
+            addAlias(aliases, candidate.label(), candidate);
+            addAlias(aliases, candidate.displayName(), candidate);
+            addAlias(aliases, candidate.email(), candidate);
+        }
+        return new ParticipantCatalog(byId, aliases);
+    }
+
+    private ParticipantResolution resolveParticipant(
+            AccountAccess access,
+            ParticipantCatalog participantCatalog,
+            String participantLabel,
+            List<ImportRowError> errors
+    ) {
+        Long requestedParticipantId = null;
+        if (participantLabel != null && !participantLabel.isBlank()) {
+            List<ParticipantCandidate> candidates = participantCatalog.aliases().get(normalize(participantLabel));
+            if (candidates == null || candidates.isEmpty()) {
+                errors.add(new ImportRowError("Participante", "IMPORT_PARTICIPANT_NOT_FOUND", "Participant was not found or is inactive."));
+                return null;
+            }
+            if (candidates.size() > 1) {
+                errors.add(new ImportRowError("Participante", "IMPORT_PARTICIPANT_AMBIGUOUS", "Participant label is ambiguous."));
+                return null;
+            }
+            requestedParticipantId = candidates.getFirst().participantId();
+        }
+        try {
+            Long resolvedParticipantId = assignedParticipantValidator.resolveAssignedParticipantId(access, requestedParticipantId);
+            ParticipantCandidate candidate = participantCatalog.byId().get(resolvedParticipantId);
+            return new ParticipantResolution(resolvedParticipantId, candidate == null ? participantLabel : candidate.label());
+        } catch (DomainException ex) {
+            errors.add(new ImportRowError("Participante", participantErrorCode(ex), participantErrorMessage(ex)));
+            return null;
+        }
+    }
+
+    private static void addAlias(Map<String, List<ParticipantCandidate>> aliases, String alias, ParticipantCandidate candidate) {
+        String normalized = normalize(alias);
+        if (normalized.isBlank()) {
+            return;
+        }
+        aliases.computeIfAbsent(normalized, ignored -> new ArrayList<>());
+        if (aliases.get(normalized).stream().noneMatch(existing -> existing.participantId().equals(candidate.participantId()))) {
+            aliases.get(normalized).add(candidate);
+        }
+    }
+
+    private static String participantLabel(ParticipantInfo participant) {
+        if (participant.email() == null || participant.email().isBlank()) {
+            return participant.displayName();
+        }
+        return participant.displayName() + " <" + participant.email() + ">";
+    }
+
+    private static String participantErrorCode(DomainException ex) {
+        return switch (ex.code()) {
+            case "ASSIGNED_PARTICIPANT_NOT_ALLOWED" -> "IMPORT_PARTICIPANT_NOT_ALLOWED";
+            case "ASSIGNED_PARTICIPANT_NOT_FOUND", "ASSIGNED_PARTICIPANT_NOT_ACTIVE" -> "IMPORT_PARTICIPANT_NOT_FOUND";
+            default -> "IMPORT_PARTICIPANT_INVALID";
+        };
+    }
+
+    private static String participantErrorMessage(DomainException ex) {
+        return switch (ex.code()) {
+            case "ASSIGNED_PARTICIPANT_NOT_ALLOWED" -> "Current user cannot assign this participant.";
+            case "ASSIGNED_PARTICIPANT_NOT_FOUND", "ASSIGNED_PARTICIPANT_NOT_ACTIVE" -> "Participant was not found or is inactive.";
+            default -> "Participant is invalid.";
+        };
+    }
+
     private static ExpenseImportRow copyWithValidation(ExpenseImportRow row, Long categoryId, Long paymentMethodId, List<ImportRowError> errors) {
-        return new ExpenseImportRow(row.id(), row.accountId(), row.batchId(), row.rowNumber(), row.expenseDate(), row.description(), row.amount(), row.categoryName(), categoryId, row.paymentMethodName(), paymentMethodId, row.paymentState(), row.appliesDebtPayment(), row.debtId(), row.debtLabel(), row.debtPaymentType(), row.debtPaymentNotes(), errors.isEmpty(), errors, row.createdExpenseId(), row.createdDebtPaymentId(), row.createdAt(), row.updatedAt());
+        return new ExpenseImportRow(row.id(), row.accountId(), row.batchId(), row.rowNumber(), row.expenseDate(), row.description(), row.amount(), row.categoryName(), categoryId, row.paymentMethodName(), paymentMethodId, row.paymentState(), row.participantLabel(), row.participantId(), row.appliesDebtPayment(), row.debtId(), row.debtLabel(), row.debtPaymentType(), row.debtPaymentNotes(), errors.isEmpty(), errors, row.createdExpenseId(), row.createdDebtPaymentId(), row.createdAt(), row.updatedAt());
     }
 
     private static ExpenseImportRow copyWithDebtValidation(ExpenseImportRow row, Long debtId, List<ImportRowError> errors) {
-        return new ExpenseImportRow(row.id(), row.accountId(), row.batchId(), row.rowNumber(), row.expenseDate(), row.description(), row.amount(), row.categoryName(), row.categoryId(), row.paymentMethodName(), row.paymentMethodId(), row.paymentState(), row.appliesDebtPayment(), debtId, row.debtLabel(), row.debtPaymentType(), row.debtPaymentNotes(), errors.isEmpty(), errors, row.createdExpenseId(), row.createdDebtPaymentId(), row.createdAt(), row.updatedAt());
+        return new ExpenseImportRow(row.id(), row.accountId(), row.batchId(), row.rowNumber(), row.expenseDate(), row.description(), row.amount(), row.categoryName(), row.categoryId(), row.paymentMethodName(), row.paymentMethodId(), row.paymentState(), row.participantLabel(), row.participantId(), row.appliesDebtPayment(), debtId, row.debtLabel(), row.debtPaymentType(), row.debtPaymentNotes(), errors.isEmpty(), errors, row.createdExpenseId(), row.createdDebtPaymentId(), row.createdAt(), row.updatedAt());
+    }
+
+    private static ExpenseImportRow copyWithParticipantValidation(ExpenseImportRow row, String participantLabel, Long participantId, List<ImportRowError> errors) {
+        return new ExpenseImportRow(row.id(), row.accountId(), row.batchId(), row.rowNumber(), row.expenseDate(), row.description(), row.amount(), row.categoryName(), row.categoryId(), row.paymentMethodName(), row.paymentMethodId(), row.paymentState(), participantLabel, participantId, row.appliesDebtPayment(), row.debtId(), row.debtLabel(), row.debtPaymentType(), row.debtPaymentNotes(), errors.isEmpty(), errors, row.createdExpenseId(), row.createdDebtPaymentId(), row.createdAt(), row.updatedAt());
     }
 
     private void validateFile(PreviewExpenseImportCommand command) {
@@ -310,6 +443,10 @@ public class ExpenseImportManagementUseCase implements PreviewExpenseImportPort,
         return row.debtPaymentNotes().trim();
     }
 
+    private static Long rowParticipantId(ExpenseImportRow row, ExpenseImportBatch batch) {
+        return row.participantId() == null ? batch.participantId() : row.participantId();
+    }
+
     private static ExpenseImportBatchResponse toResponse(ExpenseImportBatch batch) {
         return new ExpenseImportBatchResponse(
                 batch.id(),
@@ -338,6 +475,8 @@ public class ExpenseImportManagementUseCase implements PreviewExpenseImportPort,
                 row.paymentMethodName(),
                 row.paymentMethodId(),
                 row.paymentState() == null ? null : row.paymentState().name(),
+                row.participantLabel(),
+                row.participantId(),
                 row.appliesDebtPayment(),
                 row.debtId(),
                 row.debtLabel(),
@@ -348,5 +487,25 @@ public class ExpenseImportManagementUseCase implements PreviewExpenseImportPort,
                 row.createdExpenseId(),
                 row.createdDebtPaymentId()
         );
+    }
+
+    private record ParticipantCandidate(
+            Long participantId,
+            String label,
+            String displayName,
+            String email
+    ) {
+    }
+
+    private record ParticipantCatalog(
+            Map<Long, ParticipantCandidate> byId,
+            Map<String, List<ParticipantCandidate>> aliases
+    ) {
+    }
+
+    private record ParticipantResolution(
+            Long participantId,
+            String label
+    ) {
     }
 }

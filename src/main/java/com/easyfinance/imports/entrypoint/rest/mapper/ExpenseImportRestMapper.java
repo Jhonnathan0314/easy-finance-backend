@@ -40,6 +40,8 @@ public final class ExpenseImportRestMapper {
                 response.paymentMethodName(),
                 response.paymentMethodId(),
                 response.paymentState(),
+                response.participantLabel(),
+                response.participantId(),
                 response.appliesDebtPayment(),
                 response.debtId(),
                 response.debtLabel(),

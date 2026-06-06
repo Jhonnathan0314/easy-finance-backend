@@ -3,6 +3,7 @@ package com.easyfinance.income.application.usecase;
 import com.easyfinance.accounts.application.port.out.AccountParticipantRepositoryPort;
 import com.easyfinance.accounts.application.port.out.AccountRepositoryPort;
 import com.easyfinance.accounts.application.service.AccountAuthorizationService;
+import com.easyfinance.accounts.application.service.AssignedParticipantValidator;
 import com.easyfinance.accounts.domain.model.Account;
 import com.easyfinance.accounts.domain.model.AccountParticipant;
 import com.easyfinance.accounts.domain.model.AccountParticipantRole;
@@ -53,7 +54,8 @@ class IncomeManagementUseCaseTest {
     private final CatalogValidationPort catalogValidationPort = mock(CatalogValidationPort.class);
     private final IncomeRepositoryPort incomeRepository = mock(IncomeRepositoryPort.class);
     private final AccountAuthorizationService accountAuthorizationService = new AccountAuthorizationService(accountRepository, accountParticipantRepository);
-    private final IncomeManagementUseCase useCase = new IncomeManagementUseCase(currentUserProvider, accountAuthorizationService, catalogValidationPort, incomeRepository);
+    private final AssignedParticipantValidator assignedParticipantValidator = new AssignedParticipantValidator(accountParticipantRepository);
+    private final IncomeManagementUseCase useCase = new IncomeManagementUseCase(currentUserProvider, accountAuthorizationService, catalogValidationPort, assignedParticipantValidator, incomeRepository);
 
     @BeforeEach
     void setUp() {
@@ -70,6 +72,28 @@ class IncomeManagementUseCaseTest {
 
         assertThat(response.participantId()).isEqualTo(10L);
         assertThat(response.status()).isEqualTo("ACTIVE");
+    }
+
+    @Test
+    void adminCreatesIncomeAssignedToAnotherActiveParticipant() {
+        givenAdminAccess(AccountStatus.ACTIVE, 10L);
+        givenAssignedParticipant(20L, AccountParticipantStatus.ACTIVE);
+        givenIncomeCategory(CatalogStatus.ACTIVE);
+        when(incomeRepository.save(any(Income.class))).thenAnswer(invocation -> persisted(invocation.getArgument(0)));
+
+        var response = useCase.createIncome(createCommand(20L));
+
+        assertThat(response.participantId()).isEqualTo(20L);
+    }
+
+    @Test
+    void memberCannotCreateIncomeAssignedToAnotherParticipant() {
+        givenMemberAccess(AccountStatus.ACTIVE, 10L);
+
+        assertThatThrownBy(() -> useCase.createIncome(createCommand(20L)))
+                .isInstanceOfSatisfying(ForbiddenOperationException.class, ex -> assertThat(ex.code()).isEqualTo("ASSIGNED_PARTICIPANT_NOT_ALLOWED"));
+
+        verify(incomeRepository, never()).save(any());
     }
 
     @Test
@@ -158,6 +182,32 @@ class IncomeManagementUseCaseTest {
         var response = useCase.updateIncome(updateCommand());
 
         assertThat(response.description()).isEqualTo("Updated salary");
+        assertThat(response.participantId()).isEqualTo(20L);
+    }
+
+    @Test
+    void adminReassignsIncomeToAnotherActiveParticipant() {
+        givenAdminAccess(AccountStatus.ACTIVE, 10L);
+        givenAssignedParticipant(30L, AccountParticipantStatus.ACTIVE);
+        givenIncomeCategory(CatalogStatus.ACTIVE);
+        when(incomeRepository.findByAccountIdAndId(1L, 5L)).thenReturn(Optional.of(income(5L, 20L, IncomeStatus.ACTIVE)));
+        when(incomeRepository.save(any(Income.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = useCase.updateIncome(updateCommand(30L));
+
+        assertThat(response.participantId()).isEqualTo(30L);
+    }
+
+    @Test
+    void memberCannotReassignIncomeToAnotherParticipant() {
+        givenMemberAccess(AccountStatus.ACTIVE, 10L);
+        givenIncomeCategory(CatalogStatus.ACTIVE);
+        when(incomeRepository.findByAccountIdAndId(1L, 5L)).thenReturn(Optional.of(income(5L, 10L, IncomeStatus.ACTIVE)));
+
+        assertThatThrownBy(() -> useCase.updateIncome(updateCommand(20L)))
+                .isInstanceOfSatisfying(ForbiddenOperationException.class, ex -> assertThat(ex.code()).isEqualTo("ASSIGNED_PARTICIPANT_NOT_ALLOWED"));
+
+        verify(incomeRepository, never()).save(any());
     }
 
     @Test
@@ -319,17 +369,30 @@ class IncomeManagementUseCaseTest {
                 .thenReturn(Optional.of(AccountParticipant.restore(1L, 1L, participantId, AccountParticipantRole.ACCOUNT_ADMIN, AccountParticipantStatus.ACTIVE, Instant.now(), null, null)));
     }
 
+    private void givenAssignedParticipant(Long participantId, AccountParticipantStatus status) {
+        when(accountParticipantRepository.findByAccountIdAndParticipantId(1L, participantId))
+                .thenReturn(Optional.of(AccountParticipant.restore(1L, 1L, participantId, AccountParticipantRole.ACCOUNT_MEMBER, status, Instant.now(), null, null)));
+    }
+
     private void givenIncomeCategory(CatalogStatus status) {
         when(catalogValidationPort.findCategoryForValidation(1L, 2L))
                 .thenReturn(Optional.of(new CategoryValidationView(2L, 1L, CategoryType.INCOME, status)));
     }
 
     private static CreateIncomeCommand createCommand() {
-        return new CreateIncomeCommand(1L, 2L, "Salary", Money.cop(new BigDecimal("2500000")), LocalDate.of(2026, 5, 10));
+        return createCommand(null);
+    }
+
+    private static CreateIncomeCommand createCommand(Long participantId) {
+        return new CreateIncomeCommand(1L, participantId, 2L, "Salary", Money.cop(new BigDecimal("2500000")), LocalDate.of(2026, 5, 10));
     }
 
     private static UpdateIncomeCommand updateCommand() {
-        return new UpdateIncomeCommand(1L, 5L, 2L, "Updated salary", Money.cop(new BigDecimal("2600000")), LocalDate.of(2026, 5, 11));
+        return updateCommand(null);
+    }
+
+    private static UpdateIncomeCommand updateCommand(Long participantId) {
+        return new UpdateIncomeCommand(1L, 5L, participantId, 2L, "Updated salary", Money.cop(new BigDecimal("2600000")), LocalDate.of(2026, 5, 11));
     }
 
     private static DuplicateIncomeCommand duplicateCommand() {

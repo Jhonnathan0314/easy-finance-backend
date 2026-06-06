@@ -46,6 +46,10 @@ public class ExpenseImportRowJpaEntity {
     private Long paymentMethodId;
     @Column(name = "payment_state")
     private String paymentState;
+    @Column(name = "participant_label")
+    private String participantLabel;
+    @Column(name = "participant_id")
+    private Long participantId;
     @Column(name = "applies_debt_payment", nullable = false)
     private boolean appliesDebtPayment;
     @Column(name = "debt_id")
@@ -96,6 +100,10 @@ public class ExpenseImportRowJpaEntity {
     public void setPaymentMethodId(Long paymentMethodId) { this.paymentMethodId = paymentMethodId; }
     public String getPaymentState() { return paymentState; }
     public void setPaymentState(String paymentState) { this.paymentState = paymentState; }
+    public String getParticipantLabel() { return participantLabel; }
+    public void setParticipantLabel(String participantLabel) { this.participantLabel = participantLabel; }
+    public Long getParticipantId() { return participantId; }
+    public void setParticipantId(Long participantId) { this.participantId = participantId; }
     public boolean isAppliesDebtPayment() { return appliesDebtPayment; }
     public void setAppliesDebtPayment(boolean appliesDebtPayment) { this.appliesDebtPayment = appliesDebtPayment; }
     public Long getDebtId() { return debtId; }

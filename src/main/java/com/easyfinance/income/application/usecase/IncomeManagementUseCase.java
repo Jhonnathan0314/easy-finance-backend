@@ -2,6 +2,7 @@ package com.easyfinance.income.application.usecase;
 
 import com.easyfinance.accounts.application.service.AccountAccess;
 import com.easyfinance.accounts.application.service.AccountAuthorizationService;
+import com.easyfinance.accounts.application.service.AssignedParticipantValidator;
 import com.easyfinance.accounts.domain.model.AccountParticipantRole;
 import com.easyfinance.catalogs.application.port.in.CatalogValidationPort;
 import com.easyfinance.catalogs.application.validation.CategoryValidationView;
@@ -43,17 +44,20 @@ public class IncomeManagementUseCase implements
     private final CurrentUserProvider currentUserProvider;
     private final AccountAuthorizationService accountAuthorizationService;
     private final CatalogValidationPort catalogValidationPort;
+    private final AssignedParticipantValidator assignedParticipantValidator;
     private final IncomeRepositoryPort incomeRepository;
 
     public IncomeManagementUseCase(
             CurrentUserProvider currentUserProvider,
             AccountAuthorizationService accountAuthorizationService,
             CatalogValidationPort catalogValidationPort,
+            AssignedParticipantValidator assignedParticipantValidator,
             IncomeRepositoryPort incomeRepository
     ) {
         this.currentUserProvider = currentUserProvider;
         this.accountAuthorizationService = accountAuthorizationService;
         this.catalogValidationPort = catalogValidationPort;
+        this.assignedParticipantValidator = assignedParticipantValidator;
         this.incomeRepository = incomeRepository;
     }
 
@@ -61,9 +65,10 @@ public class IncomeManagementUseCase implements
     @Transactional
     public IncomeResponse createIncome(CreateIncomeCommand command) {
         CurrentUser currentUser = currentUser();
-        accountAuthorizationService.requireActiveMemberForActiveAccount(command.accountId(), currentUser.participantId());
+        AccountAccess access = accountAuthorizationService.requireActiveMemberForActiveAccount(command.accountId(), currentUser.participantId());
+        Long assignedParticipantId = assignedParticipantValidator.resolveAssignedParticipantId(access, command.participantId());
         validateCategory(command.accountId(), command.categoryId());
-        Income income = Income.create(command.accountId(), command.categoryId(), currentUser.participantId(), command.description(), command.amount(), command.incomeDate());
+        Income income = Income.create(command.accountId(), command.categoryId(), assignedParticipantId, command.description(), command.amount(), command.incomeDate());
         return toResponse(incomeRepository.save(income));
     }
 
@@ -97,7 +102,10 @@ public class IncomeManagementUseCase implements
         income.ensureActive();
         ensureCanMutate(income, access, currentUser.participantId(), "INCOME_UPDATE_NOT_ALLOWED");
         validateCategory(command.accountId(), command.categoryId());
-        Income updated = income.update(command.categoryId(), command.description(), command.amount(), command.incomeDate());
+        Long assignedParticipantId = command.participantId() == null
+                ? income.participantId()
+                : assignedParticipantValidator.resolveAssignedParticipantId(access, command.participantId());
+        Income updated = income.update(command.categoryId(), assignedParticipantId, command.description(), command.amount(), command.incomeDate());
         return toResponse(incomeRepository.save(updated));
     }
 

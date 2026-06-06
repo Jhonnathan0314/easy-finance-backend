@@ -1,6 +1,16 @@
 package com.easyfinance.imports.application.usecase;
 
 import com.easyfinance.accounts.application.service.AccountAuthorizationService;
+import com.easyfinance.accounts.application.port.out.AccountParticipantRepositoryPort;
+import com.easyfinance.accounts.application.port.out.ParticipantLookupPort;
+import com.easyfinance.accounts.application.response.ParticipantInfo;
+import com.easyfinance.accounts.application.service.AccountAccess;
+import com.easyfinance.accounts.application.service.AssignedParticipantValidator;
+import com.easyfinance.accounts.domain.model.Account;
+import com.easyfinance.accounts.domain.model.AccountParticipant;
+import com.easyfinance.accounts.domain.model.AccountParticipantRole;
+import com.easyfinance.accounts.domain.model.AccountParticipantStatus;
+import com.easyfinance.accounts.domain.model.AccountStatus;
 import com.easyfinance.catalogs.application.port.in.CatalogValidationPort;
 import com.easyfinance.catalogs.application.port.out.CategoryRepositoryPort;
 import com.easyfinance.catalogs.application.port.out.PaymentMethodRepositoryPort;
@@ -43,6 +53,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -59,6 +70,9 @@ class ExpenseImportManagementUseCaseTest {
 
     private final CurrentUserProvider currentUserProvider = mock(CurrentUserProvider.class);
     private final AccountAuthorizationService accountAuthorizationService = mock(AccountAuthorizationService.class);
+    private final AssignedParticipantValidator assignedParticipantValidator = mock(AssignedParticipantValidator.class);
+    private final AccountParticipantRepositoryPort accountParticipantRepository = mock(AccountParticipantRepositoryPort.class);
+    private final ParticipantLookupPort participantLookupPort = mock(ParticipantLookupPort.class);
     private final CatalogValidationPort catalogValidationPort = mock(CatalogValidationPort.class);
     private final CategoryRepositoryPort categoryRepository = mock(CategoryRepositoryPort.class);
     private final PaymentMethodRepositoryPort paymentMethodRepository = mock(PaymentMethodRepositoryPort.class);
@@ -72,6 +86,9 @@ class ExpenseImportManagementUseCaseTest {
     private final ExpenseImportManagementUseCase useCase = new ExpenseImportManagementUseCase(
             currentUserProvider,
             accountAuthorizationService,
+            assignedParticipantValidator,
+            accountParticipantRepository,
+            participantLookupPort,
             catalogValidationPort,
             categoryRepository,
             paymentMethodRepository,
@@ -106,6 +123,25 @@ class ExpenseImportManagementUseCaseTest {
             assertThat(item.paymentMethodId()).isEqualTo(20L);
             assertThat(item.valid()).isTrue();
         });
+    }
+
+    @Test
+    void previewResolvesExplicitParticipantPerRow() {
+        givenCurrentUser();
+        ExpenseImportRow row = rowWithParticipant(2, "Ana Finance <ana@example.com>");
+        when(parserPort.parse(any(), any())).thenReturn(List.of(row));
+        when(catalogValidationPort.findCategoryForValidation(1L, "food")).thenReturn(Optional.of(new CategoryValidationView(10L, 1L, CategoryType.EXPENSE, CatalogStatus.ACTIVE)));
+        when(catalogValidationPort.findPaymentMethodForValidation(1L, "cash")).thenReturn(Optional.of(new PaymentMethodValidationView(20L, 1L, PaymentMethodType.CASH, CatalogStatus.ACTIVE)));
+        when(repository.savePreview(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = useCase.preview(command("expenses.xlsx"));
+
+        assertThat(response.rows()).singleElement().satisfies(item -> {
+            assertThat(item.participantLabel()).isEqualTo("Ana Finance <ana@example.com>");
+            assertThat(item.participantId()).isEqualTo(11L);
+            assertThat(item.valid()).isTrue();
+        });
+        verify(assignedParticipantValidator).resolveAssignedParticipantId(any(), argThat(id -> id.equals(11L)));
     }
 
     @Test
@@ -181,7 +217,7 @@ class ExpenseImportManagementUseCaseTest {
     @Test
     void confirmCreatesExpensesForValidRowsAndMarksBatchConfirmed() {
         givenCurrentUser();
-        ExpenseImportBatch batch = new ExpenseImportBatch(77L, 1L, 10L, "expenses.xlsx", ExpenseImportStatus.PREVIEW, 1, 1, 0, null, null, null, List.of(storedRow(101L)));
+        ExpenseImportBatch batch = new ExpenseImportBatch(77L, 1L, 10L, "expenses.xlsx", ExpenseImportStatus.PREVIEW, 1, 1, 0, null, null, null, List.of(storedRowWithParticipant(101L, 11L)));
         when(repository.findByAccountIdAndIdForUpdate(1L, 77L)).thenReturn(Optional.of(batch));
         when(createImportedExpensePort.createImportedExpense(any())).thenReturn(new ExpenseResponse(500L, 1L, 10L, 20L, 10L, "Lunch", new BigDecimal("120.00"), "COP", LocalDate.of(2026, 5, 1), "PAID", "ACTIVE", "SIMPLE", Instant.now(), Instant.now()));
         when(repository.saveBatch(any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -190,6 +226,7 @@ class ExpenseImportManagementUseCaseTest {
 
         assertThat(response.status()).isEqualTo("CONFIRMED");
         verify(repository).findByAccountIdAndIdForUpdate(1L, 77L);
+        verify(createImportedExpensePort).createImportedExpense(argThat(command -> command.participantId().equals(11L)));
         verify(repository).updateCreatedExpenseId(1L, 101L, 500L);
         verify(registerDebtPaymentPort, never()).registerDebtPayment(any());
     }
@@ -212,6 +249,7 @@ class ExpenseImportManagementUseCaseTest {
                         && command.paymentType() == DebtPaymentType.INSTALLMENT
                         && command.amount().amount().compareTo(new BigDecimal("120.00")) == 0
                         && command.paymentDate().equals(LocalDate.of(2026, 5, 1))
+                        && command.participantId().equals(10L)
                         && command.notes().equals("Imported payment")
                         && !command.shouldCreateExpense()
         ));
@@ -320,6 +358,22 @@ class ExpenseImportManagementUseCaseTest {
 
     private void givenCurrentUser() {
         when(currentUserProvider.currentUser()).thenReturn(Optional.of(new CurrentUser(1L, 10L, "user@example.com", Set.of("USER"), true)));
+        Account account = Account.restore(1L, "Home", null, AccountStatus.ACTIVE, Instant.now(), Instant.now());
+        AccountParticipant actor = AccountParticipant.restore(1L, 1L, 10L, AccountParticipantRole.ACCOUNT_ADMIN, AccountParticipantStatus.ACTIVE, Instant.now(), null, null);
+        AccountAccess access = new AccountAccess(account, actor);
+        when(accountAuthorizationService.requireActiveMemberForActiveAccount(1L, 10L)).thenReturn(access);
+        when(accountParticipantRepository.findByAccountId(1L)).thenReturn(List.of(
+                actor,
+                AccountParticipant.restore(2L, 1L, 11L, AccountParticipantRole.ACCOUNT_MEMBER, AccountParticipantStatus.ACTIVE, Instant.now(), null, null)
+        ));
+        when(participantLookupPort.findByParticipantIds(any())).thenReturn(Map.of(
+                10L, new ParticipantInfo(10L, 100L, "user@example.com", "Current User", true),
+                11L, new ParticipantInfo(11L, 101L, "ana@example.com", "Ana Finance", true)
+        ));
+        when(assignedParticipantValidator.resolveAssignedParticipantId(any(), any())).thenAnswer(invocation -> {
+            Long requested = invocation.getArgument(1);
+            return requested == null ? 10L : requested;
+        });
     }
 
     private static PreviewExpenseImportCommand command(String filename) {
@@ -330,12 +384,20 @@ class ExpenseImportManagementUseCaseTest {
         return new ExpenseImportRow(null, 1L, null, rowNumber, LocalDate.of(2026, 5, 1), "Lunch", Money.cop(new BigDecimal("120.00")), "Food", null, "Cash", null, ExpensePaymentState.PAID, false, null, null, null, null, valid, errors, null, null, null, null);
     }
 
+    private static ExpenseImportRow rowWithParticipant(int rowNumber, String participantLabel) {
+        return new ExpenseImportRow(null, 1L, null, rowNumber, LocalDate.of(2026, 5, 1), "Lunch", Money.cop(new BigDecimal("120.00")), "Food", null, "Cash", null, ExpensePaymentState.PAID, participantLabel, null, false, null, null, null, null, true, List.of(), null, null, null, null);
+    }
+
     private static ExpenseImportRow debtPaymentRow(int rowNumber, boolean valid, Long debtId, BigDecimal amount) {
         return new ExpenseImportRow(null, 1L, null, rowNumber, LocalDate.of(2026, 5, 1), "Lunch", Money.cop(amount), "Food", null, "Cash", null, ExpensePaymentState.PAID, true, debtId, "Loan | Saldo: 500.00 | Inicio: 2026-05-01 | MANUAL", DebtPaymentType.INSTALLMENT, "Imported payment", valid, List.of(), null, null, null, null);
     }
 
     private static ExpenseImportRow storedRow(Long id) {
         return new ExpenseImportRow(id, 1L, 77L, 2, LocalDate.of(2026, 5, 1), "Lunch", Money.cop(new BigDecimal("120.00")), "Food", 10L, "Cash", 20L, ExpensePaymentState.PAID, false, null, null, null, null, true, List.of(), null, null, null, null);
+    }
+
+    private static ExpenseImportRow storedRowWithParticipant(Long id, Long participantId) {
+        return new ExpenseImportRow(id, 1L, 77L, 2, LocalDate.of(2026, 5, 1), "Lunch", Money.cop(new BigDecimal("120.00")), "Food", 10L, "Cash", 20L, ExpensePaymentState.PAID, "Ana Finance <ana@example.com>", participantId, false, null, null, null, null, true, List.of(), null, null, null, null);
     }
 
     private static ExpenseImportRow storedDebtPaymentRow(Long id, String notes) {

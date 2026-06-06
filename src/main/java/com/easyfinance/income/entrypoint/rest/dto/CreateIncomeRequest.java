@@ -9,6 +9,7 @@ import java.time.LocalDate;
 
 public record CreateIncomeRequest(
         @NotNull Long categoryId,
+        Long participantId,
         @NotBlank String description,
         @NotNull @DecimalMin(value = "0.01") BigDecimal amount,
         @NotNull LocalDate incomeDate

@@ -19,6 +19,8 @@ public final class IncomeImportRestMapper {
                                 row.description(),
                                 row.categoryName(),
                                 row.categoryId(),
+                                row.participantLabel(),
+                                row.participantId(),
                                 row.amount(),
                                 row.valid(),
                                 row.createdIncomeId(),

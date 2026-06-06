@@ -8,6 +8,7 @@ public record SubBudgetResponse(
         Long accountId,
         Long budgetId,
         Long categoryId,
+        Long participantId,
         Long debtId,
         String name,
         BigDecimal plannedAmount,

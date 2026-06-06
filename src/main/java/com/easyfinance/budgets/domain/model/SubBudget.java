@@ -12,6 +12,7 @@ public final class SubBudget {
     private final Long accountId;
     private final Long budgetId;
     private final Long categoryId;
+    private final Long participantId;
     private final Long debtId;
     private final String name;
     private final Money plannedAmount;
@@ -21,11 +22,12 @@ public final class SubBudget {
     private final Instant createdAt;
     private final Instant updatedAt;
 
-    private SubBudget(Long id, Long accountId, Long budgetId, Long categoryId, Long debtId, String name, Money plannedAmount, Money spentAmount, SubBudgetStatus status, SubBudgetSourceType sourceType, Instant createdAt, Instant updatedAt) {
+    private SubBudget(Long id, Long accountId, Long budgetId, Long categoryId, Long participantId, Long debtId, String name, Money plannedAmount, Money spentAmount, SubBudgetStatus status, SubBudgetSourceType sourceType, Instant createdAt, Instant updatedAt) {
         this.id = id;
         this.accountId = Budget.requireId(accountId, "SUB_BUDGET_ACCOUNT_REQUIRED", "Sub-budget account is required.");
         this.budgetId = Budget.requireId(budgetId, "SUB_BUDGET_BUDGET_REQUIRED", "Budget id is required.");
         this.categoryId = categoryId;
+        this.participantId = participantId;
         this.sourceType = sourceType == null ? SubBudgetSourceType.MANUAL : sourceType;
         this.debtId = validateDebtId(debtId, this.sourceType);
         this.name = requireName(name);
@@ -37,32 +39,48 @@ public final class SubBudget {
     }
 
     public static SubBudget createManual(Long accountId, Long budgetId, Long categoryId, String name, Money plannedAmount) {
-        return new SubBudget(null, accountId, budgetId, categoryId, null, name, plannedAmount, Money.zeroCop(), SubBudgetStatus.ACTIVE, SubBudgetSourceType.MANUAL, null, null);
+        return createManual(accountId, budgetId, categoryId, null, name, plannedAmount);
+    }
+
+    public static SubBudget createManual(Long accountId, Long budgetId, Long categoryId, Long participantId, String name, Money plannedAmount) {
+        return new SubBudget(null, accountId, budgetId, categoryId, participantId, null, name, plannedAmount, Money.zeroCop(), SubBudgetStatus.ACTIVE, SubBudgetSourceType.MANUAL, null, null);
     }
 
     public static SubBudget createDebtDerived(Long accountId, Long budgetId, Long categoryId, Long debtId, String name, Money plannedAmount) {
-        return new SubBudget(null, accountId, budgetId, categoryId, debtId, name, plannedAmount, Money.zeroCop(), SubBudgetStatus.ACTIVE, SubBudgetSourceType.DEBT_DERIVED, null, null);
+        return createDebtDerived(accountId, budgetId, categoryId, null, debtId, name, plannedAmount);
+    }
+
+    public static SubBudget createDebtDerived(Long accountId, Long budgetId, Long categoryId, Long participantId, Long debtId, String name, Money plannedAmount) {
+        return new SubBudget(null, accountId, budgetId, categoryId, participantId, debtId, name, plannedAmount, Money.zeroCop(), SubBudgetStatus.ACTIVE, SubBudgetSourceType.DEBT_DERIVED, null, null);
     }
 
     public static SubBudget restore(Long id, Long accountId, Long budgetId, Long categoryId, Long debtId, String name, Money plannedAmount, Money spentAmount, SubBudgetStatus status, SubBudgetSourceType sourceType, Instant createdAt, Instant updatedAt) {
-        return new SubBudget(id, accountId, budgetId, categoryId, debtId, name, plannedAmount, spentAmount, status, sourceType, createdAt, updatedAt);
+        return restore(id, accountId, budgetId, categoryId, null, debtId, name, plannedAmount, spentAmount, status, sourceType, createdAt, updatedAt);
+    }
+
+    public static SubBudget restore(Long id, Long accountId, Long budgetId, Long categoryId, Long participantId, Long debtId, String name, Money plannedAmount, Money spentAmount, SubBudgetStatus status, SubBudgetSourceType sourceType, Instant createdAt, Instant updatedAt) {
+        return new SubBudget(id, accountId, budgetId, categoryId, participantId, debtId, name, plannedAmount, spentAmount, status, sourceType, createdAt, updatedAt);
     }
 
     public SubBudget updateManual(Long categoryId, String name, Money plannedAmount) {
+        return updateManual(categoryId, participantId, name, plannedAmount);
+    }
+
+    public SubBudget updateManual(Long categoryId, Long participantId, String name, Money plannedAmount) {
         ensureManualEditable();
-        return new SubBudget(id, accountId, budgetId, categoryId, debtId, name, plannedAmount, spentAmount, status, sourceType, createdAt, updatedAt);
+        return new SubBudget(id, accountId, budgetId, categoryId, participantId, debtId, name, plannedAmount, spentAmount, status, sourceType, createdAt, updatedAt);
     }
 
     public SubBudget deactivateManual() {
         ensureManualEditable();
-        return new SubBudget(id, accountId, budgetId, categoryId, debtId, name, plannedAmount, spentAmount, SubBudgetStatus.INACTIVE, sourceType, createdAt, updatedAt);
+        return new SubBudget(id, accountId, budgetId, categoryId, participantId, debtId, name, plannedAmount, spentAmount, SubBudgetStatus.INACTIVE, sourceType, createdAt, updatedAt);
     }
 
     public SubBudget deactivateDebtDerived() {
         if (sourceType != SubBudgetSourceType.DEBT_DERIVED) {
             throw new BusinessRuleViolationException("SUB_BUDGET_SOURCE_NOT_EDITABLE", "Only debt-derived sub-budgets can be deactivated from this operation.");
         }
-        return new SubBudget(id, accountId, budgetId, categoryId, debtId, name, plannedAmount, spentAmount, SubBudgetStatus.INACTIVE, sourceType, createdAt, updatedAt);
+        return new SubBudget(id, accountId, budgetId, categoryId, participantId, debtId, name, plannedAmount, spentAmount, SubBudgetStatus.INACTIVE, sourceType, createdAt, updatedAt);
     }
 
     public void ensureManualEditable() {
@@ -75,6 +93,7 @@ public final class SubBudget {
     public Long accountId() { return accountId; }
     public Long budgetId() { return budgetId; }
     public Long categoryId() { return categoryId; }
+    public Long participantId() { return participantId; }
     public Long debtId() { return debtId; }
     public String name() { return name; }
     public Money plannedAmount() { return plannedAmount; }

@@ -9,6 +9,7 @@ public record CreateDebtBudgetImpactsCommand(
         Long debtId,
         Long expenseId,
         Long categoryId,
+        Long participantId,
         String debtName,
         Money totalAmount,
         Integer installmentCount,

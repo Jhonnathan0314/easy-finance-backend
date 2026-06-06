@@ -28,6 +28,7 @@ public final class ExpenseRestMapper {
     public static CreateExpenseCommand toCommand(Long accountId, CreateExpenseRequest request) {
         return new CreateExpenseCommand(
                 accountId,
+                request.participantId(),
                 request.categoryId(),
                 request.paymentMethodId(),
                 request.description(),
@@ -40,6 +41,7 @@ public final class ExpenseRestMapper {
     public static CreateInstallmentExpenseCommand toCommand(Long accountId, CreateInstallmentExpenseRequest request) {
         return new CreateInstallmentExpenseCommand(
                 accountId,
+                request.participantId(),
                 request.categoryId(),
                 request.paymentMethodId(),
                 request.description(),
@@ -57,6 +59,7 @@ public final class ExpenseRestMapper {
         return new UpdateExpenseCommand(
                 accountId,
                 expenseId,
+                request.participantId(),
                 request.categoryId(),
                 request.paymentMethodId(),
                 request.description(),

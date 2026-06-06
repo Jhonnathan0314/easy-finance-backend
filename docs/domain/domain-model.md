@@ -175,6 +175,7 @@ Fields:
 - `accountId`
 - `name`
 - `description`
+- `type`
 - `state`
 
 ### PaymentMethod
@@ -185,8 +186,8 @@ Fields:
 
 - `id`
 - `accountId`
-- `participantId`
 - `name`
+- `description`
 - `type`
 - `state`
 
@@ -214,6 +215,8 @@ Fields:
 Notes:
 
 - `sourceType` is `MANUAL`, `IMPORT`, or `DEBT_PAYMENT`.
+- The responsible `participantId` can be assigned explicitly by an account admin. Members can only assign themselves.
+- Installment-derived debt inherits the assigned participant from the origin installment expense.
 - Expenses with `sourceType = DEBT_PAYMENT` are conceptual records associated with a debt payment. They remain visible in conceptual expense analytics, but cashflow excludes them to avoid counting the same real payment twice.
 
 ### Debt
@@ -225,16 +228,26 @@ Fields:
 - `id`
 - `accountId`
 - `participantId`
-- `paymentMethodId`
 - `originExpenseId`
+- `sourceType`
 - `name`
+- `description`
 - `totalAmount`
-- `installments`
+- `scheduledTotalAmount`
+- `installmentCount`
 - `installmentAmount`
 - `remainingBalance`
 - `startDate`
 - `endDate`
 - `state`
+
+Notes:
+
+- Manual debt `participantId` can be assigned explicitly by an account admin. Members can only assign themselves.
+- Installment-derived debt inherits the assigned participant from the origin expense.
+- `totalAmount` is principal/original debt amount.
+- `scheduledTotalAmount` is the programmed total to pay and can include implicit financing costs.
+- `remainingBalance` represents pending principal.
 
 ### DebtPayment
 
@@ -243,12 +256,15 @@ Payment against a debt.
 Fields:
 
 - `id`
+- `accountId`
 - `debtId`
 - `participantId`
 - `paymentDate`
 - `amount`
+- `currency`
 - `paymentType`
 - `notes`
+- `status`
 
 Notes:
 
@@ -278,6 +294,7 @@ Fields:
 - `accountId`
 - `budgetId`
 - `categoryId`
+- `participantId`
 - `debtId`
 - `name`
 - `plannedAmount`
@@ -290,9 +307,10 @@ Fields:
 Notes:
 
 - Manual sub-budget execution is calculated at read time from active simple expenses in the budget month and same category.
+- Manual sub-budget `participantId` is optional. When it is null, execution is global by category. When it is present, execution is scoped to that participant.
 - Manual execution includes expenses with `sourceType = MANUAL` or `IMPORT`.
 - Manual execution excludes `sourceType = DEBT_PAYMENT` to avoid duplicate counting with debt payments.
-- Debt-derived sub-budgets continue to use budget impacts and debt payments.
+- Debt-derived sub-budgets inherit the participant from the debt and continue to use budget impacts and debt payments.
 
 ### BudgetImpact
 
@@ -332,6 +350,7 @@ Fields:
 Notes:
 
 - Income is event-based in the MVP.
+- The responsible `participantId` can be assigned explicitly by an account admin. Members can only assign themselves.
 - Recurring income templates are not implemented yet; the current UX helper is duplication to a new date.
 
 ## Value Objects

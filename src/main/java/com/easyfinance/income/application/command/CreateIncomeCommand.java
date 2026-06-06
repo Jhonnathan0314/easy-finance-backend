@@ -6,6 +6,7 @@ import java.time.LocalDate;
 
 public record CreateIncomeCommand(
         Long accountId,
+        Long participantId,
         Long categoryId,
         String description,
         Money amount,

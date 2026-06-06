@@ -6,6 +6,7 @@ import java.time.LocalDate;
 
 public record CreateManualDebtCommand(
         Long accountId,
+        Long participantId,
         String name,
         String description,
         Money totalAmount,

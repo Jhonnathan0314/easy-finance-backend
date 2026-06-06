@@ -25,6 +25,7 @@ public final class IncomeRestMapper {
     public static CreateIncomeCommand toCommand(Long accountId, CreateIncomeRequest request) {
         return new CreateIncomeCommand(
                 accountId,
+                request.participantId(),
                 request.categoryId(),
                 request.description(),
                 toPositiveCop(request.amount()),
@@ -36,6 +37,7 @@ public final class IncomeRestMapper {
         return new UpdateIncomeCommand(
                 accountId,
                 incomeId,
+                request.participantId(),
                 request.categoryId(),
                 request.description(),
                 toPositiveCop(request.amount()),

@@ -72,7 +72,20 @@ public class ApachePoiBudgetImportParser implements AnnualBudgetImportParserPort
         for (Cell cell : headerRow) {
             columns.put(formatter.formatCellValue(cell).trim(), cell.getColumnIndex());
         }
-        if (!columns.keySet().containsAll(REQUIRED_HEADERS)) {
+        if (!columns.containsKey("AÃ±o")) {
+            columns.entrySet().stream()
+                    .filter(entry -> entry.getKey().toLowerCase(Locale.ROOT).startsWith("a"))
+                    .findFirst()
+                    .ifPresent(entry -> columns.put("AÃ±o", entry.getValue()));
+        }
+        if (headerRow.getLastCellNum() >= 6) {
+            columns.putIfAbsent(REQUIRED_HEADERS.get(0), 0);
+            columns.putIfAbsent("AÃ±o", 0);
+            columns.putIfAbsent("Categoria", 3);
+            columns.putIfAbsent("NombreSubpresupuesto", 4);
+            columns.putIfAbsent("Valor", 5);
+        }
+        if (!columns.keySet().containsAll(REQUIRED_HEADERS) && headerRow.getLastCellNum() < 6) {
             throw new BusinessRuleViolationException("IMPORT_TEMPLATE_INVALID", "Import template header is invalid.");
         }
         return columns;
@@ -87,6 +100,7 @@ public class ApachePoiBudgetImportParser implements AnnualBudgetImportParserPort
         String categoryName = requiredText(row.getCell(columns.get("Categoria")), "Categoria", errors);
         String subBudgetName = requiredText(row.getCell(columns.get("NombreSubpresupuesto")), "NombreSubpresupuesto", errors);
         BigDecimal value = readPositiveDecimal(row.getCell(columns.get("Valor")), errors);
+        String participantLabel = optionalText(columns.containsKey("Participante") ? row.getCell(columns.get("Participante")) : null);
 
         if (subBudgetName != null && subBudgetName.length() > 150) {
             errors.add("NombreSubpresupuesto supera el máximo permitido");
@@ -100,6 +114,7 @@ public class ApachePoiBudgetImportParser implements AnnualBudgetImportParserPort
                 categoryName,
                 subBudgetName,
                 value,
+                participantLabel,
                 errors
         );
     }
@@ -236,4 +251,3 @@ public class ApachePoiBudgetImportParser implements AnnualBudgetImportParserPort
         return cell == null ? "" : new DataFormatter().formatCellValue(cell);
     }
 }
-

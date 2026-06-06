@@ -7,6 +7,7 @@ public record UpdateSubBudgetCommand(
         Long budgetId,
         Long subBudgetId,
         Long categoryId,
+        Long participantId,
         String name,
         Money plannedAmount
 ) {

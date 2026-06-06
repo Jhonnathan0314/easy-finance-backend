@@ -64,6 +64,7 @@ class InstallmentExpenseTransactionIT {
 
         assertThatThrownBy(() -> createInstallmentExpensePort.createInstallmentExpense(new CreateInstallmentExpenseCommand(
                 fixture.accountId(),
+                null,
                 fixture.categoryId(),
                 fixture.paymentMethodId(),
                 "Rollback laptop",

@@ -214,7 +214,7 @@ public final class Expense {
         return restore(id, accountId, categoryId, paymentMethodId, participantId, description, amount, expenseDate, paymentState, status, expenseType, ExpenseSourceType.MANUAL, null, createdAt, updatedAt);
     }
 
-    public Expense update(Long categoryId, Long paymentMethodId, String description, Money amount, LocalDate expenseDate, ExpensePaymentState paymentState) {
+    public Expense update(Long categoryId, Long paymentMethodId, Long participantId, String description, Money amount, LocalDate expenseDate, ExpensePaymentState paymentState) {
         ensureActive();
         return new Expense(id, accountId, categoryId, paymentMethodId, participantId, description, amount, expenseDate, paymentState, status, expenseType, sourceType, sourceDebtPaymentId, createdAt, updatedAt);
     }

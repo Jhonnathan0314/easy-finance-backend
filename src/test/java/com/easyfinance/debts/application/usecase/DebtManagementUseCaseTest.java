@@ -3,11 +3,13 @@ package com.easyfinance.debts.application.usecase;
 import com.easyfinance.accounts.application.port.out.AccountParticipantRepositoryPort;
 import com.easyfinance.accounts.application.port.out.AccountRepositoryPort;
 import com.easyfinance.accounts.application.service.AccountAuthorizationService;
+import com.easyfinance.accounts.application.service.AssignedParticipantValidator;
 import com.easyfinance.accounts.domain.model.Account;
 import com.easyfinance.accounts.domain.model.AccountParticipant;
 import com.easyfinance.accounts.domain.model.AccountParticipantRole;
 import com.easyfinance.accounts.domain.model.AccountParticipantStatus;
 import com.easyfinance.accounts.domain.model.AccountStatus;
+import com.easyfinance.budgets.application.command.CreateDebtBudgetImpactsCommand;
 import com.easyfinance.budgets.application.port.in.BudgetDebtImpactPort;
 import com.easyfinance.debts.application.command.CreateInstallmentExpenseDebtCommand;
 import com.easyfinance.debts.application.command.CreateManualDebtCommand;
@@ -25,6 +27,7 @@ import com.easyfinance.shared.domain.Money;
 import com.easyfinance.shared.domain.NotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -51,7 +54,8 @@ class DebtManagementUseCaseTest {
     private final DebtRepositoryPort debtRepository = mock(DebtRepositoryPort.class);
     private final DebtPaymentRepositoryPort debtPaymentRepository = mock(DebtPaymentRepositoryPort.class);
     private final AccountAuthorizationService authorizationService = new AccountAuthorizationService(accountRepository, accountParticipantRepository);
-    private final DebtManagementUseCase useCase = new DebtManagementUseCase(currentUserProvider, authorizationService, expenseOriginValidationPort, budgetDebtImpactPort, debtRepository, debtPaymentRepository);
+    private final AssignedParticipantValidator assignedParticipantValidator = new AssignedParticipantValidator(accountParticipantRepository);
+    private final DebtManagementUseCase useCase = new DebtManagementUseCase(currentUserProvider, authorizationService, assignedParticipantValidator, expenseOriginValidationPort, budgetDebtImpactPort, debtRepository, debtPaymentRepository);
 
     @BeforeEach
     void setUp() {
@@ -66,7 +70,30 @@ class DebtManagementUseCaseTest {
         var response = useCase.createManualDebt(manualCommand());
 
         assertThat(response.sourceType()).isEqualTo("MANUAL");
+        assertThat(response.participantId()).isEqualTo(10L);
         assertThat(response.remainingAmount()).isEqualByComparingTo(response.totalAmount());
+    }
+
+    @Test
+    void adminCreatesManualDebtAssignedToAnotherActiveParticipant() {
+        givenAdminAccess(AccountStatus.ACTIVE, 10L);
+        givenAssignedParticipant(20L, AccountParticipantStatus.ACTIVE);
+        when(debtRepository.save(any(Debt.class))).thenAnswer(invocation -> persisted(invocation.getArgument(0)));
+
+        var response = useCase.createManualDebt(manualCommand(20L));
+
+        assertThat(response.sourceType()).isEqualTo("MANUAL");
+        assertThat(response.participantId()).isEqualTo(20L);
+    }
+
+    @Test
+    void memberCannotCreateManualDebtAssignedToAnotherParticipant() {
+        givenMemberAccess(AccountStatus.ACTIVE, 10L);
+
+        assertThatThrownBy(() -> useCase.createManualDebt(manualCommand(20L)))
+                .isInstanceOfSatisfying(ForbiddenOperationException.class, ex -> assertThat(ex.code()).isEqualTo("ASSIGNED_PARTICIPANT_NOT_ALLOWED"));
+
+        verify(debtRepository, never()).save(any());
     }
 
     @Test
@@ -79,11 +106,13 @@ class DebtManagementUseCaseTest {
 
     @Test
     void createDerivedDebtWorks() {
+        givenMemberAccess(AccountStatus.ACTIVE, 10L);
         when(debtRepository.save(any(Debt.class))).thenAnswer(invocation -> persisted(invocation.getArgument(0)));
 
         var response = useCase.createInstallmentExpenseDebt(new CreateInstallmentExpenseDebtCommand(1L, 10L, 99L, 7L, "Laptop", null, Money.cop(new BigDecimal("1200000")), 6, Money.cop(new BigDecimal("200000")), LocalDate.of(2026, 6, 1), null));
 
         assertThat(response.sourceType()).isEqualTo("INSTALLMENT_EXPENSE");
+        assertThat(response.participantId()).isEqualTo(10L);
         assertThat(response.totalAmount()).isEqualByComparingTo("1200000.00");
         assertThat(response.scheduledTotalAmount()).isEqualByComparingTo("1200000.00");
         assertThat(response.remainingAmount()).isEqualByComparingTo("1200000.00");
@@ -92,7 +121,45 @@ class DebtManagementUseCaseTest {
     }
 
     @Test
+    void createDerivedDebtWithoutParticipantFallsBackToCurrentUser() {
+        givenMemberAccess(AccountStatus.ACTIVE, 10L);
+        when(debtRepository.save(any(Debt.class))).thenAnswer(invocation -> persisted(invocation.getArgument(0)));
+
+        var response = useCase.createInstallmentExpenseDebt(new CreateInstallmentExpenseDebtCommand(1L, null, 99L, 7L, "Laptop", null, Money.cop(new BigDecimal("1200000")), 6, Money.cop(new BigDecimal("200000")), LocalDate.of(2026, 6, 1), null));
+
+        assertThat(response.participantId()).isEqualTo(10L);
+        verify(expenseOriginValidationPort).validateInstallmentOrigin(1L, 99L);
+    }
+
+    @Test
+    void adminCreatesDerivedDebtAssignedToExpenseParticipant() {
+        givenAdminAccess(AccountStatus.ACTIVE, 10L);
+        givenAssignedParticipant(20L, AccountParticipantStatus.ACTIVE);
+        when(debtRepository.save(any(Debt.class))).thenAnswer(invocation -> persisted(invocation.getArgument(0)));
+
+        var response = useCase.createInstallmentExpenseDebt(new CreateInstallmentExpenseDebtCommand(1L, 20L, 99L, 7L, "Laptop", null, Money.cop(new BigDecimal("1200000")), 6, Money.cop(new BigDecimal("200000")), LocalDate.of(2026, 6, 1), null));
+
+        assertThat(response.participantId()).isEqualTo(20L);
+        ArgumentCaptor<CreateDebtBudgetImpactsCommand> impactsCaptor = ArgumentCaptor.forClass(CreateDebtBudgetImpactsCommand.class);
+        verify(budgetDebtImpactPort).createImpactsForInstallmentDebt(impactsCaptor.capture());
+        assertThat(impactsCaptor.getValue().participantId()).isEqualTo(20L);
+    }
+
+    @Test
+    void memberCannotCreateDerivedDebtAssignedToAnotherParticipant() {
+        givenMemberAccess(AccountStatus.ACTIVE, 10L);
+
+        assertThatThrownBy(() -> useCase.createInstallmentExpenseDebt(new CreateInstallmentExpenseDebtCommand(1L, 20L, 99L, 7L, "Laptop", null, Money.cop(new BigDecimal("1200000")), 6, Money.cop(new BigDecimal("200000")), LocalDate.of(2026, 6, 1), null)))
+                .isInstanceOfSatisfying(ForbiddenOperationException.class, ex -> assertThat(ex.code()).isEqualTo("ASSIGNED_PARTICIPANT_NOT_ALLOWED"));
+
+        verify(expenseOriginValidationPort, never()).validateInstallmentOrigin(any(), any());
+        verify(debtRepository, never()).save(any());
+        verify(budgetDebtImpactPort, never()).createImpactsForInstallmentDebt(any());
+    }
+
+    @Test
     void createDerivedDebtSeparatesPrincipalAndScheduledTotal() {
+        givenMemberAccess(AccountStatus.ACTIVE, 10L);
         when(debtRepository.save(any(Debt.class))).thenAnswer(invocation -> persisted(invocation.getArgument(0)));
 
         var response = useCase.createInstallmentExpenseDebt(new CreateInstallmentExpenseDebtCommand(1L, 10L, 99L, 7L, "Advance", null, Money.cop(new BigDecimal("1000000")), 12, Money.cop(new BigDecimal("100000")), LocalDate.of(2026, 6, 1), null));
@@ -106,6 +173,7 @@ class DebtManagementUseCaseTest {
 
     @Test
     void createDerivedDebtWithSimpleOriginFails() {
+        givenMemberAccess(AccountStatus.ACTIVE, 10L);
         doThrow(new BusinessRuleViolationException("DEBT_ORIGIN_EXPENSE_INVALID_TYPE", "Debt origin expense must be an INSTALLMENT expense."))
                 .when(expenseOriginValidationPort).validateInstallmentOrigin(1L, 99L);
 
@@ -115,6 +183,7 @@ class DebtManagementUseCaseTest {
 
     @Test
     void createDerivedDebtWithOriginFromAnotherAccountFails() {
+        givenMemberAccess(AccountStatus.ACTIVE, 10L);
         doThrow(new NotFoundException("DEBT_ORIGIN_EXPENSE_NOT_FOUND", "Debt origin expense was not found."))
                 .when(expenseOriginValidationPort).validateInstallmentOrigin(1L, 99L);
 
@@ -250,7 +319,16 @@ class DebtManagementUseCaseTest {
     }
 
     private static CreateManualDebtCommand manualCommand() {
-        return new CreateManualDebtCommand(1L, "Loan", null, Money.cop(new BigDecimal("100000")), null, null, LocalDate.of(2026, 5, 11), null, null);
+        return manualCommand(null);
+    }
+
+    private void givenAssignedParticipant(Long participantId, AccountParticipantStatus status) {
+        when(accountParticipantRepository.findByAccountIdAndParticipantId(1L, participantId))
+                .thenReturn(Optional.of(AccountParticipant.restore(1L, 1L, participantId, AccountParticipantRole.ACCOUNT_MEMBER, status, Instant.now(), null, null)));
+    }
+
+    private static CreateManualDebtCommand manualCommand(Long participantId) {
+        return new CreateManualDebtCommand(1L, participantId, "Loan", null, Money.cop(new BigDecimal("100000")), null, null, LocalDate.of(2026, 5, 11), null, null);
     }
 
     private static Debt persisted(Debt debt) {

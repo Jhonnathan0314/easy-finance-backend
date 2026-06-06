@@ -3,6 +3,7 @@ package com.easyfinance.expenses.application.usecase;
 import com.easyfinance.accounts.application.port.out.AccountParticipantRepositoryPort;
 import com.easyfinance.accounts.application.port.out.AccountRepositoryPort;
 import com.easyfinance.accounts.application.service.AccountAuthorizationService;
+import com.easyfinance.accounts.application.service.AssignedParticipantValidator;
 import com.easyfinance.accounts.domain.model.Account;
 import com.easyfinance.accounts.domain.model.AccountParticipant;
 import com.easyfinance.accounts.domain.model.AccountParticipantRole;
@@ -61,7 +62,8 @@ class ExpenseManagementUseCaseTest {
     private final CreateInstallmentExpenseDebtPort createInstallmentExpenseDebtPort = mock(CreateInstallmentExpenseDebtPort.class);
     private final ExpenseRepositoryPort expenseRepository = mock(ExpenseRepositoryPort.class);
     private final AccountAuthorizationService accountAuthorizationService = new AccountAuthorizationService(accountRepository, accountParticipantRepository);
-    private final ExpenseManagementUseCase useCase = new ExpenseManagementUseCase(currentUserProvider, accountAuthorizationService, catalogValidationPort, createInstallmentExpenseDebtPort, expenseRepository);
+    private final AssignedParticipantValidator assignedParticipantValidator = new AssignedParticipantValidator(accountParticipantRepository);
+    private final ExpenseManagementUseCase useCase = new ExpenseManagementUseCase(currentUserProvider, accountAuthorizationService, catalogValidationPort, assignedParticipantValidator, createInstallmentExpenseDebtPort, expenseRepository);
 
     @BeforeEach
     void setUp() {
@@ -81,6 +83,28 @@ class ExpenseManagementUseCaseTest {
         assertThat(response.expenseType()).isEqualTo("SIMPLE");
         assertThat(response.sourceType()).isEqualTo("MANUAL");
         assertThat(response.sourceDebtPaymentId()).isNull();
+    }
+
+    @Test
+    void adminCreatesExpenseAssignedToAnotherActiveParticipant() {
+        givenAdminAccess(AccountStatus.ACTIVE, 10L);
+        givenAssignedParticipant(20L, AccountParticipantStatus.ACTIVE);
+        givenValidCatalogs();
+        when(expenseRepository.save(any(Expense.class))).thenAnswer(invocation -> persisted(invocation.getArgument(0)));
+
+        var response = useCase.createExpense(createCommand(20L));
+
+        assertThat(response.participantId()).isEqualTo(20L);
+    }
+
+    @Test
+    void memberCannotCreateExpenseAssignedToAnotherParticipant() {
+        givenMemberAccess(AccountStatus.ACTIVE, 10L);
+
+        assertThatThrownBy(() -> useCase.createExpense(createCommand(20L)))
+                .isInstanceOfSatisfying(ForbiddenOperationException.class, ex -> assertThat(ex.code()).isEqualTo("ASSIGNED_PARTICIPANT_NOT_ALLOWED"));
+
+        verify(expenseRepository, never()).save(any());
     }
 
     @Test
@@ -179,6 +203,7 @@ class ExpenseManagementUseCaseTest {
 
         var response = useCase.createInstallmentExpense(new CreateInstallmentExpenseCommand(
                 1L,
+                null,
                 2L,
                 3L,
                 "Laptop",
@@ -196,6 +221,22 @@ class ExpenseManagementUseCaseTest {
         ArgumentCaptor<CreateInstallmentExpenseDebtCommand> commandCaptor = ArgumentCaptor.forClass(CreateInstallmentExpenseDebtCommand.class);
         verify(createInstallmentExpenseDebtPort).createInstallmentExpenseDebt(commandCaptor.capture());
         assertThat(commandCaptor.getValue().totalAmount().amount()).isEqualByComparingTo("1200000.00");
+        assertThat(commandCaptor.getValue().participantId()).isEqualTo(10L);
+    }
+
+    @Test
+    void createInstallmentExpenseAssignedToAnotherParticipantPropagatesToDebt() {
+        givenAdminAccess(AccountStatus.ACTIVE, 10L);
+        givenAssignedParticipant(20L, AccountParticipantStatus.ACTIVE);
+        givenValidCatalogs();
+        when(expenseRepository.save(any(Expense.class))).thenAnswer(invocation -> persisted(invocation.getArgument(0)));
+
+        var response = useCase.createInstallmentExpense(installmentCommand(20L));
+
+        ArgumentCaptor<CreateInstallmentExpenseDebtCommand> commandCaptor = ArgumentCaptor.forClass(CreateInstallmentExpenseDebtCommand.class);
+        verify(createInstallmentExpenseDebtPort).createInstallmentExpenseDebt(commandCaptor.capture());
+        assertThat(response.participantId()).isEqualTo(20L);
+        assertThat(commandCaptor.getValue().participantId()).isEqualTo(20L);
     }
 
     @Test
@@ -206,6 +247,7 @@ class ExpenseManagementUseCaseTest {
 
         var response = useCase.createInstallmentExpense(new CreateInstallmentExpenseCommand(
                 1L,
+                null,
                 2L,
                 3L,
                 "Advance",
@@ -234,6 +276,7 @@ class ExpenseManagementUseCaseTest {
 
         assertThatThrownBy(() -> useCase.createInstallmentExpense(new CreateInstallmentExpenseCommand(
                 1L,
+                null,
                 2L,
                 3L,
                 "Advance",
@@ -256,6 +299,7 @@ class ExpenseManagementUseCaseTest {
 
         assertThatThrownBy(() -> useCase.createInstallmentExpense(new CreateInstallmentExpenseCommand(
                 1L,
+                null,
                 2L,
                 3L,
                 "Laptop",
@@ -315,6 +359,7 @@ class ExpenseManagementUseCaseTest {
         var response = useCase.updateExpense(updateCommand());
 
         assertThat(response.description()).isEqualTo("Dinner");
+        assertThat(response.participantId()).isEqualTo(10L);
     }
 
     @Test
@@ -336,6 +381,32 @@ class ExpenseManagementUseCaseTest {
         var response = useCase.updateExpense(updateCommand());
 
         assertThat(response.description()).isEqualTo("Dinner");
+        assertThat(response.participantId()).isEqualTo(20L);
+    }
+
+    @Test
+    void adminReassignsExpenseToAnotherActiveParticipant() {
+        givenAdminAccess(AccountStatus.ACTIVE, 10L);
+        givenAssignedParticipant(30L, AccountParticipantStatus.ACTIVE);
+        givenValidCatalogs();
+        when(expenseRepository.findByAccountIdAndId(1L, 5L)).thenReturn(Optional.of(expense(5L, 20L, ExpenseStatus.ACTIVE)));
+        when(expenseRepository.save(any(Expense.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = useCase.updateExpense(updateCommand(30L));
+
+        assertThat(response.participantId()).isEqualTo(30L);
+    }
+
+    @Test
+    void memberCannotReassignExpenseToAnotherParticipant() {
+        givenMemberAccess(AccountStatus.ACTIVE, 10L);
+        givenValidCatalogs();
+        when(expenseRepository.findByAccountIdAndId(1L, 5L)).thenReturn(Optional.of(expense(5L, 10L, ExpenseStatus.ACTIVE)));
+
+        assertThatThrownBy(() -> useCase.updateExpense(updateCommand(20L)))
+                .isInstanceOfSatisfying(ForbiddenOperationException.class, ex -> assertThat(ex.code()).isEqualTo("ASSIGNED_PARTICIPANT_NOT_ALLOWED"));
+
+        verify(expenseRepository, never()).save(any());
     }
 
     @Test
@@ -554,12 +625,25 @@ class ExpenseManagementUseCaseTest {
                 .thenReturn(Optional.of(AccountParticipant.restore(1L, 1L, participantId, AccountParticipantRole.ACCOUNT_ADMIN, AccountParticipantStatus.ACTIVE, Instant.now(), null, null)));
     }
 
+    private void givenAssignedParticipant(Long participantId, AccountParticipantStatus status) {
+        when(accountParticipantRepository.findByAccountIdAndParticipantId(1L, participantId))
+                .thenReturn(Optional.of(AccountParticipant.restore(1L, 1L, participantId, AccountParticipantRole.ACCOUNT_MEMBER, status, Instant.now(), null, null)));
+    }
+
     private static CreateExpenseCommand createCommand() {
-        return new CreateExpenseCommand(1L, 2L, 3L, "Lunch", Money.cop(new BigDecimal("12000")), LocalDate.now(), null);
+        return createCommand(null);
+    }
+
+    private static CreateExpenseCommand createCommand(Long participantId) {
+        return new CreateExpenseCommand(1L, participantId, 2L, 3L, "Lunch", Money.cop(new BigDecimal("12000")), LocalDate.now(), null);
     }
 
     private static UpdateExpenseCommand updateCommand() {
-        return new UpdateExpenseCommand(1L, 5L, 2L, 3L, "Dinner", Money.cop(new BigDecimal("15000")), LocalDate.now(), ExpensePaymentState.PAID);
+        return updateCommand(null);
+    }
+
+    private static UpdateExpenseCommand updateCommand(Long participantId) {
+        return new UpdateExpenseCommand(1L, 5L, participantId, 2L, 3L, "Dinner", Money.cop(new BigDecimal("15000")), LocalDate.now(), ExpensePaymentState.PAID);
     }
 
     private static DuplicateExpenseCommand duplicateCommand() {
@@ -567,8 +651,13 @@ class ExpenseManagementUseCaseTest {
     }
 
     private static CreateInstallmentExpenseCommand installmentCommand() {
+        return installmentCommand(null);
+    }
+
+    private static CreateInstallmentExpenseCommand installmentCommand(Long participantId) {
         return new CreateInstallmentExpenseCommand(
                 1L,
+                participantId,
                 2L,
                 3L,
                 "Laptop",

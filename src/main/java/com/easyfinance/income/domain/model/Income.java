@@ -42,7 +42,7 @@ public final class Income {
         return new Income(id, accountId, categoryId, participantId, description, amount, incomeDate, status, createdAt, updatedAt);
     }
 
-    public Income update(Long categoryId, String description, Money amount, LocalDate incomeDate) {
+    public Income update(Long categoryId, Long participantId, String description, Money amount, LocalDate incomeDate) {
         ensureActive();
         return new Income(id, accountId, categoryId, participantId, description, amount, incomeDate, status, createdAt, updatedAt);
     }

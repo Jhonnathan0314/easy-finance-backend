@@ -74,11 +74,11 @@ public final class BudgetRestMapper {
     }
 
     public static CreateSubBudgetCommand toCommand(Long accountId, Long budgetId, CreateSubBudgetRequest request) {
-        return new CreateSubBudgetCommand(accountId, budgetId, request.categoryId(), request.name(), Money.cop(request.plannedAmount()));
+        return new CreateSubBudgetCommand(accountId, budgetId, request.categoryId(), request.participantId(), request.name(), Money.cop(request.plannedAmount()));
     }
 
     public static UpdateSubBudgetCommand toCommand(Long accountId, Long budgetId, Long subBudgetId, UpdateSubBudgetRequest request) {
-        return new UpdateSubBudgetCommand(accountId, budgetId, subBudgetId, request.categoryId(), request.name(), Money.cop(request.plannedAmount()));
+        return new UpdateSubBudgetCommand(accountId, budgetId, subBudgetId, request.categoryId(), request.participantId(), request.name(), Money.cop(request.plannedAmount()));
     }
 
     public static BudgetResponseDto toDto(BudgetResponse response) {
@@ -107,6 +107,7 @@ public final class BudgetRestMapper {
                 response.accountId(),
                 response.budgetId(),
                 response.categoryId(),
+                response.participantId(),
                 response.debtId(),
                 response.name(),
                 response.plannedAmount(),

@@ -16,6 +16,7 @@ public class SubBudgetPersistenceMapper {
                 entity.getAccountId(),
                 entity.getBudgetId(),
                 entity.getCategoryId(),
+                entity.getParticipantId(),
                 entity.getDebtId(),
                 entity.getName(),
                 Money.cop(entity.getPlannedAmount()),
@@ -38,6 +39,7 @@ public class SubBudgetPersistenceMapper {
         entity.setAccountId(subBudget.accountId());
         entity.setBudgetId(subBudget.budgetId());
         entity.setCategoryId(subBudget.categoryId());
+        entity.setParticipantId(subBudget.participantId());
         entity.setDebtId(subBudget.debtId());
         entity.setName(subBudget.name());
         entity.setPlannedAmount(subBudget.plannedAmount().amount());

@@ -64,6 +64,8 @@ public class ExpenseImportPersistenceMapper {
         entity.setPaymentMethodName(row.paymentMethodName());
         entity.setPaymentMethodId(row.paymentMethodId());
         entity.setPaymentState(row.paymentState() == null ? null : row.paymentState().name());
+        entity.setParticipantLabel(row.participantLabel());
+        entity.setParticipantId(row.participantId());
         entity.setAppliesDebtPayment(row.appliesDebtPayment());
         entity.setDebtId(row.debtId());
         entity.setDebtLabel(row.debtLabel());
@@ -90,6 +92,8 @@ public class ExpenseImportPersistenceMapper {
                 entity.getPaymentMethodName(),
                 entity.getPaymentMethodId(),
                 entity.getPaymentState() == null ? null : ExpensePaymentState.valueOf(entity.getPaymentState()),
+                entity.getParticipantLabel(),
+                entity.getParticipantId(),
                 entity.isAppliesDebtPayment(),
                 entity.getDebtId(),
                 entity.getDebtLabel(),

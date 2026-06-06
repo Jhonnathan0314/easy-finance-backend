@@ -63,4 +63,43 @@ class JdbcBudgetExpenseExecutionQueryAdapterTest {
         assertThat(result).isEmpty();
         verify(jdbcTemplate, never()).query(any(String.class), any(SqlParameterSource.class), any(RowMapper.class));
     }
+
+    @Test
+    void sumsManualExecutionByCategoryAndParticipant() {
+        NamedParameterJdbcTemplate jdbcTemplate = mock(NamedParameterJdbcTemplate.class);
+        JdbcBudgetExpenseExecutionQueryAdapter adapter = new JdbcBudgetExpenseExecutionQueryAdapter(jdbcTemplate);
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<SqlParameterSource> paramsCaptor = ArgumentCaptor.forClass(SqlParameterSource.class);
+        var key = new com.easyfinance.budgets.application.port.out.BudgetExpenseExecutionQueryPort.CategoryParticipantKey(7L, 20L);
+        when(jdbcTemplate.query(sqlCaptor.capture(), paramsCaptor.capture(), any(RowMapper.class)))
+                .thenReturn(List.of(Map.entry(key, new BigDecimal("25000.00"))));
+
+        Map<com.easyfinance.budgets.application.port.out.BudgetExpenseExecutionQueryPort.CategoryParticipantKey, BigDecimal> result =
+                adapter.sumManualExecutionByCategoryAndParticipant(
+                        1L,
+                        LocalDate.of(2026, 5, 1),
+                        LocalDate.of(2026, 5, 31),
+                        List.of(key)
+                );
+
+        assertThat(result).containsEntry(key, new BigDecimal("25000.00"));
+        assertThat(sqlCaptor.getValue())
+                .contains("e.category_id IN (:categoryIds)")
+                .contains("e.participant_id IN (:participantIds)")
+                .contains("GROUP BY e.category_id, e.participant_id");
+        MapSqlParameterSource params = (MapSqlParameterSource) paramsCaptor.getValue();
+        assertThat(params.getValue("categoryIds")).isEqualTo(List.of(7L));
+        assertThat(params.getValue("participantIds")).isEqualTo(List.of(20L));
+    }
+
+    @Test
+    void emptyCategoryParticipantKeysDoNotQueryDatabase() {
+        NamedParameterJdbcTemplate jdbcTemplate = mock(NamedParameterJdbcTemplate.class);
+        JdbcBudgetExpenseExecutionQueryAdapter adapter = new JdbcBudgetExpenseExecutionQueryAdapter(jdbcTemplate);
+
+        Map<?, BigDecimal> result = adapter.sumManualExecutionByCategoryAndParticipant(1L, LocalDate.now(), LocalDate.now(), List.of());
+
+        assertThat(result).isEmpty();
+        verify(jdbcTemplate, never()).query(any(String.class), any(SqlParameterSource.class), any(RowMapper.class));
+    }
 }

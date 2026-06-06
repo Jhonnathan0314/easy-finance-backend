@@ -38,7 +38,7 @@ class IncomeTest {
     void cancelledIncomeCannotBeUpdated() {
         Income cancelled = income(IncomeStatus.CANCELLED);
 
-        assertThatThrownBy(() -> cancelled.update(2L, "Updated", Money.cop(new BigDecimal("100000")), LocalDate.now()))
+        assertThatThrownBy(() -> cancelled.update(2L, 10L, "Updated", Money.cop(new BigDecimal("100000")), LocalDate.now()))
                 .isInstanceOfSatisfying(BusinessRuleViolationException.class, ex -> assertThat(ex.code()).isEqualTo("INCOME_ALREADY_CANCELLED"));
     }
 

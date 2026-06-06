@@ -89,8 +89,11 @@
 - Expense imports are Excel `.xlsx` only.
 - Flow is preview then confirm.
 - Preview validates rows and does not create expenses.
+- Preview returns parsed row data including optional row-level participant resolution (`participantLabel`, `participantId`).
 - Confirm creates expenses only for valid rows and registers debt payments for valid rows marked with debt payment.
+- Confirm creates each imported expense with the participant resolved for that row; blank participant falls back to the authenticated participant.
 - A row marked with debt payment creates both the imported expense and the debt payment in one transaction.
 - Invalid rows remain reported in the batch.
 - Confirm is locked per batch to avoid duplicate expenses.
 - Confirm is transactional: if one valid row fails, no partial expenses or partial row updates remain.
+- Income and annual-budget imports also support optional `Participante` in their templates/previews. For budgets, blank participant means a global sub-budget, while a selected participant creates participant-scoped execution.

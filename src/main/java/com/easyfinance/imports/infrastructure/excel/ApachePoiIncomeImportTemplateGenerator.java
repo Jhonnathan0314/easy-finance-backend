@@ -32,7 +32,8 @@ public class ApachePoiIncomeImportTemplateGenerator implements IncomeImportTempl
     private static final String INCOMES_SHEET = "Ingresos";
     private static final String VALUES_SHEET = "Valores";
     private static final String CATEGORY_RANGE = "CategoriasIngreso";
-    private static final String[] HEADERS = {"Fecha (yyyy-MM-dd)", "Descripcion", "Categoria", "Monto"};
+    private static final String PARTICIPANT_RANGE = "ParticipantesIngreso";
+    private static final String[] HEADERS = {"Fecha (yyyy-MM-dd)", "Descripcion", "Categoria", "Monto", "Participante"};
 
     @Override
     public byte[] generate(IncomeImportTemplateData data) {
@@ -42,7 +43,7 @@ public class ApachePoiIncomeImportTemplateGenerator implements IncomeImportTempl
             CreationHelper creationHelper = workbook.getCreationHelper();
 
             createValuesSheet(values, data);
-            createNamedRanges(workbook, data.categoryNames().size());
+            createNamedRanges(workbook, data.categoryNames().size(), data.participantLabels().size());
             createIncomesSheet(workbook, incomes, creationHelper);
             workbook.setSheetHidden(workbook.getSheetIndex(values), true);
 
@@ -55,12 +56,15 @@ public class ApachePoiIncomeImportTemplateGenerator implements IncomeImportTempl
 
     private static void createValuesSheet(Sheet sheet, IncomeImportTemplateData data) {
         List<String> categoryNames = data.categoryNames();
+        List<String> participantLabels = data.participantLabels();
         Row header = sheet.createRow(0);
         header.createCell(0).setCellValue("Categorias");
+        header.createCell(1).setCellValue("Participantes");
         header.createCell(2).setCellValue("Instrucciones");
-        header.createCell(3).setCellValue("No modificar cabeceras. Maximo 1000 filas. Categoria debe existir activa y ser INCOME.");
+        header.createCell(3).setCellValue("No modificar cabeceras. Maximo 1000 filas. Categoria debe existir activa y ser INCOME. Participante es opcional; vacio usa el usuario logueado.");
 
-        for (int i = 0; i < Math.max(categoryNames.size(), 1); i++) {
+        int rows = Math.max(Math.max(categoryNames.size(), participantLabels.size()), 1);
+        for (int i = 0; i < rows; i++) {
             Row row = sheet.getRow(i + 1);
             if (row == null) {
                 row = sheet.createRow(i + 1);
@@ -68,18 +72,26 @@ public class ApachePoiIncomeImportTemplateGenerator implements IncomeImportTempl
             if (i < categoryNames.size()) {
                 row.createCell(0).setCellValue(categoryNames.get(i));
             }
+            if (i < participantLabels.size()) {
+                row.createCell(1).setCellValue(participantLabels.get(i));
+            }
         }
         if (categoryNames.isEmpty()) {
             sheet.getRow(1).createCell(2).setCellValue("No hay categorias INCOME activas para esta cuenta.");
         }
+        if (participantLabels.isEmpty()) {
+            sheet.getRow(1).createCell(3).setCellValue("No hay participantes activos para esta cuenta.");
+        }
 
         sheet.setColumnWidth(0, 36 * 256);
+        sheet.setColumnWidth(1, 42 * 256);
         sheet.setColumnWidth(2, 18 * 256);
         sheet.setColumnWidth(3, 90 * 256);
     }
 
-    private static void createNamedRanges(Workbook workbook, int categoryCount) {
+    private static void createNamedRanges(Workbook workbook, int categoryCount, int participantCount) {
         createNamedRange(workbook, CATEGORY_RANGE, 0, Math.max(categoryCount, 1));
+        createNamedRange(workbook, PARTICIPANT_RANGE, 1, Math.max(participantCount, 1));
     }
 
     private static void createNamedRange(Workbook workbook, String name, int columnIndex, int valueCount) {
@@ -113,12 +125,14 @@ public class ApachePoiIncomeImportTemplateGenerator implements IncomeImportTempl
         addDateValidation(sheet);
         addAmountValidation(sheet);
         addFormulaListValidation(sheet, 2, CATEGORY_RANGE, "Categoria invalida", "Use una categoria INCOME activa de la hoja Valores.");
+        addFormulaListValidation(sheet, 4, PARTICIPANT_RANGE, "Participante invalido", "Use un participante activo de la hoja Valores o deje vacio.");
 
         sheet.createFreezePane(0, 1);
         sheet.setColumnWidth(0, 14 * 256);
         sheet.setColumnWidth(1, 36 * 256);
         sheet.setColumnWidth(2, 30 * 256);
         sheet.setColumnWidth(3, 14 * 256);
+        sheet.setColumnWidth(4, 42 * 256);
     }
 
     private static void addDateValidation(Sheet sheet) {

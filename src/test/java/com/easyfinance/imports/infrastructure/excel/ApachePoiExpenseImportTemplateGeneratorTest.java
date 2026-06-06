@@ -21,9 +21,10 @@ class ApachePoiExpenseImportTemplateGeneratorTest {
     @Test
     void generatedWorkbookHasExpectedSheetsHeadersAndValues() throws Exception {
         byte[] bytes = generator.generate(new ExpenseImportTemplateData(
-                List.of("AlimentaciÃ³n", "Transporte"),
+                List.of("AlimentaciÃƒÂ³n", "Transporte"),
                 List.of("Efectivo", "Visa"),
-                List.of(new ExpenseImportTemplateData.DebtOption(99L, "Loan | Saldo: 120000.00 | Inicio: 2026-05-01 | MANUAL"))
+                List.of(new ExpenseImportTemplateData.DebtOption(99L, "Loan | Saldo: 120000.00 | Inicio: 2026-05-01 | MANUAL")), 
+                List.of("Ana Finance <ana@example.com>")
         ));
 
         try (Workbook workbook = new XSSFWorkbook(new ByteArrayInputStream(bytes))) {
@@ -33,8 +34,8 @@ class ApachePoiExpenseImportTemplateGeneratorTest {
             assertThat(gastos).isNotNull();
             assertThat(valores).isNotNull();
             assertThat(workbook.isSheetHidden(workbook.getSheetIndex(valores))).isTrue();
-            assertThat(headerValues(gastos.getRow(0))).containsExactly("Fecha", "DescripciÃ³n", "Monto", "CategorÃ­a", "MedioPago", "EstadoPago", "AplicaPagoDeuda", "Deuda", "TipoPagoDeuda", "NotasPagoDeuda");
-            assertThat(valores.getRow(1).getCell(0).getStringCellValue()).isEqualTo("AlimentaciÃ³n");
+            assertThat(headerValues(gastos.getRow(0))).containsExactly("Fecha", "DescripciÃ³n", "Monto", "CategorÃ­a", "MedioPago", "EstadoPago", "AplicaPagoDeuda", "Deuda", "TipoPagoDeuda", "NotasPagoDeuda", "Participante");
+            assertThat(valores.getRow(1).getCell(0).getStringCellValue()).isEqualTo("AlimentaciÃƒÂ³n");
             assertThat(valores.getRow(2).getCell(0).getStringCellValue()).isEqualTo("Transporte");
             assertThat(valores.getRow(1).getCell(1).getStringCellValue()).isEqualTo("Efectivo");
             assertThat(valores.getRow(2).getCell(1).getStringCellValue()).isEqualTo("Visa");
@@ -47,10 +48,11 @@ class ApachePoiExpenseImportTemplateGeneratorTest {
             assertThat(valores.getRow(2).getCell(5).getStringCellValue()).isEqualTo("NO");
             assertThat(valores.getRow(1).getCell(6).getStringCellValue()).isEqualTo("INSTALLMENT");
             assertThat(valores.getRow(2).getCell(6).getStringCellValue()).isEqualTo("CAPITAL_PAYMENT");
+            assertThat(valores.getRow(1).getCell(7).getStringCellValue()).isEqualTo("Ana Finance <ana@example.com>");
             assertThat(valores.getRow(0).getCell(9).getStringCellValue()).contains("1500 filas");
             assertThat(gastos.getRow(1500)).isNotNull();
             assertThat(gastos.getRow(1501)).isNull();
-            assertThat(gastos.getDataValidations()).hasSizeGreaterThanOrEqualTo(8);
+            assertThat(gastos.getDataValidations()).hasSizeGreaterThanOrEqualTo(9);
         }
     }
 
@@ -96,7 +98,8 @@ class ApachePoiExpenseImportTemplateGeneratorTest {
                 row.getCell(6).getStringCellValue(),
                 row.getCell(7).getStringCellValue(),
                 row.getCell(8).getStringCellValue(),
-                row.getCell(9).getStringCellValue()
+                row.getCell(9).getStringCellValue(),
+                row.getCell(10).getStringCellValue()
         );
     }
 

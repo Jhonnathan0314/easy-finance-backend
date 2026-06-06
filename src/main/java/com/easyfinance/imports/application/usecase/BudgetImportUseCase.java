@@ -1,6 +1,12 @@
 package com.easyfinance.imports.application.usecase;
 
 import com.easyfinance.accounts.application.service.AccountAuthorizationService;
+import com.easyfinance.accounts.application.port.out.AccountParticipantRepositoryPort;
+import com.easyfinance.accounts.application.port.out.ParticipantLookupPort;
+import com.easyfinance.accounts.application.response.ParticipantInfo;
+import com.easyfinance.accounts.application.service.AccountAccess;
+import com.easyfinance.accounts.application.service.AssignedParticipantValidator;
+import com.easyfinance.accounts.domain.model.AccountParticipantStatus;
 import com.easyfinance.budgets.application.port.out.BudgetRepositoryPort;
 import com.easyfinance.budgets.application.port.out.SubBudgetRepositoryPort;
 import com.easyfinance.budgets.domain.model.Budget;
@@ -26,6 +32,7 @@ import com.easyfinance.imports.application.validation.AnnualBudgetImportParsedRo
 import com.easyfinance.shared.application.CurrentUser;
 import com.easyfinance.shared.application.CurrentUserProvider;
 import com.easyfinance.shared.domain.BusinessRuleViolationException;
+import com.easyfinance.shared.domain.DomainException;
 import com.easyfinance.shared.domain.Money;
 import com.easyfinance.shared.domain.UnauthorizedOperationException;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,6 +46,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class BudgetImportUseCase implements GenerateAnnualBudgetImportTemplatePort, ImportAnnualBudgetPort, PreviewAnnualBudgetImportPort {
@@ -54,6 +63,9 @@ public class BudgetImportUseCase implements GenerateAnnualBudgetImportTemplatePo
     private final CatalogValidationPort catalogValidationPort;
     private final BudgetRepositoryPort budgetRepository;
     private final SubBudgetRepositoryPort subBudgetRepository;
+    private final AssignedParticipantValidator assignedParticipantValidator;
+    private final AccountParticipantRepositoryPort accountParticipantRepository;
+    private final ParticipantLookupPort participantLookupPort;
     private final long maxFileSizeBytes;
 
     public BudgetImportUseCase(
@@ -65,6 +77,9 @@ public class BudgetImportUseCase implements GenerateAnnualBudgetImportTemplatePo
             CatalogValidationPort catalogValidationPort,
             BudgetRepositoryPort budgetRepository,
             SubBudgetRepositoryPort subBudgetRepository,
+            AssignedParticipantValidator assignedParticipantValidator,
+            AccountParticipantRepositoryPort accountParticipantRepository,
+            ParticipantLookupPort participantLookupPort,
             @Value("${easy-finance.imports.budgets-annual.max-file-size-bytes:5242880}") long maxFileSizeBytes
     ) {
         this.currentUserProvider = currentUserProvider;
@@ -75,6 +90,9 @@ public class BudgetImportUseCase implements GenerateAnnualBudgetImportTemplatePo
         this.catalogValidationPort = catalogValidationPort;
         this.budgetRepository = budgetRepository;
         this.subBudgetRepository = subBudgetRepository;
+        this.assignedParticipantValidator = assignedParticipantValidator;
+        this.accountParticipantRepository = accountParticipantRepository;
+        this.participantLookupPort = participantLookupPort;
         this.maxFileSizeBytes = maxFileSizeBytes;
     }
 
@@ -85,15 +103,15 @@ public class BudgetImportUseCase implements GenerateAnnualBudgetImportTemplatePo
         List<String> categoryNames = categoryRepository.findActiveExpenseByAccountId(accountId).stream()
                 .map(category -> category.name())
                 .toList();
-        byte[] content = templateGeneratorPort.generate(new AnnualBudgetImportTemplateData(categoryNames));
+        byte[] content = templateGeneratorPort.generate(new AnnualBudgetImportTemplateData(categoryNames, activeParticipantLabels(accountId)));
         return new AnnualBudgetImportTemplateResponse(TEMPLATE_FILENAME, TEMPLATE_CONTENT_TYPE, content);
     }
 
     @Override
     @Transactional
     public AnnualBudgetImportResponse importAnnualBudget(ImportAnnualBudgetCommand command) {
-        accountAuthorizationService.requireActiveAdminForActiveAccount(command.accountId(), currentUser().participantId());
-        ValidatedAnnualBudgetImport validatedImport = validateImport(command);
+        AccountAccess access = accountAuthorizationService.requireActiveAdminForActiveAccount(command.accountId(), currentUser().participantId());
+        ValidatedAnnualBudgetImport validatedImport = validateImport(command, access);
 
         if (validatedImport.year() == null) {
             return new AnnualBudgetImportResponse(null, 0, 0, validatedImport.rows());
@@ -116,6 +134,7 @@ public class BudgetImportUseCase implements GenerateAnnualBudgetImportTemplatePo
                         command.accountId(),
                         budget.id(),
                         row.categoryId(),
+                        row.participantId(),
                         row.subBudgetName(),
                         row.plannedAmount()
                 ));
@@ -129,8 +148,8 @@ public class BudgetImportUseCase implements GenerateAnnualBudgetImportTemplatePo
     @Override
     @Transactional(readOnly = true)
     public AnnualBudgetImportResponse previewAnnualBudget(ImportAnnualBudgetCommand command) {
-        accountAuthorizationService.requireActiveAdminForActiveAccount(command.accountId(), currentUser().participantId());
-        ValidatedAnnualBudgetImport validatedImport = validateImport(command);
+        AccountAccess access = accountAuthorizationService.requireActiveAdminForActiveAccount(command.accountId(), currentUser().participantId());
+        ValidatedAnnualBudgetImport validatedImport = validateImport(command, access);
         if (validatedImport.year() != null && !validatedImport.hasErrors() && hasExistingBudgetInYear(command.accountId(), validatedImport.year())) {
             return new AnnualBudgetImportResponse(
                     validatedImport.year(),
@@ -144,7 +163,7 @@ public class BudgetImportUseCase implements GenerateAnnualBudgetImportTemplatePo
         return new AnnualBudgetImportResponse(validatedImport.year(), 0, 0, validatedImport.rows());
     }
 
-    private ValidatedAnnualBudgetImport validateImport(ImportAnnualBudgetCommand command) {
+    private ValidatedAnnualBudgetImport validateImport(ImportAnnualBudgetCommand command, AccountAccess access) {
         validateFile(command);
 
         List<AnnualBudgetImportParsedRow> parsedRows = parserPort.parse(command);
@@ -152,6 +171,7 @@ public class BudgetImportUseCase implements GenerateAnnualBudgetImportTemplatePo
         if (parsedRows.isEmpty()) {
             return ValidatedAnnualBudgetImport.empty();
         }
+        ParticipantCatalog participantCatalog = participantCatalog(command.accountId());
 
         Integer year = null;
         String budgetName = null;
@@ -179,16 +199,18 @@ public class BudgetImportUseCase implements GenerateAnnualBudgetImportTemplatePo
             }
 
             Long categoryId = resolveCategory(command.accountId(), parsedRow.categoryName(), errors);
+            ParticipantResolution participant = resolveParticipant(access, participantCatalog, parsedRow.participantLabel(), errors);
             String normalizedSubBudgetName = normalize(parsedRow.subBudgetName());
             if (parsedRow.subBudgetName() != null && parsedRow.subBudgetName().length() > 150) {
                 errors.add("NombreSubpresupuesto supera el maximo permitido");
             }
             if (errors.isEmpty()) {
-                CombinationKey key = new CombinationKey(categoryId, normalizedSubBudgetName);
+                CombinationKey key = new CombinationKey(categoryId, normalizedSubBudgetName, participant.participantId());
                 ValidatedRow validated = new ValidatedRow(
                         parsedRow.rowNumber(),
                         parsedRow.subBudgetName().trim(),
                         categoryId,
+                        participant.participantId(),
                         Money.cop(parsedRow.plannedAmount()),
                         parsedRow.monthScope()
                 );
@@ -214,6 +236,8 @@ public class BudgetImportUseCase implements GenerateAnnualBudgetImportTemplatePo
                     categoryId,
                     parsedRow.subBudgetName(),
                     parsedRow.plannedAmount(),
+                    participant == null ? parsedRow.participantLabel() : participant.label(),
+                    participant == null ? null : participant.participantId(),
                     errors.isEmpty(),
                     appliedMonths,
                     errors
@@ -292,6 +316,8 @@ public class BudgetImportUseCase implements GenerateAnnualBudgetImportTemplatePo
                 row.categoryId(),
                 row.subBudgetName(),
                 row.plannedAmount(),
+                row.participantLabel(),
+                row.participantId(),
                 false,
                 List.of(),
                 errors
@@ -309,15 +335,121 @@ public class BudgetImportUseCase implements GenerateAnnualBudgetImportTemplatePo
         return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
     }
 
-    private record CombinationKey(Long categoryId, String normalizedSubBudgetName) {
+    private List<String> activeParticipantLabels(Long accountId) {
+        return participantCatalog(accountId).byId().values()
+                .stream()
+                .map(ParticipantCandidate::label)
+                .sorted()
+                .toList();
+    }
+
+    private ParticipantCatalog participantCatalog(Long accountId) {
+        var activeMemberships = accountParticipantRepository.findByAccountId(accountId)
+                .stream()
+                .filter(membership -> membership.status() == AccountParticipantStatus.ACTIVE)
+                .toList();
+        Map<Long, ParticipantInfo> participants = participantLookupPort.findByParticipantIds(
+                activeMemberships.stream().map(membership -> membership.participantId()).toList()
+        );
+        Map<Long, ParticipantCandidate> byId = activeMemberships.stream()
+                .map(membership -> participants.get(membership.participantId()))
+                .filter(Objects::nonNull)
+                .filter(ParticipantInfo::active)
+                .map(info -> new ParticipantCandidate(info.participantId(), participantLabel(info), info.displayName(), info.email()))
+                .collect(Collectors.toMap(ParticipantCandidate::participantId, Function.identity(), (first, second) -> first));
+        Map<String, List<ParticipantCandidate>> aliases = new HashMap<>();
+        for (ParticipantCandidate candidate : byId.values()) {
+            addAlias(aliases, candidate.label(), candidate);
+            addAlias(aliases, candidate.displayName(), candidate);
+            addAlias(aliases, candidate.email(), candidate);
+        }
+        return new ParticipantCatalog(byId, aliases);
+    }
+
+    private ParticipantResolution resolveParticipant(
+            AccountAccess access,
+            ParticipantCatalog participantCatalog,
+            String participantLabel,
+            List<String> errors
+    ) {
+        if (participantLabel == null || participantLabel.isBlank()) {
+            return new ParticipantResolution(null, null);
+        }
+        List<ParticipantCandidate> candidates = participantCatalog.aliases().get(normalize(participantLabel));
+        if (candidates == null || candidates.isEmpty()) {
+            errors.add("Participante no encontrado o inactivo");
+            return null;
+        }
+        if (candidates.size() > 1) {
+            errors.add("Participante ambiguo");
+            return null;
+        }
+        try {
+            Long resolvedParticipantId = assignedParticipantValidator.resolveNullableAssignedParticipantId(access, candidates.getFirst().participantId());
+            ParticipantCandidate candidate = participantCatalog.byId().get(resolvedParticipantId);
+            return new ParticipantResolution(resolvedParticipantId, candidate == null ? participantLabel : candidate.label());
+        } catch (DomainException ex) {
+            errors.add(participantErrorMessage(ex));
+            return null;
+        }
+    }
+
+    private static void addAlias(Map<String, List<ParticipantCandidate>> aliases, String alias, ParticipantCandidate candidate) {
+        String normalized = normalize(alias);
+        if (normalized.isBlank()) {
+            return;
+        }
+        aliases.computeIfAbsent(normalized, ignored -> new ArrayList<>());
+        if (aliases.get(normalized).stream().noneMatch(existing -> existing.participantId().equals(candidate.participantId()))) {
+            aliases.get(normalized).add(candidate);
+        }
+    }
+
+    private static String participantLabel(ParticipantInfo participant) {
+        if (participant.email() == null || participant.email().isBlank()) {
+            return participant.displayName();
+        }
+        return participant.displayName() + " <" + participant.email() + ">";
+    }
+
+    private static String participantErrorMessage(DomainException ex) {
+        return switch (ex.code()) {
+            case "ASSIGNED_PARTICIPANT_NOT_ALLOWED" -> "Participante no permitido para el usuario actual";
+            case "ASSIGNED_PARTICIPANT_NOT_FOUND", "ASSIGNED_PARTICIPANT_NOT_ACTIVE" -> "Participante no encontrado o inactivo";
+            default -> "Participante invalido";
+        };
+    }
+
+    private record CombinationKey(Long categoryId, String normalizedSubBudgetName, Long participantId) {
     }
 
     private record ValidatedRow(
             int rowNumber,
             String subBudgetName,
             Long categoryId,
+            Long participantId,
             Money plannedAmount,
             AnnualBudgetImportMonthScope monthScope
+    ) {
+    }
+
+    private record ParticipantCandidate(
+            Long participantId,
+            String label,
+            String displayName,
+            String email
+    ) {
+    }
+
+    private record ParticipantCatalog(
+            Map<Long, ParticipantCandidate> byId,
+            Map<String, List<ParticipantCandidate>> aliases
+    ) {
+    }
+
+    private record ParticipantResolution(
+            Long participantId,
+            String label
     ) {
     }
 

@@ -89,7 +89,7 @@ class ExpenseTest {
         Expense expense = Expense.createSimple(1L, 2L, 3L, 4L, "Lunch", Money.cop(new BigDecimal("12000")), LocalDate.now(), null)
                 .cancel();
 
-        assertThatThrownBy(() -> expense.update(2L, 3L, "Dinner", Money.cop(new BigDecimal("15000")), LocalDate.now(), ExpensePaymentState.PAID))
+        assertThatThrownBy(() -> expense.update(2L, 3L, 4L, "Dinner", Money.cop(new BigDecimal("15000")), LocalDate.now(), ExpensePaymentState.PAID))
                 .isInstanceOfSatisfying(BusinessRuleViolationException.class, ex -> assertThat(ex.code()).isEqualTo("EXPENSE_ALREADY_CANCELLED"));
     }
 }

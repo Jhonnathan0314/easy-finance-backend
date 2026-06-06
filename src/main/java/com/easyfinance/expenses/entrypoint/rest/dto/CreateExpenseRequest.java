@@ -10,6 +10,7 @@ import java.time.LocalDate;
 
 public record CreateExpenseRequest(
         @NotNull Long categoryId,
+        Long participantId,
         @NotNull Long paymentMethodId,
         @NotBlank @Size(max = 500) String description,
         @NotNull @DecimalMin(value = "0.01") BigDecimal amount,

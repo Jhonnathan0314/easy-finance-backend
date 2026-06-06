@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 
 public record UpdateSubBudgetRequest(
         Long categoryId,
+        Long participantId,
         @NotBlank String name,
         @NotNull @DecimalMin(value = "0.00") BigDecimal plannedAmount
 ) {

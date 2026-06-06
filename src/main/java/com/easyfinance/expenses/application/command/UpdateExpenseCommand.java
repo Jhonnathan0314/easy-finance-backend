@@ -8,6 +8,7 @@ import java.time.LocalDate;
 public record UpdateExpenseCommand(
         Long accountId,
         Long expenseId,
+        Long participantId,
         Long categoryId,
         Long paymentMethodId,
         String description,

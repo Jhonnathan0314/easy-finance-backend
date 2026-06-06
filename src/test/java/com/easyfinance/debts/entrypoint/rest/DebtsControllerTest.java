@@ -1,5 +1,6 @@
 package com.easyfinance.debts.entrypoint.rest;
 
+import com.easyfinance.debts.application.command.CreateManualDebtCommand;
 import com.easyfinance.debts.application.port.in.CancelDebtPort;
 import com.easyfinance.debts.application.port.in.CreateManualDebtPort;
 import com.easyfinance.debts.application.port.in.GetDebtPort;
@@ -9,6 +10,7 @@ import com.easyfinance.debts.application.response.PageResponse;
 import com.easyfinance.shared.infrastructure.error.GlobalExceptionHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -19,6 +21,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -84,6 +87,22 @@ class DebtsControllerTest {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void createManualDebtAcceptsOptionalParticipantId() throws Exception {
+        when(createManualDebtPort.createManualDebt(any())).thenReturn(debt());
+
+        mockMvc.perform(post("/api/v1/accounts/1/debts")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"Loan","participantId":20,"totalAmount":100000,"startDate":"2026-05-11"}
+                                """))
+                .andExpect(status().isCreated());
+
+        ArgumentCaptor<CreateManualDebtCommand> captor = ArgumentCaptor.forClass(CreateManualDebtCommand.class);
+        verify(createManualDebtPort).createManualDebt(captor.capture());
+        assertThat(captor.getValue().participantId()).isEqualTo(20L);
     }
 
     private static DebtResponse debt() {

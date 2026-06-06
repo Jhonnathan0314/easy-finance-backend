@@ -15,7 +15,10 @@ class ApachePoiBudgetImportTemplateGeneratorTest {
 
     @Test
     void generatesTemplateWithExpectedHeadersAndValues() throws Exception {
-        byte[] content = generator.generate(new AnnualBudgetImportTemplateData(List.of("Mercado", "Servicios")));
+        byte[] content = generator.generate(new AnnualBudgetImportTemplateData(
+                List.of("Mercado", "Servicios"),
+                List.of("Ana Finance <ana@example.com>")
+        ));
 
         try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(content))) {
             var budgetSheet = workbook.getSheet("PresupuestoAnual");
@@ -26,6 +29,7 @@ class ApachePoiBudgetImportTemplateGeneratorTest {
             assertThat(budgetSheet.getRow(0).getCell(3).getStringCellValue()).isEqualTo("Categoria");
             assertThat(budgetSheet.getRow(0).getCell(4).getStringCellValue()).isEqualTo("NombreSubpresupuesto");
             assertThat(budgetSheet.getRow(0).getCell(5).getStringCellValue()).isEqualTo("Valor");
+            assertThat(budgetSheet.getRow(0).getCell(6).getStringCellValue()).isEqualTo("Participante");
 
             var valuesSheet = workbook.getSheet("Valores");
             assertThat(valuesSheet).isNotNull();
@@ -33,7 +37,8 @@ class ApachePoiBudgetImportTemplateGeneratorTest {
             assertThat(valuesSheet.getRow(2).getCell(0).getStringCellValue()).isEqualTo("Enero");
             assertThat(valuesSheet.getRow(1).getCell(2).getStringCellValue()).isEqualTo("Mercado");
             assertThat(valuesSheet.getRow(2).getCell(2).getStringCellValue()).isEqualTo("Servicios");
+            assertThat(valuesSheet.getRow(1).getCell(6).getStringCellValue()).isEqualTo("Ana Finance <ana@example.com>");
+            assertThat(budgetSheet.getDataValidations()).hasSizeGreaterThanOrEqualTo(3);
         }
     }
 }
-

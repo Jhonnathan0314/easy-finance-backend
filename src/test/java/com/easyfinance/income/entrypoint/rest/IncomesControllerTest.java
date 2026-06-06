@@ -1,5 +1,7 @@
 package com.easyfinance.income.entrypoint.rest;
 
+import com.easyfinance.income.application.command.CreateIncomeCommand;
+import com.easyfinance.income.application.command.UpdateIncomeCommand;
 import com.easyfinance.income.application.port.in.CancelIncomePort;
 import com.easyfinance.income.application.port.in.CreateIncomePort;
 import com.easyfinance.income.application.port.in.DuplicateIncomePort;
@@ -109,6 +111,34 @@ class IncomesControllerTest {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void createAndUpdateAcceptOptionalParticipantId() throws Exception {
+        when(createIncomePort.createIncome(any())).thenReturn(income());
+        when(updateIncomePort.updateIncome(any())).thenReturn(income());
+
+        mockMvc.perform(post("/api/v1/accounts/1/incomes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"categoryId":2,"participantId":20,"description":"Salary","amount":2500000,"incomeDate":"2026-05-10"}
+                                """))
+                .andExpect(status().isCreated());
+
+        ArgumentCaptor<CreateIncomeCommand> createCaptor = ArgumentCaptor.forClass(CreateIncomeCommand.class);
+        verify(createIncomePort).createIncome(createCaptor.capture());
+        assertThat(createCaptor.getValue().participantId()).isEqualTo(20L);
+
+        mockMvc.perform(put("/api/v1/accounts/1/incomes/5")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"categoryId":2,"participantId":30,"description":"Updated salary","amount":2600000,"incomeDate":"2026-05-11"}
+                                """))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<UpdateIncomeCommand> updateCaptor = ArgumentCaptor.forClass(UpdateIncomeCommand.class);
+        verify(updateIncomePort).updateIncome(updateCaptor.capture());
+        assertThat(updateCaptor.getValue().participantId()).isEqualTo(30L);
     }
 
     @Test

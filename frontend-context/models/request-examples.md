@@ -53,6 +53,7 @@
 ```json
 {
   "categoryId": 10,
+  "participantId": 1,
   "paymentMethodId": 20,
   "description": "Lunch",
   "amount": 45000.00,
@@ -66,6 +67,7 @@
 ```json
 {
   "categoryId": 10,
+  "participantId": 1,
   "paymentMethodId": 20,
   "description": "Cash advance",
   "totalAmount": 1000000.00,
@@ -83,6 +85,7 @@
 ```json
 {
   "name": "Family loan",
+  "participantId": 1,
   "description": "Short-term loan",
   "totalAmount": 900000.00,
   "installmentCount": 3,
@@ -133,6 +136,7 @@
 ```json
 {
   "categoryId": 10,
+  "participantId": 1,
   "name": "Food cap",
   "plannedAmount": 800000.00
 }
@@ -143,6 +147,7 @@
 ```json
 {
   "categoryId": 11,
+  "participantId": 1,
   "description": "Monthly salary",
   "amount": 5000000.00,
   "incomeDate": "2026-05-30"
@@ -159,7 +164,7 @@ Multipart form-data:
 Headers expected in first sheet:
 
 ```text
-Fecha | Descripción | Monto | Categoría | MedioPago | EstadoPago | AplicaPagoDeuda | Deuda | TipoPagoDeuda | NotasPagoDeuda
+Fecha | Descripción | Monto | Categoría | MedioPago | EstadoPago | AplicaPagoDeuda | Deuda | TipoPagoDeuda | NotasPagoDeuda | Participante
 ```
 
 Older files without the debt-payment columns remain accepted. In the current template, `AplicaPagoDeuda`

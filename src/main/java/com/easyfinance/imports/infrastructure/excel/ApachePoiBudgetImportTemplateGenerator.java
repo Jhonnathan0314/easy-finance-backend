@@ -32,6 +32,7 @@ public class ApachePoiBudgetImportTemplateGenerator implements AnnualBudgetImpor
     private static final String VALUES_SHEET = "Valores";
     private static final String CATEGORY_RANGE = "CategoriasPresupuesto";
     private static final String MONTH_RANGE = "MesesPresupuesto";
+    private static final String PARTICIPANT_RANGE = "ParticipantesPresupuesto";
     private static final String[] MONTHS = {"Todos", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"};
     private static final String[] HEADERS = {"Año", "Mes", "NombrePresupuesto", "Categoria", "NombreSubpresupuesto", "Valor"};
 
@@ -41,8 +42,8 @@ public class ApachePoiBudgetImportTemplateGenerator implements AnnualBudgetImpor
             Sheet budgetSheet = workbook.createSheet(SHEET_NAME);
             Sheet values = workbook.createSheet(VALUES_SHEET);
 
-            createValuesSheet(values, data.expenseCategoryNames());
-            createNamedRanges(workbook, data.expenseCategoryNames().size());
+            createValuesSheet(values, data.expenseCategoryNames(), data.participantLabels());
+            createNamedRanges(workbook, data.expenseCategoryNames().size(), data.participantLabels().size());
             createBudgetSheet(workbook, budgetSheet);
             workbook.setSheetHidden(workbook.getSheetIndex(values), true);
 
@@ -53,12 +54,13 @@ public class ApachePoiBudgetImportTemplateGenerator implements AnnualBudgetImpor
         }
     }
 
-    private static void createValuesSheet(Sheet sheet, List<String> categories) {
+    private static void createValuesSheet(Sheet sheet, List<String> categories, List<String> participants) {
         Row header = sheet.createRow(0);
         header.createCell(0).setCellValue("Meses");
         header.createCell(2).setCellValue("Categorias");
         header.createCell(4).setCellValue("Instrucciones");
         header.createCell(5).setCellValue("No modificar cabeceras. Maximo 1000 filas.");
+        header.createCell(6).setCellValue("Participantes");
 
         for (int i = 0; i < MONTHS.length; i++) {
             Row row = sheet.getRow(i + 1);
@@ -68,7 +70,7 @@ public class ApachePoiBudgetImportTemplateGenerator implements AnnualBudgetImpor
             row.createCell(0).setCellValue(MONTHS[i]);
         }
 
-        int maxRows = Math.max(categories.size(), 1);
+        int maxRows = Math.max(Math.max(categories.size(), participants.size()), 1);
         for (int i = 0; i < maxRows; i++) {
             Row row = sheet.getRow(i + 1);
             if (row == null) {
@@ -76,6 +78,9 @@ public class ApachePoiBudgetImportTemplateGenerator implements AnnualBudgetImpor
             }
             if (i < categories.size()) {
                 row.createCell(2).setCellValue(categories.get(i));
+            }
+            if (i < participants.size()) {
+                row.createCell(6).setCellValue(participants.get(i));
             }
         }
         if (categories.isEmpty()) {
@@ -90,11 +95,13 @@ public class ApachePoiBudgetImportTemplateGenerator implements AnnualBudgetImpor
         sheet.setColumnWidth(2, 36 * 256);
         sheet.setColumnWidth(4, 18 * 256);
         sheet.setColumnWidth(5, 70 * 256);
+        sheet.setColumnWidth(6, 40 * 256);
     }
 
-    private static void createNamedRanges(Workbook workbook, int categoryCount) {
+    private static void createNamedRanges(Workbook workbook, int categoryCount, int participantCount) {
         createNamedRange(workbook, MONTH_RANGE, 'A', MONTHS.length + 1);
         createNamedRange(workbook, CATEGORY_RANGE, 'C', Math.max(categoryCount, 1) + 1);
+        createNamedRange(workbook, PARTICIPANT_RANGE, 'G', Math.max(participantCount, 1) + 1);
     }
 
     private static void createNamedRange(Workbook workbook, String rangeName, char column, int endRow) {
@@ -111,9 +118,13 @@ public class ApachePoiBudgetImportTemplateGenerator implements AnnualBudgetImpor
             cell.setCellValue(HEADERS[i]);
             cell.setCellStyle(headerStyle);
         }
+        Cell participantHeader = header.createCell(HEADERS.length);
+        participantHeader.setCellValue("Participante");
+        participantHeader.setCellStyle(headerStyle);
 
         addMonthValidation(sheet);
         addCategoryValidation(sheet);
+        addParticipantValidation(sheet);
 
         sheet.createFreezePane(0, 1);
         sheet.setColumnWidth(0, 10 * 256);
@@ -122,6 +133,7 @@ public class ApachePoiBudgetImportTemplateGenerator implements AnnualBudgetImpor
         sheet.setColumnWidth(3, 36 * 256);
         sheet.setColumnWidth(4, 36 * 256);
         sheet.setColumnWidth(5, 16 * 256);
+        sheet.setColumnWidth(6, 40 * 256);
     }
 
     private static void addMonthValidation(Sheet sheet) {
@@ -139,6 +151,15 @@ public class ApachePoiBudgetImportTemplateGenerator implements AnnualBudgetImpor
         DataValidation validation = helper.createValidation(constraint, new CellRangeAddressList(1, MAX_DATA_ROWS, 3, 3));
         validation.setShowErrorBox(true);
         validation.createErrorBox("Categoria invalida", "Use una categoria EXPENSE activa.");
+        sheet.addValidationData(validation);
+    }
+
+    private static void addParticipantValidation(Sheet sheet) {
+        DataValidationHelper helper = sheet.getDataValidationHelper();
+        DataValidationConstraint constraint = helper.createFormulaListConstraint(PARTICIPANT_RANGE);
+        DataValidation validation = helper.createValidation(constraint, new CellRangeAddressList(1, MAX_DATA_ROWS, 6, 6));
+        validation.setShowErrorBox(true);
+        validation.createErrorBox("Participante invalido", "Use un participante activo de la cuenta o deje vacio para global.");
         sheet.addValidationData(validation);
     }
 
@@ -160,4 +181,3 @@ public class ApachePoiBudgetImportTemplateGenerator implements AnnualBudgetImpor
         return style;
     }
 }
-

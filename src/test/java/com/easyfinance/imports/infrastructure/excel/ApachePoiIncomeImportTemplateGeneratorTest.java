@@ -17,7 +17,10 @@ class ApachePoiIncomeImportTemplateGeneratorTest {
 
     @Test
     void generatesIncomeTemplateWithExpectedHeadersAndValidation() throws Exception {
-        byte[] content = generator.generate(new IncomeImportTemplateData(List.of("Salario", "Freelance")));
+        byte[] content = generator.generate(new IncomeImportTemplateData(
+                List.of("Salario", "Freelance"),
+                List.of("Usuario Actual <user@example.com>", "Ana Gomez <ana@example.com>")
+        ));
 
         try (Workbook workbook = new XSSFWorkbook(new ByteArrayInputStream(content))) {
             var incomes = workbook.getSheet("Ingresos");
@@ -28,8 +31,11 @@ class ApachePoiIncomeImportTemplateGeneratorTest {
             assertThat(incomes.getRow(0).getCell(1).getStringCellValue()).isEqualTo("Descripcion");
             assertThat(incomes.getRow(0).getCell(2).getStringCellValue()).isEqualTo("Categoria");
             assertThat(incomes.getRow(0).getCell(3).getStringCellValue()).isEqualTo("Monto");
+            assertThat(incomes.getRow(0).getCell(4).getStringCellValue()).isEqualTo("Participante");
             assertThat(values.getRow(1).getCell(0).getStringCellValue()).isEqualTo("Salario");
             assertThat(values.getRow(2).getCell(0).getStringCellValue()).isEqualTo("Freelance");
+            assertThat(values.getRow(1).getCell(1).getStringCellValue()).isEqualTo("Usuario Actual <user@example.com>");
+            assertThat(values.getRow(2).getCell(1).getStringCellValue()).isEqualTo("Ana Gomez <ana@example.com>");
             assertThat(workbook.isSheetHidden(workbook.getSheetIndex(values))).isTrue();
 
             List<? extends DataValidation> validations = incomes.getDataValidations();

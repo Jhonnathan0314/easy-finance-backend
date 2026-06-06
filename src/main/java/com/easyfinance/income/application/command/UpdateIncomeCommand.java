@@ -7,6 +7,7 @@ import java.time.LocalDate;
 public record UpdateIncomeCommand(
         Long accountId,
         Long incomeId,
+        Long participantId,
         Long categoryId,
         String description,
         Money amount,

@@ -277,20 +277,20 @@ POST /api/v1/accounts/{accountId}/imports/budgets/annual
 ```
 
 Expense import rows expose debt-payment metadata in preview/confirm responses:
-`appliesDebtPayment`, `debtId`, `debtLabel`, `debtPaymentType`, `debtPaymentNotes`, and
+`participantLabel`, `participantId`, `appliesDebtPayment`, `debtId`, `debtLabel`, `debtPaymentType`, `debtPaymentNotes`, and
 `createdDebtPaymentId`. Current Excel files without debt-payment columns remain valid. The generated
-template includes `AplicaPagoDeuda`, `Deuda`, `TipoPagoDeuda`, and `NotasPagoDeuda`; preview validates
+template includes `AplicaPagoDeuda`, `Deuda`, `TipoPagoDeuda`, `NotasPagoDeuda`, and optional `Participante`; preview validates
 and persists those fields. Confirm registers the debt payment through the debt-payment use case, creates
 an associated expense with `sourceType = DEBT_PAYMENT`, and persists both trace ids for rows with
 `appliesDebtPayment = true`.
 
 Income import is direct and does not persist preview batches:
-- template sheet `Ingresos` with columns `Fecha`, `Descripcion`, `Categoria`, `Monto`
-- hidden `Valores` sheet with active account categories of type `INCOME`
-- `/preview` validates rows without creating incomes and returns parsed row data, resolved `categoryId`, validity and row errors
+- template sheet `Ingresos` with columns `Fecha (yyyy-MM-dd)`, `Descripcion`, `Categoria`, `Monto`, `Participante`
+- hidden `Valores` sheet with active account categories of type `INCOME` and active participants
+- `/preview` validates rows without creating incomes and returns parsed row data, resolved `categoryId`, `participantLabel`, `participantId`, validity and row errors
 - fully empty rows are ignored
 - all rows are validated first; if any row is invalid, no incomes are created
-- if all rows are valid, all incomes are created in one transaction as normal `incomes` rows with status `ACTIVE`
+- if all rows are valid, all incomes are created in one transaction as normal `incomes` rows with status `ACTIVE`; blank `Participante` falls back to the authenticated participant
 
 Category import is direct and does not persist preview batches:
 - template sheet `Categorias` with columns `Nombre`, `Tipo`, `Descripcion` (optional)
@@ -316,15 +316,16 @@ Payment-method import is direct and does not persist preview batches:
 
 Annual-budget import is direct and does not persist preview batches:
 - template sheet `PresupuestoAnual` with columns:
-  - `Año`, `Mes`, `NombrePresupuesto`, `Categoria`, `NombreSubpresupuesto`, `Valor`
-- hidden `Valores` sheet with supported month values and active account categories of type `EXPENSE`
+  - `Año`, `Mes`, `NombrePresupuesto`, `Categoria`, `NombreSubpresupuesto`, `Valor`, `Participante`
+- hidden `Valores` sheet with supported month values, active account categories of type `EXPENSE`, and active participants
 - `Mes` accepts:
   - empty/blank (`Todos`)
   - `Todos`
   - Spanish month names (`Enero`..`Diciembre`)
   - numeric `1..12`
-- `Todos` rows define the base yearly structure; month-specific rows override only the targeted month for the same `(categoria, nombreSubpresupuesto)`
-- `/preview` validates rows without creating budgets and returns parsed row data, resolved `categoryId`, `appliedMonths`, validity and row errors
+- `Participante` is optional. Blank means global sub-budget execution; a selected participant scopes execution to that participant.
+- `Todos` rows define the base yearly structure; month-specific rows override only the targeted month for the same `(categoria, nombreSubpresupuesto, participante)`
+- `/preview` validates rows without creating budgets and returns parsed row data, resolved `categoryId`, `participantLabel`, `participantId`, `appliedMonths`, validity and row errors
 - fully empty rows are ignored
 - all rows are validated first; if any row is invalid, no budgets are created
 - if any budget already exists for that account/year, import fails with `ANNUAL_BUDGET_MONTH_ALREADY_EXISTS`

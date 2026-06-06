@@ -3,6 +3,7 @@ package com.easyfinance.debts.application.usecase;
 import com.easyfinance.accounts.application.port.out.AccountParticipantRepositoryPort;
 import com.easyfinance.accounts.application.port.out.AccountRepositoryPort;
 import com.easyfinance.accounts.application.service.AccountAuthorizationService;
+import com.easyfinance.accounts.application.service.AssignedParticipantValidator;
 import com.easyfinance.accounts.domain.model.Account;
 import com.easyfinance.accounts.domain.model.AccountParticipant;
 import com.easyfinance.accounts.domain.model.AccountParticipantRole;
@@ -59,7 +60,8 @@ class DebtPaymentManagementUseCaseTest {
     private final BudgetDebtImpactPort budgetDebtImpactPort = mock(BudgetDebtImpactPort.class);
     private final CreateDebtPaymentExpensePort createDebtPaymentExpensePort = mock(CreateDebtPaymentExpensePort.class);
     private final AccountAuthorizationService authorizationService = new AccountAuthorizationService(accountRepository, accountParticipantRepository);
-    private final DebtPaymentManagementUseCase useCase = new DebtPaymentManagementUseCase(currentUserProvider, authorizationService, debtRepository, paymentRepository, budgetDebtImpactPort, createDebtPaymentExpensePort);
+    private final AssignedParticipantValidator assignedParticipantValidator = new AssignedParticipantValidator(accountParticipantRepository);
+    private final DebtPaymentManagementUseCase useCase = new DebtPaymentManagementUseCase(currentUserProvider, authorizationService, assignedParticipantValidator, debtRepository, paymentRepository, budgetDebtImpactPort, createDebtPaymentExpensePort);
 
     @BeforeEach
     void setUp() {

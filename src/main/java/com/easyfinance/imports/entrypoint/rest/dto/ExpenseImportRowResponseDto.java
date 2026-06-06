@@ -16,6 +16,8 @@ public record ExpenseImportRowResponseDto(
         String paymentMethodName,
         Long paymentMethodId,
         String paymentState,
+        String participantLabel,
+        Long participantId,
         boolean appliesDebtPayment,
         Long debtId,
         String debtLabel,

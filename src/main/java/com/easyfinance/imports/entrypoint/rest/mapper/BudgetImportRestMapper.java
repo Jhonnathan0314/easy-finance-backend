@@ -24,6 +24,8 @@ public final class BudgetImportRestMapper {
                                 row.categoryId(),
                                 row.subBudgetName(),
                                 row.plannedAmount(),
+                                row.participantLabel(),
+                                row.participantId(),
                                 row.valid(),
                                 row.appliedMonths(),
                                 row.errors()

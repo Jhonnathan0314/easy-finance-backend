@@ -79,6 +79,10 @@ Rules:
 - Expense category must belong to the same account.
 - Expense payment method must belong to the same account.
 - Expense responsible participant must belong to the same account.
+- Expense create/update can receive an optional `participantId`.
+- When `participantId` is omitted on create, the authenticated participant is used.
+- When `participantId` is omitted on update, the existing expense participant is preserved.
+- `ACCOUNT_ADMIN` can assign any active participant in the account; regular members can only assign themselves.
 - Expense amount must be greater than zero.
 - Currency is COP in the MVP.
 - Expense payment state is simple/manual:
@@ -97,12 +101,16 @@ Rules:
   - `IMPORT`: created through Excel import.
   - `DEBT_PAYMENT`: conceptual expense associated with a debt payment.
 - Cashflow excludes `DEBT_PAYMENT` expenses because the debt payment already represents the real money outflow.
+- Expense Excel import preview can resolve an optional row-level `Participante`.
+- If an imported expense row omits `Participante`, the authenticated preview participant is used.
+- Imported expense participant assignment follows the same rule as manual expenses: `ACCOUNT_ADMIN` can assign any active account participant, and regular members can only assign themselves.
 
 ## Installment Expenses
 
 - An installment expense must generate exactly one derived debt.
 - The user does not manually create the derived debt.
 - Expense and derived debt must be created in the same transaction.
+- The derived debt inherits the assigned participant from the installment expense.
 - If debt creation fails, the expense must not be persisted.
 - `totalAmount` is the original purchase or advance amount.
 - `installmentAmount * installmentCount` is the financed debt total to pay.
@@ -121,6 +129,10 @@ Rules:
 - Debts can be manual or derived from installment expenses.
 - A debt belongs to one account.
 - A debt has one responsible participant.
+- Manual debt creation can receive an optional `participantId`.
+- When `participantId` is omitted, the authenticated participant is used.
+- `ACCOUNT_ADMIN` can assign any active participant in the account; regular members can only assign themselves.
+- Debts derived from installment expenses inherit the participant assigned to the origin expense.
 - A debt has one payment method.
 - A debt amount must be greater than zero.
 - Installments must be greater than zero.
@@ -159,6 +171,9 @@ Rules:
 - A monthly budget is identified by account, year, and month.
 - Annual budget creation is an orchestration action that creates the 12 monthly budgets for a year; it does not create a new annual entity.
 - Annual budget creation is all-or-nothing and fails if any month in the target year already exists for the account.
+- Annual budget Excel import can create the 12 monthly budgets with base rows and month-specific overrides.
+- Annual budget import supports optional `Participante` per sub-budget row. Blank participant creates a global manual sub-budget; a selected participant scopes the sub-budget to that participant.
+- Annual budget import duplicate and override rules use `(categoryId, normalizedSubBudgetName, participantId)` so global and participant-scoped sub-budgets do not collide.
 - If a debt-derived impact targets a missing monthly budget, the system creates that budget automatically.
 - A budget groups sub-budgets and budget impacts.
 
@@ -169,8 +184,11 @@ Rules:
 - A debt-derived sub-budget must reference the originating debt.
 - Sub-budget amount must be greater than or equal to zero.
 - If a sub-budget references category or responsible participant, they must belong to the same account.
-- Manual sub-budget execution is calculated dynamically for read responses from active simple expenses in the same month and category.
+- Manual sub-budgets can receive an optional `participantId`.
+- `participantId = null` means global execution by category, preserving the existing budget behavior.
+- If `participantId` is present, manual sub-budget execution is calculated only from active simple expenses in the same month, category, and participant.
 - Dynamic manual execution includes `MANUAL` and `IMPORT` expenses and excludes `DEBT_PAYMENT` expenses to avoid double counting.
+- Debt-derived sub-budgets inherit the participant from the derived debt.
 
 ## Budget Impacts
 
@@ -189,14 +207,19 @@ Rules:
 
 - Income belongs to one account.
 - Income has one responsible participant.
+- Income create/update can receive an optional `participantId`.
+- When `participantId` is omitted on create, the authenticated participant is used.
+- When `participantId` is omitted on update, the existing income participant is preserved.
+- `ACCOUNT_ADMIN` can assign any active participant in the account; regular members can only assign themselves.
 - Income amount must be greater than zero.
 - Income is currently event-based: each income has a specific `incomeDate`.
 - Income is included in reports and dashboard calculations.
 - Income Excel import is direct (no persisted preview batch):
-  - supports `/preview`, which validates and returns parsed row data plus resolved `categoryId` without creating incomes,
+  - supports `/preview`, which validates and returns parsed row data plus resolved `categoryId`, `participantLabel`, and `participantId` without creating incomes,
   - validates all rows first,
   - creates all incomes only if all rows are valid,
-  - uses the authenticated participant as owner,
+  - resolves optional row-level `Participante` and falls back to the authenticated participant when blank or missing,
+  - applies the same admin/member assignment rules as manual income,
   - stores normal rows in `incomes` with status `ACTIVE`.
 
 ## Audit

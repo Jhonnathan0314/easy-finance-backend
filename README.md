@@ -322,7 +322,7 @@ Create simple expense:
 curl -X POST http://localhost:8080/api/v1/accounts/1/expenses \
   -H "Authorization: Bearer <accessToken>" \
   -H "Content-Type: application/json" \
-  -d "{\"categoryId\":10,\"paymentMethodId\":20,\"description\":\"Almuerzo\",\"amount\":12000,\"expenseDate\":\"2026-05-09\",\"paymentState\":\"PAID\"}"
+  -d "{\"categoryId\":10,\"participantId\":30,\"paymentMethodId\":20,\"description\":\"Almuerzo\",\"amount\":12000,\"expenseDate\":\"2026-05-09\",\"paymentState\":\"PAID\"}"
 ```
 
 List expenses:
@@ -345,7 +345,7 @@ Update expense:
 curl -X PUT http://localhost:8080/api/v1/accounts/1/expenses/100 \
   -H "Authorization: Bearer <accessToken>" \
   -H "Content-Type: application/json" \
-  -d "{\"categoryId\":10,\"paymentMethodId\":20,\"description\":\"Cena\",\"amount\":15000,\"expenseDate\":\"2026-05-09\",\"paymentState\":\"PAID\"}"
+  -d "{\"categoryId\":10,\"participantId\":30,\"paymentMethodId\":20,\"description\":\"Cena\",\"amount\":15000,\"expenseDate\":\"2026-05-09\",\"paymentState\":\"PAID\"}"
 ```
 
 Cancel expense:
@@ -370,7 +370,7 @@ Create installment expense:
 curl -X POST http://localhost:8080/api/v1/accounts/1/expenses/installments \
   -H "Authorization: Bearer <accessToken>" \
   -H "Content-Type: application/json" \
-  -d "{\"categoryId\":10,\"paymentMethodId\":20,\"description\":\"Computador\",\"totalAmount\":1200000,\"expenseDate\":\"2026-05-11\",\"installmentCount\":6,\"installmentAmount\":200000,\"firstInstallmentDate\":\"2026-06-01\",\"debtName\":\"Computador en cuotas\"}"
+  -d "{\"categoryId\":10,\"participantId\":30,\"paymentMethodId\":20,\"description\":\"Computador\",\"totalAmount\":1200000,\"expenseDate\":\"2026-05-11\",\"installmentCount\":6,\"installmentAmount\":200000,\"firstInstallmentDate\":\"2026-06-01\",\"debtName\":\"Computador en cuotas\"}"
 ```
 
 Expense rules:
@@ -381,7 +381,9 @@ Expense rules:
 - Creating, updating, cancelling, and duplicating requires an `ACTIVE` account and active account membership.
 - Listing and reading requires active account membership.
 - A regular member can update, cancel, or duplicate only expenses registered by their own participant.
-- `ACCOUNT_ADMIN` can update, cancel, or duplicate any expense in the account.
+- `participantId` is optional on create/update. When omitted on create, the authenticated participant is used; when omitted on update, the current expense participant is preserved.
+- `ACCOUNT_ADMIN` can assign any active participant in the account and can update, cancel, or duplicate any expense in the account.
+- Regular members can only assign themselves.
 - `INSTALLMENT` expenses are not updated, cancelled, or duplicated through the simple expense endpoints in this phase.
 - The full lifecycle for installment expenses will be defined together with debt payments and budget impacts.
 - Categories must belong to the same account, be `ACTIVE`, and have type `EXPENSE`.
@@ -391,12 +393,13 @@ Expense rules:
 - Cancelling is a soft operation: status becomes `CANCELLED`.
 - Simple expenses do not create debts.
 - For installment expenses, `totalAmount` is the original purchase/advance amount. The financed debt total is calculated as `installmentAmount * installmentCount`.
+- For installment expenses, the derived debt inherits the assigned expense participant.
 - `installmentAmount * installmentCount` may be greater than `totalAmount`; the difference represents implicit interest, insurance, or financing costs.
 - `installmentAmount * installmentCount` cannot be lower than `totalAmount`.
 - Duplicating creates a new `ACTIVE` `SIMPLE` expense with a new id and audit metadata; it never creates debt, debt payments, budget impacts, or import rows.
 - This phase does not create debt payments or budget impacts.
 
-Main expense error codes include `EXPENSE_NOT_FOUND`, `EXPENSE_ALREADY_CANCELLED`, `EXPENSE_AMOUNT_INVALID`, `EXPENSE_DATE_INVALID`, `EXPENSE_UPDATE_NOT_ALLOWED`, `EXPENSE_CANCEL_NOT_ALLOWED`, `EXPENSE_DUPLICATE_NOT_ALLOWED`, `INSTALLMENT_EXPENSE_UPDATE_NOT_ALLOWED`, `INSTALLMENT_EXPENSE_CANCEL_NOT_ALLOWED`, `INSTALLMENT_FINANCED_TOTAL_INVALID`, `EXPENSE_CATEGORY_NOT_FOUND`, `EXPENSE_CATEGORY_INACTIVE`, `EXPENSE_CATEGORY_INVALID_TYPE`, `EXPENSE_PAYMENT_METHOD_NOT_FOUND`, and `EXPENSE_PAYMENT_METHOD_INACTIVE`.
+Main expense error codes include `EXPENSE_NOT_FOUND`, `EXPENSE_ALREADY_CANCELLED`, `EXPENSE_AMOUNT_INVALID`, `EXPENSE_DATE_INVALID`, `EXPENSE_UPDATE_NOT_ALLOWED`, `EXPENSE_CANCEL_NOT_ALLOWED`, `EXPENSE_DUPLICATE_NOT_ALLOWED`, `INSTALLMENT_EXPENSE_UPDATE_NOT_ALLOWED`, `INSTALLMENT_EXPENSE_CANCEL_NOT_ALLOWED`, `INSTALLMENT_FINANCED_TOTAL_INVALID`, `EXPENSE_CATEGORY_NOT_FOUND`, `EXPENSE_CATEGORY_INACTIVE`, `EXPENSE_CATEGORY_INVALID_TYPE`, `EXPENSE_PAYMENT_METHOD_NOT_FOUND`, `EXPENSE_PAYMENT_METHOD_INACTIVE`, `ASSIGNED_PARTICIPANT_NOT_ALLOWED`, `ASSIGNED_PARTICIPANT_NOT_FOUND`, and `ASSIGNED_PARTICIPANT_NOT_ACTIVE`.
 
 ## Debts API
 
@@ -412,7 +415,7 @@ Create manual debt:
 curl -X POST http://localhost:8080/api/v1/accounts/1/debts \
   -H "Authorization: Bearer <accessToken>" \
   -H "Content-Type: application/json" \
-  -d "{\"name\":\"Prestamo familiar\",\"description\":\"Sin intereses\",\"totalAmount\":500000,\"startDate\":\"2026-05-11\",\"dueDate\":\"2026-08-11\"}"
+  -d "{\"name\":\"Prestamo familiar\",\"participantId\":30,\"description\":\"Sin intereses\",\"totalAmount\":500000,\"startDate\":\"2026-05-11\",\"dueDate\":\"2026-08-11\"}"
 ```
 
 List debts:
@@ -472,8 +475,11 @@ Debt rules:
 
 - Debts can be `MANUAL` or derived from an `INSTALLMENT_EXPENSE`.
 - Manual debts do not have `originExpenseId`.
+- `participantId` is optional when creating manual debts. When omitted, the authenticated participant is used.
+- `ACCOUNT_ADMIN` can assign any active participant in the account. Regular members can only assign themselves.
 - Installment expense debts require `originExpenseId`, `installmentCount`, and `installmentAmount`.
 - A derived debt can only use an origin expense that belongs to the same account and has `expenseType = INSTALLMENT`.
+- Debts derived from installment expenses inherit the assigned participant from the origin expense.
 - For debts derived from installment expenses, `totalAmount` is the original principal amount from the installment expense.
 - `scheduledTotalAmount` is the financed total to pay: `installmentAmount * installmentCount`.
 - `remainingBalance` tracks pending principal and starts equal to debt `totalAmount`.
@@ -550,7 +556,7 @@ Create manual sub-budget:
 curl -X POST http://localhost:8080/api/v1/accounts/1/budgets/10/sub-budgets \
   -H "Authorization: Bearer <accessToken>" \
   -H "Content-Type: application/json" \
-  -d "{\"categoryId\":7,\"name\":\"Mercado\",\"plannedAmount\":500000}"
+  -d "{\"categoryId\":7,\"participantId\":30,\"name\":\"Mercado\",\"plannedAmount\":500000}"
 ```
 
 Update manual sub-budget:
@@ -559,7 +565,7 @@ Update manual sub-budget:
 curl -X PUT http://localhost:8080/api/v1/accounts/1/budgets/10/sub-budgets/20 \
   -H "Authorization: Bearer <accessToken>" \
   -H "Content-Type: application/json" \
-  -d "{\"categoryId\":7,\"name\":\"Mercado casa\",\"plannedAmount\":550000}"
+  -d "{\"categoryId\":7,\"participantId\":30,\"name\":\"Mercado casa\",\"plannedAmount\":550000}"
 ```
 
 Deactivate manual sub-budget:
@@ -583,9 +589,10 @@ Budget rules:
 - Debt-derived sub-budgets use `sourceType = DEBT_DERIVED`, carry the associated `debtId`, are unique by account/budget/debt, and cannot be edited from manual endpoints.
 - Budget impacts are account-scoped and unique per debt and period.
 - Manual sub-budgets start with persisted `spentAmount = 0`; budget detail calculates response `spentAmount` dynamically from active `SIMPLE` expenses in the same budget month and category.
+- Manual sub-budgets can optionally carry `participantId`. When present, dynamic execution only sums active simple expenses for that participant. When omitted or null, execution remains global by category.
 - Dynamic manual execution includes expenses with `sourceType = MANUAL` or `IMPORT` and excludes `sourceType = DEBT_PAYMENT` to avoid double counting debt payments.
-- If more than one active manual sub-budget uses the same category, the dynamic category spent amount is distributed proportionally by planned amount in the budget detail response.
-- Debt-derived sub-budgets continue to use debt budget impacts and debt payments for execution.
+- If more than one active manual sub-budget uses the same category and participant scope, the dynamic spent amount is distributed proportionally by planned amount in the budget detail response.
+- Debt-derived sub-budgets inherit the debt participant and continue to use debt budget impacts and debt payments for execution.
 - Category on manual sub-budget is optional; when provided, it must belong to the account, be `ACTIVE`, and have type `EXPENSE`.
 - Budget listing supports safe sort values `year`, `month`, `status`, and `createdAt` with `asc` or `desc`.
 
@@ -650,7 +657,8 @@ curl -X POST http://localhost:8080/api/v1/accounts/1/incomes/100/duplicate \
 Income rules:
 
 - Incomes require active account membership.
-- The participant registering the income is taken from the authenticated JWT, never from the request body.
+- `participantId` is optional on create/update. When omitted on create, the authenticated participant is used; when omitted on update, the current income participant is preserved.
+- `ACCOUNT_ADMIN` can assign any active participant in the account. Regular members can only assign themselves.
 - A regular member can update, cancel, or duplicate only incomes registered by their own participant.
 - `ACCOUNT_ADMIN` can update, cancel, or duplicate any income in the account.
 - Account writes are blocked when the account is archived or inactive.
@@ -662,7 +670,7 @@ Income rules:
 - `search` is optional, trimmed, ignored when blank, case-insensitive, and currently matches income `description`.
 - Incomes feed monthly summary, cashflow, and incomes-by-category analytics.
 
-Main income error codes include `INCOME_NOT_FOUND`, `INCOME_ALREADY_CANCELLED`, `INCOME_NOT_ACTIVE`, `INCOME_AMOUNT_INVALID`, `INCOME_DATE_INVALID`, `INCOME_UPDATE_NOT_ALLOWED`, `INCOME_CANCEL_NOT_ALLOWED`, `INCOME_DUPLICATE_NOT_ALLOWED`, `INCOME_CATEGORY_NOT_FOUND`, `INCOME_CATEGORY_INACTIVE`, and `INCOME_CATEGORY_INVALID_TYPE`.
+Main income error codes include `INCOME_NOT_FOUND`, `INCOME_ALREADY_CANCELLED`, `INCOME_NOT_ACTIVE`, `INCOME_AMOUNT_INVALID`, `INCOME_DATE_INVALID`, `INCOME_UPDATE_NOT_ALLOWED`, `INCOME_CANCEL_NOT_ALLOWED`, `INCOME_DUPLICATE_NOT_ALLOWED`, `INCOME_CATEGORY_NOT_FOUND`, `INCOME_CATEGORY_INACTIVE`, `INCOME_CATEGORY_INVALID_TYPE`, `ASSIGNED_PARTICIPANT_NOT_ALLOWED`, `ASSIGNED_PARTICIPANT_NOT_FOUND`, and `ASSIGNED_PARTICIPANT_NOT_ACTIVE`.
 
 ## Analytics API
 
@@ -820,7 +828,7 @@ curl http://localhost:8080/api/v1/accounts/1/imports/expenses/25 \
 Expected first-sheet headers:
 
 ```text
-Fecha | Descripción | Monto | Categoría | MedioPago | EstadoPago | AplicaPagoDeuda | Deuda | TipoPagoDeuda | NotasPagoDeuda
+Fecha | Descripción | Monto | Categoría | MedioPago | EstadoPago | AplicaPagoDeuda | Deuda | TipoPagoDeuda | NotasPagoDeuda | Participante
 ```
 
 Debt payment import preview contract:
@@ -839,7 +847,7 @@ Debt payment import preview contract:
 Import rules:
 
 - Any active account member can download the template; archived accounts allow template download because it is read-only.
-- The generated template contains the required headers, a hidden `Valores` sheet, dropdowns for active `EXPENSE` categories, active payment methods, `EstadoPago`, `AplicaPagoDeuda`, active account debts, and `TipoPagoDeuda`.
+- The generated template contains the required headers, a hidden `Valores` sheet, dropdowns for active `EXPENSE` categories, active payment methods, `EstadoPago`, `AplicaPagoDeuda`, active account debts, `TipoPagoDeuda`, and active participants.
 - Only `.xlsx` files are accepted.
 - Default maximum file size is `5MB`, configurable with `EXPENSE_IMPORT_MAX_FILE_SIZE_BYTES`.
 - Default maximum row count is `1500`, configurable with `EXPENSE_IMPORT_MAX_ROWS`.
@@ -848,10 +856,11 @@ Import rules:
 - Category names must match an active account category of type `EXPENSE`.
 - Payment method names must match an active account payment method.
 - `EstadoPago` must be `PENDING`, `PARTIAL`, or `PAID`.
+- `Participante` is optional. Blank or missing values use the authenticated participant; `ACCOUNT_ADMIN` can select any active account participant, and regular members can only assign themselves.
 - Confirmation persists only valid rows; invalid rows remain reported in the batch.
 - Confirmation is transactional: if one valid row cannot create its expense or debt payment, no imported expenses or debt payments are committed.
 - Confirmation locks the import batch pessimistically, so concurrent confirmations cannot create duplicate expenses or debt payments.
-- The imported expense uses the participant who created the preview batch for traceability.
+- The imported expense uses the participant resolved for the row; existing files without `Participante` remain compatible and fall back to the preview batch participant.
 
 Main import error codes include `IMPORT_FILE_REQUIRED`, `IMPORT_FILE_INVALID_TYPE`, `IMPORT_FILE_TOO_LARGE`, `IMPORT_TEMPLATE_INVALID`, `IMPORT_ROW_LIMIT_EXCEEDED`, `IMPORT_BATCH_NOT_FOUND`, `IMPORT_ALREADY_CONFIRMED`, `IMPORT_NOT_CONFIRMABLE`, `IMPORT_CONFIRMATION_FAILED`, and `IMPORT_NO_VALID_ROWS`.
 
@@ -891,13 +900,13 @@ curl -X POST http://localhost:8080/api/v1/accounts/1/imports/incomes/preview \
 
 Income import rules:
 
-- Template main sheet is `Ingresos` with columns `Fecha`, `Descripcion`, `Categoria`, `Monto`.
-- Template includes hidden `Valores` sheet with active account categories of type `INCOME`.
+- Template main sheet is `Ingresos` with columns `Fecha (yyyy-MM-dd)`, `Descripcion`, `Categoria`, `Monto`, and optional `Participante`.
+- Template includes hidden `Valores` sheet with active account categories of type `INCOME` and active participants.
 - Fully empty rows are ignored.
-- Preview returns row values (`incomeDate`, `description`, `categoryName`, `categoryId`, `amount`), validity and row errors without creating incomes.
+- Preview returns row values (`incomeDate`, `description`, `categoryName`, `categoryId`, `amount`, `participantLabel`, `participantId`), validity and row errors without creating incomes.
 - Import validates all rows first; if any row is invalid, no incomes are created.
 - If all rows are valid, incomes are created in one transaction.
-- Imported incomes are normal `incomes` records, status `ACTIVE`, participant from authenticated user.
+- Imported incomes are normal `incomes` records with status `ACTIVE`; `Participante` is optional and falls back to the authenticated participant when blank or missing.
 
 Category imports are also a direct Excel workflow scoped by account:
 
@@ -1023,8 +1032,8 @@ Annual budget import rules:
 
 - Endpoint requires `ACCOUNT_ADMIN` and active account.
 - Template main sheet is `PresupuestoAnual` with columns:
-  - `Año`, `Mes`, `NombrePresupuesto`, `Categoria`, `NombreSubpresupuesto`, `Valor`.
-- Template includes hidden `Valores` sheet with supported months and active account categories of type `EXPENSE`.
+  - `Año`, `Mes`, `NombrePresupuesto`, `Categoria`, `NombreSubpresupuesto`, `Valor`, `Participante`.
+- Template includes hidden `Valores` sheet with supported months, active account categories of type `EXPENSE`, and active participants.
 - `Mes` supports:
   - empty/blank (interpreted as `Todos`),
   - `Todos`,
@@ -1035,11 +1044,12 @@ Annual budget import rules:
 - `Categoria` is required and must resolve to an active `EXPENSE` category in the same account.
 - `NombreSubpresupuesto` is required and must satisfy domain length rules.
 - `Valor` is required and must be greater than `0`.
-- Preview returns row values (`year`, `month`, `budgetName`, `categoryName`, `categoryId`, `subBudgetName`, `plannedAmount`), `appliedMonths`, validity and row errors without creating budgets.
+- `Participante` is optional. Blank creates a global sub-budget; a value resolves to an active account participant and scopes the sub-budget execution to that participant.
+- Preview returns row values (`year`, `month`, `budgetName`, `categoryName`, `categoryId`, `subBudgetName`, `plannedAmount`, `participantLabel`, `participantId`), `appliedMonths`, validity and row errors without creating budgets.
 - Duplicate rows inside the same file are rejected for:
-  - duplicated `Todos` entries with the same `(categoria, nombreSubpresupuesto)`,
-  - duplicated entries for the same month with the same `(categoria, nombreSubpresupuesto)`.
-- `Todos` + specific-month rows for the same `(categoria, nombreSubpresupuesto)` are valid; month-specific rows override only that month.
+  - duplicated `Todos` entries with the same `(categoria, nombreSubpresupuesto, participante)`,
+  - duplicated entries for the same month with the same `(categoria, nombreSubpresupuesto, participante)`.
+- `Todos` + specific-month rows for the same `(categoria, nombreSubpresupuesto, participante)` are valid; month-specific rows override only that month.
 - If any budget already exists in that account/year, import fails with `ANNUAL_BUDGET_MONTH_ALREADY_EXISTS`.
 - Import is all-or-nothing:
   - any invalid row returns `createdBudgetsCount = 0` and creates nothing,

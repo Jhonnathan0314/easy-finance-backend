@@ -10,6 +10,8 @@ public record IncomeImportRowResponse(
         String description,
         String categoryName,
         Long categoryId,
+        String participantLabel,
+        Long participantId,
         BigDecimal amount,
         boolean valid,
         Long createdIncomeId,

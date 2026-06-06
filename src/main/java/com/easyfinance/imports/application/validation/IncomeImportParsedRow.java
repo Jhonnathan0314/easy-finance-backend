@@ -9,6 +9,7 @@ public record IncomeImportParsedRow(
         LocalDate incomeDate,
         String description,
         String categoryName,
+        String participantLabel,
         BigDecimal amount,
         List<String> errors
 ) {
@@ -20,4 +21,3 @@ public record IncomeImportParsedRow(
         return errors.isEmpty();
     }
 }
-

@@ -137,20 +137,25 @@ Columns:
 
 - `id BIGSERIAL PRIMARY KEY`
 - `account_id BIGINT NOT NULL`
-- `responsible_participant_id BIGINT NOT NULL`
-- `name VARCHAR(100) NOT NULL`
-- `type VARCHAR(30) NOT NULL`
-- `state VARCHAR(30) NOT NULL`
+- `name VARCHAR(120) NOT NULL`
+- `normalized_name VARCHAR(120) NOT NULL`
+- `description VARCHAR(500) NULL`
+- `type VARCHAR(50) NOT NULL`
+- `status VARCHAR(30) NOT NULL`
 - audit fields
 
 Constraints:
 
-- allowed types: `CASH`, `DEBIT`, `CREDIT`, `TRANSFER`
-- foreign keys to `accounts` and `participants`
+- active uniqueness by `(account_id, normalized_name)` for `ACTIVE` records
+- allowed types: `CASH`, `BANK_ACCOUNT`, `CREDIT_CARD`, `DEBIT_CARD`, `DIGITAL_WALLET`, `OTHER`
+- allowed statuses: `ACTIVE`, `INACTIVE`
+- foreign key to `accounts`
 
 Indexes:
 
 - `idx_payment_methods_account_id`
+- `idx_payment_methods_account_status`
+- `idx_payment_methods_account_type_status`
 
 ### expenses
 
@@ -195,58 +200,75 @@ Columns:
 
 - `id BIGSERIAL PRIMARY KEY`
 - `account_id BIGINT NOT NULL`
-- `responsible_participant_id BIGINT NOT NULL`
-- `payment_method_id BIGINT NOT NULL`
+- `participant_id BIGINT NOT NULL`
 - `origin_expense_id BIGINT NULL`
+- `source_type VARCHAR(30) NOT NULL`
 - `name VARCHAR(150) NOT NULL`
+- `description VARCHAR(500) NULL`
 - `total_amount NUMERIC(19,2) NOT NULL`
-- `currency VARCHAR(3) NOT NULL DEFAULT 'COP'`
-- `installments INTEGER NOT NULL`
-- `installment_amount NUMERIC(19,2) NOT NULL`
-- `remaining_balance NUMERIC(19,2) NOT NULL`
+- `scheduled_total_amount NUMERIC(19,2) NOT NULL`
+- `total_currency VARCHAR(3) NOT NULL DEFAULT 'COP'`
+- `remaining_amount NUMERIC(19,2) NOT NULL`
+- `remaining_currency VARCHAR(3) NOT NULL DEFAULT 'COP'`
+- `installment_count INTEGER NULL`
+- `installment_amount NUMERIC(19,2) NULL`
+- `installment_currency VARCHAR(3) NULL`
 - `start_date DATE NOT NULL`
-- `end_date DATE NOT NULL`
+- `end_date DATE NULL`
 - `state VARCHAR(30) NOT NULL`
+- `notes VARCHAR(1000) NULL`
 - audit fields
 
 Constraints:
 
 - `total_amount > 0`
-- `installments > 0`
-- `installment_amount > 0`
-- `remaining_balance >= 0`
-- allowed states: `ACTIVE`, `PAID`
-- foreign keys to account, participant, payment method, and optional origin expense
+- `scheduled_total_amount >= total_amount`
+- `remaining_amount >= 0`
+- `remaining_amount <= total_amount`
+- installment count/amount are required only for `INSTALLMENT_EXPENSE`
+- allowed source types: `MANUAL`, `INSTALLMENT_EXPENSE`
+- allowed states: `ACTIVE`, `PAID`, `CANCELLED`
+- foreign keys to account, account participant membership, and optional origin expense
 
 Indexes:
 
-- `idx_debts_account_state`
-- `idx_debts_origin_expense_id`
-- `idx_debts_account_responsible`
+- `idx_debts_account_id`
+- `idx_debts_account_state_start`
+- `idx_debts_account_source_type`
+- `idx_debts_account_participant`
+- `idx_debts_origin_expense`
 
 ### debt_payments
 
 Columns:
 
 - `id BIGSERIAL PRIMARY KEY`
+- `account_id BIGINT NOT NULL`
 - `debt_id BIGINT NOT NULL`
-- `responsible_participant_id BIGINT NOT NULL`
-- `payment_date DATE NOT NULL`
+- `participant_id BIGINT NOT NULL`
+- `payment_type VARCHAR(30) NOT NULL`
 - `amount NUMERIC(19,2) NOT NULL`
 - `currency VARCHAR(3) NOT NULL DEFAULT 'COP'`
-- `payment_type VARCHAR(30) NOT NULL`
+- `payment_date DATE NOT NULL`
+- `notes VARCHAR(1000) NULL`
+- `status VARCHAR(20) NOT NULL`
 - audit fields
 
 Constraints:
 
 - `amount > 0`
 - allowed payment types: `INSTALLMENT`, `CAPITAL_PAYMENT`
-- foreign keys to debts and participants
+- allowed statuses: `ACTIVE`, `CANCELLED`
+- foreign keys to account-scoped debts and account participant membership
 
 Indexes:
 
-- `idx_debt_payments_debt_id`
-- `idx_debt_payments_payment_date`
+- `idx_debt_payments_account_id`
+- `idx_debt_payments_account_debt`
+- `idx_debt_payments_account_payment_date`
+- `idx_debt_payments_account_participant`
+- `idx_debt_payments_account_status`
+- `idx_debt_payments_account_payment_type`
 
 ### budgets
 
@@ -281,6 +303,7 @@ Columns:
 - `account_id BIGINT NOT NULL`
 - `budget_id BIGINT NOT NULL`
 - `category_id BIGINT NULL`
+- `participant_id BIGINT NULL`
 - `debt_id BIGINT NULL`
 - `name VARCHAR(120) NOT NULL`
 - `planned_amount NUMERIC(19,2) NOT NULL`
@@ -299,16 +322,18 @@ Constraints:
 - allowed statuses: `ACTIVE`, `INACTIVE`
 - debt-derived sub-budgets require `debt_id`
 - manual sub-budgets cannot reference `debt_id`
-- foreign keys to budgets, categories, and optional debt
+- foreign keys to budgets, categories, optional participant membership, and optional debt
 
 Read model note:
 
 - Manual sub-budget `spentAmount` in API responses is calculated dynamically from active simple expenses in the same account/month/category with `source_type IN ('MANUAL', 'IMPORT')`.
+- When `participant_id` is present, dynamic manual execution is scoped to that participant. When it is null, execution remains global by category.
 - `source_type = 'DEBT_PAYMENT'` expenses are excluded from manual budget execution to avoid double counting debt payments.
 
 Indexes:
 
 - `idx_sub_budgets_budget_id`
+- `idx_sub_budgets_account_participant`
 - `idx_sub_budgets_debt_id`
 
 ### budget_impacts

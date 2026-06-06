@@ -1,5 +1,8 @@
 package com.easyfinance.expenses.entrypoint.rest;
 
+import com.easyfinance.expenses.application.command.CreateExpenseCommand;
+import com.easyfinance.expenses.application.command.CreateInstallmentExpenseCommand;
+import com.easyfinance.expenses.application.command.UpdateExpenseCommand;
 import com.easyfinance.expenses.application.port.in.CancelExpensePort;
 import com.easyfinance.expenses.application.port.in.CreateExpensePort;
 import com.easyfinance.expenses.application.port.in.CreateInstallmentExpensePort;
@@ -112,6 +115,46 @@ class ExpensesControllerTest {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void createInstallmentAndUpdateAcceptOptionalParticipantId() throws Exception {
+        when(createExpensePort.createExpense(any())).thenReturn(expense());
+        when(createInstallmentExpensePort.createInstallmentExpense(any())).thenReturn(installmentExpense());
+        when(updateExpensePort.updateExpense(any())).thenReturn(expense());
+
+        mockMvc.perform(post("/api/v1/accounts/1/expenses")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"categoryId":2,"participantId":20,"paymentMethodId":3,"description":"Lunch","amount":12000,"expenseDate":"2026-05-09","paymentState":"PAID"}
+                                """))
+                .andExpect(status().isCreated());
+
+        ArgumentCaptor<CreateExpenseCommand> createCaptor = ArgumentCaptor.forClass(CreateExpenseCommand.class);
+        verify(createExpensePort).createExpense(createCaptor.capture());
+        assertThat(createCaptor.getValue().participantId()).isEqualTo(20L);
+
+        mockMvc.perform(post("/api/v1/accounts/1/expenses/installments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"categoryId":2,"participantId":21,"paymentMethodId":3,"description":"Laptop","totalAmount":1200000,"expenseDate":"2026-05-11","installmentCount":6,"installmentAmount":200000,"firstInstallmentDate":"2026-06-01","debtName":"Laptop debt","notes":"No payments"}
+                                """))
+                .andExpect(status().isCreated());
+
+        ArgumentCaptor<CreateInstallmentExpenseCommand> installmentCaptor = ArgumentCaptor.forClass(CreateInstallmentExpenseCommand.class);
+        verify(createInstallmentExpensePort).createInstallmentExpense(installmentCaptor.capture());
+        assertThat(installmentCaptor.getValue().participantId()).isEqualTo(21L);
+
+        mockMvc.perform(put("/api/v1/accounts/1/expenses/5")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"categoryId":2,"participantId":30,"paymentMethodId":3,"description":"Dinner","amount":15000,"expenseDate":"2026-05-09","paymentState":"PAID"}
+                                """))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<UpdateExpenseCommand> updateCaptor = ArgumentCaptor.forClass(UpdateExpenseCommand.class);
+        verify(updateExpensePort).updateExpense(updateCaptor.capture());
+        assertThat(updateCaptor.getValue().participantId()).isEqualTo(30L);
     }
 
     @Test

@@ -129,6 +129,25 @@ class BudgetsSchemaIT {
                 .isInstanceOf(DataAccessException.class);
     }
 
+    @Test
+    void subBudgetAcceptsParticipantFromSameAccount() {
+        Fixture fixture = createFixture();
+        Long budgetId = insertBudget(fixture.accountId(), 2026, 5);
+
+        assertThatCode(() -> insertSubBudget(fixture.accountId(), budgetId, fixture.categoryId(), fixture.participantId()))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void subBudgetRejectsParticipantFromAnotherAccount() {
+        Fixture fixture = createFixture();
+        Fixture other = createFixture();
+        Long budgetId = insertBudget(fixture.accountId(), 2026, 5);
+
+        assertThatThrownBy(() -> insertSubBudget(fixture.accountId(), budgetId, fixture.categoryId(), other.participantId()))
+                .isInstanceOf(DataAccessException.class);
+    }
+
     private Long insertBudget(Long accountId, int year, int month) {
         return jdbcTemplate.queryForObject(
                 "INSERT INTO budgets (account_id, year, month, name, status) VALUES (?, ?, ?, ?, ?) RETURNING id",
@@ -142,15 +161,20 @@ class BudgetsSchemaIT {
     }
 
     private Long insertSubBudget(Long accountId, Long budgetId, Long categoryId) {
+        return insertSubBudget(accountId, budgetId, categoryId, null);
+    }
+
+    private Long insertSubBudget(Long accountId, Long budgetId, Long categoryId, Long participantId) {
         return jdbcTemplate.queryForObject(
                 """
-                INSERT INTO sub_budgets (account_id, budget_id, category_id, name, planned_amount, planned_currency, spent_amount, spent_currency, status, source_type)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
+                INSERT INTO sub_budgets (account_id, budget_id, category_id, participant_id, name, planned_amount, planned_currency, spent_amount, spent_currency, status, source_type)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
                 """,
                 Long.class,
                 accountId,
                 budgetId,
                 categoryId,
+                participantId,
                 "Food",
                 100000,
                 "COP",

@@ -6,6 +6,7 @@ public record CreateSubBudgetCommand(
         Long accountId,
         Long budgetId,
         Long categoryId,
+        Long participantId,
         String name,
         Money plannedAmount
 ) {

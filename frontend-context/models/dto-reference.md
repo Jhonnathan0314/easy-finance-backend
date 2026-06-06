@@ -69,10 +69,10 @@ Note: type changes are not allowed by backend business rules even if update DTO 
 ## Expenses
 
 ```ts
-interface CreateExpenseRequest { categoryId: number; paymentMethodId: number; description: string; amount: number; expenseDate: string; paymentState?: "PENDING" | "PARTIAL" | "PAID" | null; }
-interface UpdateExpenseRequest { categoryId: number; paymentMethodId: number; description: string; amount: number; expenseDate: string; paymentState: "PENDING" | "PARTIAL" | "PAID"; }
+interface CreateExpenseRequest { categoryId: number; participantId?: number | null; paymentMethodId: number; description: string; amount: number; expenseDate: string; paymentState?: "PENDING" | "PARTIAL" | "PAID" | null; }
+interface UpdateExpenseRequest { categoryId: number; participantId?: number | null; paymentMethodId: number; description: string; amount: number; expenseDate: string; paymentState: "PENDING" | "PARTIAL" | "PAID"; }
 interface DuplicateExpenseRequest { expenseDate: string; amount?: number | null; description?: string | null; paymentState?: "PENDING" | "PARTIAL" | "PAID" | null; }
-interface CreateInstallmentExpenseRequest { categoryId: number; paymentMethodId: number; description: string; totalAmount: number; expenseDate: string; installmentCount: number; installmentAmount: number; firstInstallmentDate: string; debtName?: string | null; notes?: string | null; }
+interface CreateInstallmentExpenseRequest { categoryId: number; participantId?: number | null; paymentMethodId: number; description: string; totalAmount: number; expenseDate: string; installmentCount: number; installmentAmount: number; firstInstallmentDate: string; debtName?: string | null; notes?: string | null; }
 interface ExpenseResponse { id: number; accountId: number; categoryId: number; paymentMethodId: number; participantId: number; description: string; amount: number; currency: "COP"; expenseDate: string; paymentState: string; status: string; expenseType: string; sourceType: "MANUAL" | "IMPORT" | "DEBT_PAYMENT"; sourceDebtPaymentId?: number | null; createdAt: string; updatedAt: string; }
 ```
 
@@ -87,9 +87,9 @@ Validation:
 ## Debts And Payments
 
 ```ts
-interface CreateManualDebtRequest { name: string; description?: string | null; totalAmount: number; installmentCount?: number | null; installmentAmount?: number | null; startDate: string; dueDate?: string | null; notes?: string | null; }
+interface CreateManualDebtRequest { name: string; participantId?: number | null; description?: string | null; totalAmount: number; installmentCount?: number | null; installmentAmount?: number | null; startDate: string; dueDate?: string | null; notes?: string | null; }
 interface RegisterDebtPaymentRequest { paymentType: "INSTALLMENT" | "CAPITAL_PAYMENT"; amount: number; paymentDate: string; notes?: string | null; createExpense?: boolean | null; categoryId?: number | null; paymentMethodId?: number | null; expenseDescription?: string | null; }
-interface DebtResponse { id: number; accountId: number; participantId: number; originExpenseId?: number | null; sourceType: string; name: string; description?: string | null; totalAmount: number; totalCurrency: "COP"; remainingAmount: number; remainingCurrency: "COP"; installmentCount?: number | null; installmentAmount?: number | null; installmentCurrency?: "COP" | null; startDate: string; endDate?: string | null; state: string; notes?: string | null; createdAt: string; updatedAt: string; }
+interface DebtResponse { id: number; accountId: number; participantId: number; originExpenseId?: number | null; sourceType: string; name: string; description?: string | null; totalAmount: number; scheduledTotalAmount: number; totalCurrency: "COP"; remainingAmount: number; remainingCurrency: "COP"; installmentCount?: number | null; installmentAmount?: number | null; installmentCurrency?: "COP" | null; startDate: string; endDate?: string | null; state: string; notes?: string | null; createdAt: string; updatedAt: string; }
 interface DebtPaymentResponse { id: number; accountId: number; debtId: number; participantId: number; paymentType: string; amount: number; currency: "COP"; paymentDate: string; notes?: string | null; status: string; createdAt: string; updatedAt: string; }
 interface RegisterDebtPaymentResponse { payment: DebtPaymentResponse; debt: DebtResponse; createdExpenseId?: number | null; }
 ```
@@ -98,10 +98,10 @@ interface RegisterDebtPaymentResponse { payment: DebtPaymentResponse; debt: Debt
 
 ```ts
 interface UpsertBudgetRequest { name?: string | null; status?: "ACTIVE" | "CLOSED" | "ARCHIVED" | null; }
-interface CreateSubBudgetRequest { categoryId?: number | null; name: string; plannedAmount: number; }
-interface UpdateSubBudgetRequest { categoryId?: number | null; name: string; plannedAmount: number; }
+interface CreateSubBudgetRequest { categoryId?: number | null; participantId?: number | null; name: string; plannedAmount: number; }
+interface UpdateSubBudgetRequest { categoryId?: number | null; participantId?: number | null; name: string; plannedAmount: number; }
 interface BudgetResponse { id: number; accountId: number; year: number; month: number; name?: string | null; status: string; createdAt: string; updatedAt: string; }
-interface SubBudgetResponse { id: number; accountId: number; budgetId: number; categoryId?: number | null; debtId?: number | null; name: string; plannedAmount: number; plannedCurrency: "COP"; spentAmount: number; spentCurrency: "COP"; status: string; sourceType: string; createdAt: string; updatedAt: string; }
+interface SubBudgetResponse { id: number; accountId: number; budgetId: number; categoryId?: number | null; participantId?: number | null; debtId?: number | null; name: string; plannedAmount: number; plannedCurrency: "COP"; spentAmount: number; spentCurrency: "COP"; status: string; sourceType: string; createdAt: string; updatedAt: string; }
 interface BudgetImpactResponse { id: number; accountId: number; budgetId: number; subBudgetId: number; debtId: number; expenseId?: number | null; periodYear: number; periodMonth: number; expectedAmount: number; expectedCurrency: "COP"; paidAmount: number; paidCurrency: "COP"; status: string; sourceType: string; createdAt: string; updatedAt: string; }
 interface BudgetDetailResponse { budget: BudgetResponse; subBudgets: SubBudgetResponse[]; impacts: BudgetImpactResponse[]; }
 ```
@@ -111,8 +111,8 @@ Budget note: manual sub-budget `spentAmount` is a read-time calculation from act
 ## Income
 
 ```ts
-interface CreateIncomeRequest { categoryId: number; description: string; amount: number; incomeDate: string; }
-interface UpdateIncomeRequest { categoryId: number; description: string; amount: number; incomeDate: string; }
+interface CreateIncomeRequest { categoryId: number; participantId?: number | null; description: string; amount: number; incomeDate: string; }
+interface UpdateIncomeRequest { categoryId: number; participantId?: number | null; description: string; amount: number; incomeDate: string; }
 interface DuplicateIncomeRequest { incomeDate: string; amount?: number | null; description?: string | null; }
 interface IncomeResponse { id: number; accountId: number; categoryId: number; participantId: number; description: string; amount: number; currency: "COP"; incomeDate: string; status: string; createdAt: string; updatedAt: string; }
 ```
@@ -143,6 +143,22 @@ Budget summary combines manual planned amounts, dynamic manual expense execution
 
 ```ts
 interface ImportRowError { column: string; code: string; message: string; }
-interface ExpenseImportRowResponse { id: number; rowNumber: number; expenseDate?: string | null; description?: string | null; amount?: number | null; currency?: "COP" | null; categoryName?: string | null; categoryId?: number | null; paymentMethodName?: string | null; paymentMethodId?: number | null; paymentState?: string | null; appliesDebtPayment: boolean; debtId?: number | null; debtLabel?: string | null; debtPaymentType?: "INSTALLMENT" | "CAPITAL_PAYMENT" | null; debtPaymentNotes?: string | null; valid: boolean; errors: ImportRowError[]; createdExpenseId?: number | null; createdDebtPaymentId?: number | null; }
+interface ExpenseImportRowResponse { id: number; rowNumber: number; expenseDate?: string | null; description?: string | null; amount?: number | null; currency?: "COP" | null; categoryName?: string | null; categoryId?: number | null; paymentMethodName?: string | null; paymentMethodId?: number | null; paymentState?: string | null; participantLabel?: string | null; participantId?: number | null; appliesDebtPayment: boolean; debtId?: number | null; debtLabel?: string | null; debtPaymentType?: "INSTALLMENT" | "CAPITAL_PAYMENT" | null; debtPaymentNotes?: string | null; valid: boolean; errors: ImportRowError[]; createdExpenseId?: number | null; createdDebtPaymentId?: number | null; }
 interface ExpenseImportBatchResponse { batchId: number; accountId: number; participantId: number; originalFilename: string; status: string; totalRows: number; validRows: number; invalidRows: number; confirmedAt?: string | null; rows: ExpenseImportRowResponse[]; }
+```
+
+## Direct Imports
+
+```ts
+interface IncomeImportRowResponse { rowNumber: number; incomeDate?: string | null; description?: string | null; categoryName?: string | null; categoryId?: number | null; participantLabel?: string | null; participantId?: number | null; amount?: number | null; valid: boolean; createdIncomeId?: number | null; errors: string[]; }
+interface IncomeImportResponse { createdCount: number; rows: IncomeImportRowResponse[]; }
+
+interface CategoryImportRowResponse { rowNumber: number; name?: string | null; description?: string | null; type?: "EXPENSE" | "INCOME" | null; valid: boolean; createdCategoryId?: number | null; errors: string[]; }
+interface CategoryImportResponse { createdCount: number; rows: CategoryImportRowResponse[]; }
+
+interface PaymentMethodImportRowResponse { rowNumber: number; name?: string | null; description?: string | null; type?: PaymentMethodType | null; valid: boolean; createdPaymentMethodId?: number | null; errors: string[]; }
+interface PaymentMethodImportResponse { createdCount: number; rows: PaymentMethodImportRowResponse[]; }
+
+interface AnnualBudgetImportRowResponse { rowNumber: number; year?: number | null; month?: string | null; budgetName?: string | null; categoryName?: string | null; categoryId?: number | null; subBudgetName?: string | null; plannedAmount?: number | null; participantLabel?: string | null; participantId?: number | null; valid: boolean; appliedMonths: number[]; errors: string[]; }
+interface AnnualBudgetImportResponse { year?: number | null; createdBudgetsCount: number; createdSubBudgetsCount: number; rows: AnnualBudgetImportRowResponse[]; }
 ```

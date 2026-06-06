@@ -36,6 +36,7 @@ public class ApachePoiExpenseImportParser implements ExpenseImportParserPort {
     private static final String DEBT = "Deuda";
     private static final String DEBT_PAYMENT_TYPE = "TipoPagoDeuda";
     private static final String DEBT_PAYMENT_NOTES = "NotasPagoDeuda";
+    private static final String PARTICIPANT = "Participante";
     private static final String VALUES_SHEET = "Valores";
     private static final String DEBT_LABEL_HEADER = "Deudas";
     private static final String DEBT_ID_HEADER = "DeudaId";
@@ -81,6 +82,7 @@ public class ApachePoiExpenseImportParser implements ExpenseImportParserPort {
         String category = requiredText(row.getCell(columns.get("CategorÃ­a")), "CategorÃ­a", errors);
         String paymentMethod = requiredText(row.getCell(columns.get("MedioPago")), "MedioPago", errors);
         ExpensePaymentState paymentState = readPaymentState(row.getCell(columns.get("EstadoPago")), errors);
+        String participantLabel = optionalText(row, columns, PARTICIPANT, errors);
 
         boolean appliesDebtPayment = readAppliesDebtPayment(row, columns, errors);
         String debtLabel = optionalText(row, columns, DEBT, errors);
@@ -104,7 +106,7 @@ public class ApachePoiExpenseImportParser implements ExpenseImportParserPort {
             errors.add(new ImportRowError(APPLIES_DEBT_PAYMENT, "IMPORT_DEBT_PAYMENT_FIELDS_NOT_ALLOWED", "Debt payment fields must be empty when AplicaPagoDeuda is NO."));
         }
 
-        return new ExpenseImportRow(null, accountId, null, row.getRowNum() + 1, date, description, amount, category, null, paymentMethod, null, paymentState, appliesDebtPayment, debtId, debtLabel, debtPaymentType, debtPaymentNotes, errors.isEmpty(), errors, null, null, null, null);
+        return new ExpenseImportRow(null, accountId, null, row.getRowNum() + 1, date, description, amount, category, null, paymentMethod, null, paymentState, participantLabel, null, appliesDebtPayment, debtId, debtLabel, debtPaymentType, debtPaymentNotes, errors.isEmpty(), errors, null, null, null, null);
     }
 
     private Map<String, Integer> resolveColumns(Row headerRow) {
@@ -116,10 +118,45 @@ public class ApachePoiExpenseImportParser implements ExpenseImportParserPort {
         for (Cell cell : headerRow) {
             columns.put(formatter.formatCellValue(cell).trim(), cell.getColumnIndex());
         }
+        addHeaderAlias(columns, "DescripciÃƒÂ³n", "DescripciÃ³n");
+        addHeaderAlias(columns, "CategorÃƒÂ­a", "CategorÃa");
+        addFirstHeaderStartingWith(columns, "DescripciÃƒÂ³n", "Descripci");
+        addFirstHeaderStartingWith(columns, "CategorÃƒÂ­a", "Categor");
+        addHeaderAtIndexIfMissing(columns, "DescripciÃƒÂ³n", 1);
+        addHeaderAtIndexIfMissing(columns, "CategorÃƒÂ­a", 3);
+        addRequiredHeadersByIndex(columns);
         if (!columns.keySet().containsAll(REQUIRED_HEADERS)) {
             throw new BusinessRuleViolationException("IMPORT_TEMPLATE_INVALID", "Import template header is invalid.");
         }
         return columns;
+    }
+
+    private static void addHeaderAlias(Map<String, Integer> columns, String expected, String alias) {
+        if (!columns.containsKey(expected) && columns.containsKey(alias)) {
+            columns.put(expected, columns.get(alias));
+        }
+    }
+
+    private static void addFirstHeaderStartingWith(Map<String, Integer> columns, String expected, String prefix) {
+        if (columns.containsKey(expected)) {
+            return;
+        }
+        columns.entrySet().stream()
+                .filter(entry -> entry.getKey().startsWith(prefix))
+                .findFirst()
+                .ifPresent(entry -> columns.put(expected, entry.getValue()));
+    }
+
+    private static void addHeaderAtIndexIfMissing(Map<String, Integer> columns, String expected, int columnIndex) {
+        if (!columns.containsKey(expected) && columns.containsValue(columnIndex)) {
+            columns.put(expected, columnIndex);
+        }
+    }
+
+    private static void addRequiredHeadersByIndex(Map<String, Integer> columns) {
+        for (int i = 0; i < REQUIRED_HEADERS.size(); i++) {
+            addHeaderAtIndexIfMissing(columns, REQUIRED_HEADERS.get(i), i);
+        }
     }
 
     private Map<String, Long> resolveDebtIdsByLabel(Workbook workbook) {

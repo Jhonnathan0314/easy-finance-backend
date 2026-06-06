@@ -51,6 +51,20 @@ class ApachePoiBudgetImportParserTest {
     }
 
     @Test
+    void parsesOptionalParticipantColumn() throws Exception {
+        byte[] content = workbook(new String[]{"AÃ±o", "Mes", "NombrePresupuesto", "Categoria", "NombreSubpresupuesto", "Valor", "Participante"},
+                new Object[]{2026, "Todos", "Presupuesto 2026", "Mercado", "Mercado Casa", 800000, "Ana Finance <ana@example.com>"}
+        );
+
+        var rows = parser.parse(command(content));
+
+        assertThat(rows).singleElement().satisfies(row -> {
+            assertThat(row.participantLabel()).isEqualTo("Ana Finance <ana@example.com>");
+            assertThat(row.errors()).isEmpty();
+        });
+    }
+
+    @Test
     void rejectsMissingHeaders() throws Exception {
         byte[] content = workbook(new String[]{"Año", "Mes"}, new Object[]{2026, "Todos"});
 
@@ -91,4 +105,3 @@ class ApachePoiBudgetImportParserTest {
         }
     }
 }
-

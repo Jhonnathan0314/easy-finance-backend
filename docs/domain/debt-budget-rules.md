@@ -53,11 +53,10 @@ Derived debt fields:
 
 - `originExpenseId`: expense id.
 - `accountId`: same account as the expense.
-- `participantId`: same participant unless explicitly changed by future rules.
-- `paymentMethodId`: same payment method as the expense.
+- `participantId`: inherited from the origin installment expense.
 - `totalAmount`: principal/original debt amount.
-- `scheduledTotalAmount`: financed total to pay, calculated as `installmentAmount * installments`.
-- `installments`: number of installments.
+- `scheduledTotalAmount`: financed total to pay, calculated as `installmentAmount * installmentCount`.
+- `installmentCount`: number of installments.
 - `installmentAmount`: provided installment amount.
 - `remainingBalance`: initialized with debt principal amount.
 - `startDate`: provided debt start date.

@@ -157,6 +157,7 @@ Content-Type: application/json
 
 {
   "categoryId": <expenseCategoryId>,
+  "participantId": <optionalParticipantId>,
   "paymentMethodId": <paymentMethodId>,
   "description": "Lunch",
   "amount": 25000,
@@ -168,6 +169,7 @@ Content-Type: application/json
 Expected:
 
 - Expense is ACTIVE and SIMPLE.
+- If `participantId` is omitted, the authenticated participant is assigned.
 
 ## 6. Installment Expense
 
@@ -178,6 +180,7 @@ Content-Type: application/json
 
 {
   "categoryId": <expenseCategoryId>,
+  "participantId": <optionalParticipantId>,
   "paymentMethodId": <paymentMethodId>,
   "description": "Appliance",
   "totalAmount": 300000,
@@ -194,6 +197,7 @@ Expected:
 
 - Expense is INSTALLMENT.
 - Exactly one debt is created.
+- The derived debt uses the same assigned participant as the expense.
 - Budget impacts are generated for each installment period.
 
 ## 7. Debts
@@ -250,6 +254,7 @@ Content-Type: application/json
 
 {
   "categoryId": <incomeCategoryId>,
+  "participantId": <optionalParticipantId>,
   "description": "Monthly salary",
   "amount": 2500000,
   "incomeDate": "2026-05-12"
@@ -259,6 +264,7 @@ Content-Type: application/json
 Expected:
 
 - Income is ACTIVE.
+- If `participantId` is omitted, the authenticated participant is assigned.
 
 ## 11. Analytics
 
@@ -291,14 +297,14 @@ Expected:
 - Response is `200`.
 - `Content-Type` is `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`.
 - `Content-Disposition` downloads `easy-finance-expense-import-template.xlsx`.
-- Workbook contains `Gastos` headers, account-scoped catalog values, active debts, and debt-payment dropdown values.
+- Workbook contains `Gastos` headers, account-scoped catalog values, active participants, active debts, and debt-payment dropdown values.
 
 ## 13. Expense Import Preview
 
 Upload an `.xlsx` file with first-sheet headers:
 
 ```text
-Fecha | Descripción | Monto | Categoría | MedioPago | EstadoPago
+Fecha | Descripción | Monto | Categoría | MedioPago | EstadoPago | Participante
 ```
 
 Files generated from the current template can also include optional debt-payment columns:
@@ -321,6 +327,7 @@ Expected:
 - Batch status is PREVIEW.
 - Valid and invalid row counts are returned.
 - Rows marked with `AplicaPagoDeuda = SI` resolve an active account debt through the hidden mapping and are rejected if they would overpay.
+- Row-level `Participante` resolves to `participantId`/`participantLabel`; blank uses the authenticated participant.
 - No expenses are created yet.
 
 ## 14. Expense Import Confirm
@@ -334,6 +341,7 @@ Expected:
 
 - Batch status becomes CONFIRMED.
 - Valid rows create simple expenses.
+- Created expenses use the participant resolved for each row.
 - A repeated confirm fails with `IMPORT_ALREADY_CONFIRMED`.
 
 ## 15. Income Import Direct
@@ -350,7 +358,7 @@ Expected:
 - Response is `200`.
 - `Content-Type` is `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`.
 - `Content-Disposition` downloads `easy-finance-income-import-template.xlsx`.
-- Workbook contains `Ingresos` sheet and account-scoped active `INCOME` categories.
+- Workbook contains `Ingresos` sheet, account-scoped active `INCOME` categories, and active participants.
 
 Import:
 
@@ -363,10 +371,11 @@ file=<xlsx-file>
 
 Expected:
 
-- `POST /api/v1/accounts/{accountId}/imports/incomes/preview` returns parsed row data, resolved `categoryId`, validity and errors without creating incomes.
+- `POST /api/v1/accounts/{accountId}/imports/incomes/preview` returns parsed row data, resolved `categoryId`, `participantLabel`, `participantId`, validity and errors without creating incomes.
 - Fully blank rows are ignored.
 - If any row is invalid, `createdCount` is `0` and no income is persisted.
 - If all rows are valid, all incomes are created in one transaction with status `ACTIVE`.
+- Blank `Participante` uses the authenticated participant; selected participants follow admin/member assignment rules.
 
 ## 16. Category Import Direct
 
@@ -461,8 +470,9 @@ file=<xlsx-file>
 Expected:
 
 - Requires `ACCOUNT_ADMIN` on an active account.
-- `POST /api/v1/accounts/{accountId}/imports/budgets/annual/preview` returns parsed row data, resolved `categoryId`, `appliedMonths`, validity and errors without creating budgets.
-- Rows with `Mes=Todos` define the yearly base; month-specific rows override the same category/sub-budget only for that month.
+- `POST /api/v1/accounts/{accountId}/imports/budgets/annual/preview` returns parsed row data, resolved `categoryId`, `participantLabel`, `participantId`, `appliedMonths`, validity and errors without creating budgets.
+- Rows with `Mes=Todos` define the yearly base; month-specific rows override the same category/sub-budget/participant scope only for that month.
+- `Participante` is optional. Blank rows create global sub-budgets; selected participants create participant-scoped sub-budgets.
 - If any row is invalid, no budget is persisted.
 - If any budget already exists for the year, import fails with `ANNUAL_BUDGET_MONTH_ALREADY_EXISTS`.
 - If all rows are valid, 12 monthly budgets are created in one transaction with `MANUAL`/`ACTIVE` sub-budgets.

@@ -1,6 +1,8 @@
 package com.easyfinance.budgets.application.usecase;
 
 import com.easyfinance.accounts.application.service.AccountAuthorizationService;
+import com.easyfinance.accounts.application.service.AccountAccess;
+import com.easyfinance.accounts.application.service.AssignedParticipantValidator;
 import com.easyfinance.budgets.application.command.ApplyDebtPaymentImpactCommand;
 import com.easyfinance.budgets.application.command.CreateAnnualBudgetCommand;
 import com.easyfinance.budgets.application.command.CreateAnnualSubBudgetBaseCommand;
@@ -73,6 +75,7 @@ public class BudgetManagementUseCase implements
 
     private final CurrentUserProvider currentUserProvider;
     private final AccountAuthorizationService accountAuthorizationService;
+    private final AssignedParticipantValidator assignedParticipantValidator;
     private final CatalogValidationPort catalogValidationPort;
     private final BudgetRepositoryPort budgetRepository;
     private final SubBudgetRepositoryPort subBudgetRepository;
@@ -82,6 +85,7 @@ public class BudgetManagementUseCase implements
     public BudgetManagementUseCase(
             CurrentUserProvider currentUserProvider,
             AccountAuthorizationService accountAuthorizationService,
+            AssignedParticipantValidator assignedParticipantValidator,
             CatalogValidationPort catalogValidationPort,
             BudgetRepositoryPort budgetRepository,
             SubBudgetRepositoryPort subBudgetRepository,
@@ -90,6 +94,7 @@ public class BudgetManagementUseCase implements
     ) {
         this.currentUserProvider = currentUserProvider;
         this.accountAuthorizationService = accountAuthorizationService;
+        this.assignedParticipantValidator = assignedParticipantValidator;
         this.catalogValidationPort = catalogValidationPort;
         this.budgetRepository = budgetRepository;
         this.subBudgetRepository = subBudgetRepository;
@@ -194,6 +199,7 @@ public class BudgetManagementUseCase implements
                         command.accountId(),
                         target.id(),
                         subBudget.categoryId(),
+                        subBudget.participantId(),
                         subBudget.name(),
                         subBudget.plannedAmount()
                 ))
@@ -206,23 +212,25 @@ public class BudgetManagementUseCase implements
     @Override
     @Transactional
     public SubBudgetResponse createSubBudget(CreateSubBudgetCommand command) {
-        accountAuthorizationService.requireActiveAdminForActiveAccount(command.accountId(), currentParticipantId());
+        AccountAccess access = accountAuthorizationService.requireActiveAdminForActiveAccount(command.accountId(), currentParticipantId());
         Budget budget = findBudget(command.accountId(), command.budgetId());
         budget.ensureActive();
         validateActiveCategory(command.accountId(), command.categoryId());
-        SubBudget subBudget = SubBudget.createManual(command.accountId(), command.budgetId(), command.categoryId(), command.name(), command.plannedAmount());
+        Long assignedParticipantId = assignedParticipantValidator.resolveNullableAssignedParticipantId(access, command.participantId());
+        SubBudget subBudget = SubBudget.createManual(command.accountId(), command.budgetId(), command.categoryId(), assignedParticipantId, command.name(), command.plannedAmount());
         return toSubBudgetResponse(subBudgetRepository.save(subBudget));
     }
 
     @Override
     @Transactional
     public SubBudgetResponse updateSubBudget(UpdateSubBudgetCommand command) {
-        accountAuthorizationService.requireActiveAdminForActiveAccount(command.accountId(), currentParticipantId());
+        AccountAccess access = accountAuthorizationService.requireActiveAdminForActiveAccount(command.accountId(), currentParticipantId());
         Budget budget = findBudget(command.accountId(), command.budgetId());
         budget.ensureActive();
         validateActiveCategory(command.accountId(), command.categoryId());
         SubBudget subBudget = findSubBudget(command.accountId(), command.budgetId(), command.subBudgetId());
-        return toSubBudgetResponse(subBudgetRepository.save(subBudget.updateManual(command.categoryId(), command.name(), command.plannedAmount())));
+        Long assignedParticipantId = assignedParticipantValidator.resolveNullableAssignedParticipantId(access, command.participantId());
+        return toSubBudgetResponse(subBudgetRepository.save(subBudget.updateManual(command.categoryId(), assignedParticipantId, command.name(), command.plannedAmount())));
     }
 
     @Override
@@ -244,7 +252,7 @@ public class BudgetManagementUseCase implements
             Budget budget = getOrCreateBudget(command.accountId(), period.getYear(), period.getMonthValue());
             String subBudgetName = "Debt: " + command.debtName();
             SubBudget subBudget = subBudgetRepository.findDebtDerivedByAccountIdAndBudgetIdAndDebtId(command.accountId(), budget.id(), command.debtId())
-                    .orElseGet(() -> subBudgetRepository.save(SubBudget.createDebtDerived(command.accountId(), budget.id(), command.categoryId(), command.debtId(), subBudgetName, command.installmentAmount())));
+                    .orElseGet(() -> subBudgetRepository.save(SubBudget.createDebtDerived(command.accountId(), budget.id(), command.categoryId(), command.participantId(), command.debtId(), subBudgetName, command.installmentAmount())));
             if (impactRepository.findByAccountIdAndDebtIdAndPeriod(command.accountId(), command.debtId(), period.getYear(), period.getMonthValue()).isEmpty()) {
                 impactRepository.save(BudgetImpact.createDebtInstallment(
                         command.accountId(),
@@ -313,7 +321,11 @@ public class BudgetManagementUseCase implements
     private BudgetDetailResponse detailResponse(Budget budget) {
         List<SubBudget> subBudgets = subBudgetRepository.findByAccountIdAndBudgetId(budget.accountId(), budget.id());
         List<BudgetImpact> budgetImpacts = impactRepository.findByAccountIdAndBudgetId(budget.accountId(), budget.id());
-        Map<Long, BigDecimal> manualSpentBySubBudget = manualSpentBySubBudget(subBudgets, manualSpentByCategory(budget, subBudgets));
+        Map<Long, BigDecimal> manualSpentBySubBudget = manualSpentBySubBudget(
+                subBudgets,
+                manualSpentByGlobalCategory(budget, subBudgets),
+                manualSpentByAssignedCategoryAndParticipant(budget, subBudgets)
+        );
         Map<Long, BigDecimal> debtPaidBySubBudget = budgetImpacts.stream()
                 .filter(impact -> impact.status() != com.easyfinance.budgets.domain.model.BudgetImpactStatus.CANCELLED)
                 .collect(Collectors.groupingBy(
@@ -372,6 +384,7 @@ public class BudgetManagementUseCase implements
                 subBudget.accountId(),
                 subBudget.budgetId(),
                 subBudget.categoryId(),
+                subBudget.participantId(),
                 subBudget.debtId(),
                 subBudget.name(),
                 subBudget.plannedAmount().amount(),
@@ -406,10 +419,11 @@ public class BudgetManagementUseCase implements
         );
     }
 
-    private Map<Long, BigDecimal> manualSpentByCategory(Budget budget, List<SubBudget> subBudgets) {
+    private Map<Long, BigDecimal> manualSpentByGlobalCategory(Budget budget, List<SubBudget> subBudgets) {
         List<Long> categoryIds = subBudgets.stream()
                 .filter(subBudget -> subBudget.status() == SubBudgetStatus.ACTIVE)
                 .filter(subBudget -> subBudget.sourceType() == SubBudgetSourceType.MANUAL)
+                .filter(subBudget -> subBudget.participantId() == null)
                 .map(SubBudget::categoryId)
                 .filter(Objects::nonNull)
                 .distinct()
@@ -426,18 +440,57 @@ public class BudgetManagementUseCase implements
         );
     }
 
-    private Map<Long, BigDecimal> manualSpentBySubBudget(List<SubBudget> subBudgets, Map<Long, BigDecimal> manualSpentByCategory) {
-        if (manualSpentByCategory.isEmpty()) {
-            return Map.of();
-        }
-        Map<Long, List<SubBudget>> activeManualByCategory = subBudgets.stream()
+    private Map<BudgetExpenseExecutionQueryPort.CategoryParticipantKey, BigDecimal> manualSpentByAssignedCategoryAndParticipant(Budget budget, List<SubBudget> subBudgets) {
+        List<BudgetExpenseExecutionQueryPort.CategoryParticipantKey> keys = subBudgets.stream()
                 .filter(subBudget -> subBudget.status() == SubBudgetStatus.ACTIVE)
                 .filter(subBudget -> subBudget.sourceType() == SubBudgetSourceType.MANUAL)
                 .filter(subBudget -> subBudget.categoryId() != null)
-                .collect(Collectors.groupingBy(SubBudget::categoryId));
-        return activeManualByCategory.entrySet().stream()
-                .flatMap(entry -> allocateCategorySpent(entry.getValue(), manualSpentByCategory.getOrDefault(entry.getKey(), BigDecimal.ZERO)).entrySet().stream())
+                .filter(subBudget -> subBudget.participantId() != null)
+                .map(subBudget -> new BudgetExpenseExecutionQueryPort.CategoryParticipantKey(subBudget.categoryId(), subBudget.participantId()))
+                .distinct()
+                .toList();
+        if (keys.isEmpty()) {
+            return Map.of();
+        }
+        YearMonth period = YearMonth.of(budget.year(), budget.month());
+        return expenseExecutionQueryPort.sumManualExecutionByCategoryAndParticipant(
+                budget.accountId(),
+                period.atDay(1),
+                period.atEndOfMonth(),
+                keys
+        );
+    }
+
+    private Map<Long, BigDecimal> manualSpentBySubBudget(
+            List<SubBudget> subBudgets,
+            Map<Long, BigDecimal> manualSpentByGlobalCategory,
+            Map<BudgetExpenseExecutionQueryPort.CategoryParticipantKey, BigDecimal> manualSpentByAssignedCategoryAndParticipant
+    ) {
+        if (manualSpentByGlobalCategory.isEmpty() && manualSpentByAssignedCategoryAndParticipant.isEmpty()) {
+            return Map.of();
+        }
+        Map<ManualExecutionKey, List<SubBudget>> activeManualByKey = subBudgets.stream()
+                .filter(subBudget -> subBudget.status() == SubBudgetStatus.ACTIVE)
+                .filter(subBudget -> subBudget.sourceType() == SubBudgetSourceType.MANUAL)
+                .filter(subBudget -> subBudget.categoryId() != null)
+                .collect(Collectors.groupingBy(subBudget -> new ManualExecutionKey(subBudget.categoryId(), subBudget.participantId())));
+        return activeManualByKey.entrySet().stream()
+                .flatMap(entry -> allocateCategorySpent(entry.getValue(), spentForManualExecutionKey(entry.getKey(), manualSpentByGlobalCategory, manualSpentByAssignedCategoryAndParticipant)).entrySet().stream())
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    }
+
+    private BigDecimal spentForManualExecutionKey(
+            ManualExecutionKey key,
+            Map<Long, BigDecimal> manualSpentByGlobalCategory,
+            Map<BudgetExpenseExecutionQueryPort.CategoryParticipantKey, BigDecimal> manualSpentByAssignedCategoryAndParticipant
+    ) {
+        if (key.participantId() == null) {
+            return manualSpentByGlobalCategory.getOrDefault(key.categoryId(), BigDecimal.ZERO);
+        }
+        return manualSpentByAssignedCategoryAndParticipant.getOrDefault(
+                new BudgetExpenseExecutionQueryPort.CategoryParticipantKey(key.categoryId(), key.participantId()),
+                BigDecimal.ZERO
+        );
     }
 
     private Map<Long, BigDecimal> allocateCategorySpent(List<SubBudget> subBudgets, BigDecimal categorySpent) {
@@ -492,5 +545,8 @@ public class BudgetManagementUseCase implements
             return subBudget.spentAmount().amount();
         }
         return manualSpentBySubBudget.getOrDefault(subBudget.id(), BigDecimal.ZERO);
+    }
+
+    private record ManualExecutionKey(Long categoryId, Long participantId) {
     }
 }
