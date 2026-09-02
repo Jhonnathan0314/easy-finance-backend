@@ -56,6 +56,21 @@ Authorization: Bearer <accessToken>
 
 Use this after app boot or refresh to rehydrate auth state. The backend also revalidates active user/participant status for authenticated endpoints.
 
+## Update Profile
+
+`PUT /api/v1/auth/me`
+
+```json
+{
+  "fullName": "Jane Smith"
+}
+```
+
+Updates the authenticated user's `fullName` and the linked participant's `displayName` to the same value in one
+transaction - they are never allowed to diverge. Returns the same shape as `GET /auth/me`. `fullName` is required
+(max 150 characters); a blank value returns `FULL_NAME_REQUIRED` via the standard validation error format. Email
+and password are not editable through this endpoint.
+
 ## Expiration
 
 When the token expires, backend returns `401` with a token-related code such as `TOKEN_EXPIRED`. Frontend should clear auth state and redirect to `/login`.

@@ -8,6 +8,9 @@
 - `SUPER_ADMIN` does not bypass account financial authorization in the MVP.
 - Authenticated endpoints revalidate active user and participant status.
 - Inactive or blocked users cannot operate with still-valid JWTs.
+- A user can update their own `fullName` via `PUT /auth/me`. This always updates `Participant.displayName` to the
+  same value in the same transaction; the two fields are never allowed to diverge. Email and password are not
+  editable through this endpoint.
 
 ## Account Roles
 

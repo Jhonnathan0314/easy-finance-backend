@@ -3,6 +3,7 @@ package com.easyfinance.identity.entrypoint.rest;
 import com.easyfinance.identity.application.port.in.GetCurrentUserPort;
 import com.easyfinance.identity.application.port.in.LoginPort;
 import com.easyfinance.identity.application.port.in.RegisterUserPort;
+import com.easyfinance.identity.application.port.in.UpdateProfilePort;
 import com.easyfinance.identity.application.response.AuthTokenResponse;
 import com.easyfinance.identity.application.response.AuthenticatedUserResponse;
 import com.easyfinance.shared.infrastructure.security.JwtAuthenticationException;
@@ -34,6 +35,7 @@ import static org.springframework.security.test.web.servlet.setup.SecurityMockMv
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -52,6 +54,9 @@ class AuthControllerSecurityTest {
 
     @Autowired
     private GetCurrentUserPort getCurrentUserPort;
+
+    @Autowired
+    private UpdateProfilePort updateProfilePort;
 
     @Autowired
     private JwtTokenService jwtTokenService;
@@ -79,6 +84,17 @@ class AuthControllerSecurityTest {
         mockMvc.perform(get("/api/v1/auth/me").header("Authorization", "Bearer bad-token"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("INVALID_TOKEN"));
+    }
+
+    @Test
+    void updateProfileWithoutTokenReturnsUnauthorized() throws Exception {
+        mockMvc.perform(put("/api/v1/auth/me")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"fullName":"Jane Smith"}
+                                """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
     }
 
     @Test
@@ -146,6 +162,11 @@ class AuthControllerSecurityTest {
         @Bean
         GetCurrentUserPort getCurrentUserPort() {
             return mock(GetCurrentUserPort.class);
+        }
+
+        @Bean
+        UpdateProfilePort updateProfilePort() {
+            return mock(UpdateProfilePort.class);
         }
 
         @Bean

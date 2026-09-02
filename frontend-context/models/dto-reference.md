@@ -25,6 +25,7 @@ interface PageResponse<T> {
 ```ts
 interface RegisterRequest { email: string; password: string; fullName: string; }
 interface LoginRequest { email: string; password: string; }
+interface UpdateProfileRequest { fullName: string; }
 interface AuthenticatedUser { userId: number; participantId: number; email: string; fullName: string; globalRoles: string[]; }
 interface AuthTokenResponse { accessToken: string; tokenType: "Bearer"; expiresIn: number; user: AuthenticatedUser; }
 ```
@@ -33,7 +34,10 @@ Validation:
 
 - `email`: required, valid email
 - `password`: required; register min length 8
-- `fullName`: required
+- `fullName`: required, max 150 (both on register and on `UpdateProfileRequest`)
+
+`PUT /auth/me` (`UpdateProfileRequest`) returns `AuthenticatedUser` (same shape as `GET /auth/me`), reflecting the
+updated `fullName`.
 
 ## Accounts
 

@@ -47,6 +47,7 @@ This documentation describes the current backend MVP and the conventions used to
 ### Implementation
 
 - [Implementation Roadmap](implementation/roadmap.md)
+- [Profile Update - Implementation Plan](implementation/profile-update-plan.md)
 
 ## Final Technical Decisions
 

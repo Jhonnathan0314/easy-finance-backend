@@ -16,6 +16,17 @@
 - Components: register form.
 - Errors: `EMAIL_ALREADY_REGISTERED`, validation errors.
 
+## Profile
+
+- Goal: let the authenticated user update their own full name.
+- Endpoint: `PUT /api/v1/auth/me`.
+- Actions: prefill from current session, submit updated `fullName`.
+- Components: single-field profile form, success/error panels; reachable via a "Mi perfil" link next to the user
+  name in the topbar (`/app/profile`).
+- Notes: updates `User.fullName` and `Participant.displayName` together; the topbar and any member list refresh
+  automatically since the session's `user.fullName` is updated in place. Email and password are not editable here.
+- Errors: `FULL_NAME_REQUIRED`, validation errors.
+
 ## Accounts
 
 - Goal: list/create/select financial accounts.

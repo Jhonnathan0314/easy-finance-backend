@@ -3,6 +3,7 @@ package com.easyfinance.identity.entrypoint.rest;
 import com.easyfinance.identity.application.port.in.GetCurrentUserPort;
 import com.easyfinance.identity.application.port.in.LoginPort;
 import com.easyfinance.identity.application.port.in.RegisterUserPort;
+import com.easyfinance.identity.application.port.in.UpdateProfilePort;
 import com.easyfinance.identity.application.response.AuthTokenResponse;
 import com.easyfinance.identity.application.response.AuthenticatedUserResponse;
 import com.easyfinance.shared.infrastructure.error.GlobalExceptionHandler;
@@ -22,6 +23,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -30,6 +32,7 @@ class AuthControllerTest {
     private final RegisterUserPort registerUserPort = mock(RegisterUserPort.class);
     private final LoginPort loginPort = mock(LoginPort.class);
     private final GetCurrentUserPort getCurrentUserPort = mock(GetCurrentUserPort.class);
+    private final UpdateProfilePort updateProfilePort = mock(UpdateProfilePort.class);
     private final ObjectMapper objectMapper = new ObjectMapper();
     private MockMvc mockMvc;
 
@@ -38,7 +41,7 @@ class AuthControllerTest {
         LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
         validator.afterPropertiesSet();
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new AuthController(registerUserPort, loginPort, getCurrentUserPort))
+                .standaloneSetup(new AuthController(registerUserPort, loginPort, getCurrentUserPort, updateProfilePort))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setValidator(validator)
                 .build();
@@ -81,6 +84,31 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("jane@example.com"))
                 .andExpect(jsonPath("$.participantId").value(10));
+    }
+
+    @Test
+    void updateProfileReturnsUpdatedUser() throws Exception {
+        when(updateProfilePort.updateProfile(any())).thenReturn(new AuthenticatedUserResponse(1L, 10L, "jane@example.com", "Jane Smith", Set.of("USER")));
+
+        mockMvc.perform(put("/api/v1/auth/me")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"fullName":"Jane Smith"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fullName").value("Jane Smith"))
+                .andExpect(jsonPath("$.participantId").value(10));
+    }
+
+    @Test
+    void updateProfileValidationErrorsUseStandardFormat() throws Exception {
+        mockMvc.perform(put("/api/v1/auth/me")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"fullName":""}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
     }
 
     @Test

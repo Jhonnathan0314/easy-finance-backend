@@ -29,6 +29,10 @@ public final class Participant {
         return new Participant(id, userId, displayName, status);
     }
 
+    public Participant rename(String displayName) {
+        return new Participant(id, userId, displayName, status);
+    }
+
     public Long id() {
         return id;
     }

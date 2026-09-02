@@ -36,4 +36,26 @@ class UserTest {
                 .isInstanceOf(BusinessRuleViolationException.class)
                 .hasMessage("User cannot login.");
     }
+
+    @Test
+    void renameUpdatesFullNameAndKeepsOtherFields() {
+        User user = User.restore(1L, "user@example.com", "$2a$hash", "Jane Doe", UserStatus.ACTIVE, Set.of(GlobalRoleName.USER));
+
+        User renamed = user.rename(" Jane Smith ");
+
+        assertThat(renamed.id()).isEqualTo(1L);
+        assertThat(renamed.email()).isEqualTo("user@example.com");
+        assertThat(renamed.passwordHash()).isEqualTo("$2a$hash");
+        assertThat(renamed.fullName()).isEqualTo("Jane Smith");
+        assertThat(renamed.status()).isEqualTo(UserStatus.ACTIVE);
+        assertThat(renamed.globalRoles()).containsExactly(GlobalRoleName.USER);
+    }
+
+    @Test
+    void renameRejectsBlankFullName() {
+        User user = User.restore(1L, "user@example.com", "$2a$hash", "Jane Doe", UserStatus.ACTIVE, Set.of(GlobalRoleName.USER));
+
+        assertThatThrownBy(() -> user.rename("   "))
+                .isInstanceOfSatisfying(BusinessRuleViolationException.class, ex -> assertThat(ex.code()).isEqualTo("FULL_NAME_REQUIRED"));
+    }
 }

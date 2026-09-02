@@ -34,6 +34,10 @@ public final class User {
         return new User(id, email, passwordHash, fullName, status, globalRoles);
     }
 
+    public User rename(String fullName) {
+        return new User(id, email, passwordHash, fullName, status, globalRoles);
+    }
+
     public void ensureCanLogin() {
         if (status == UserStatus.BLOCKED) {
             throw new BusinessRuleViolationException("USER_BLOCKED", "User cannot login.");

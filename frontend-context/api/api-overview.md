@@ -15,6 +15,7 @@ Authorization: Bearer <accessToken>
 | POST | `/api/v1/auth/register` | No | Register user and participant, returns JWT. |
 | POST | `/api/v1/auth/login` | No | Login and return JWT. |
 | GET | `/api/v1/auth/me` | Yes | Get current authenticated user. |
+| PUT | `/api/v1/auth/me` | Yes | Update own `fullName`. Also updates `Participant.displayName` to the same value. |
 
 ## Accounts
 
