@@ -42,6 +42,9 @@
   - `DEBT_PAYMENT` for conceptual expenses associated with a debt payment.
 - Cashflow excludes `DEBT_PAYMENT` expenses because the debt payment already represents the real cash movement.
 - `INSTALLMENT` expenses cannot be updated or cancelled through the simple expense endpoints in this MVP.
+- `DEBT_PAYMENT` expenses cannot be updated (`EXPENSE_DEBT_PAYMENT_UPDATE_NOT_ALLOWED`) or cancelled (`EXPENSE_DEBT_PAYMENT_CANCEL_NOT_ALLOWED`) directly; they must be managed from the associated debt payment.
+- `DEBT_PAYMENT` expenses can still be duplicated. The duplicate is always created as `sourceType = MANUAL` with `sourceDebtPaymentId = null` and `sourceDebtId = null`; it has no remaining association with the original debt payment.
+- `sourceDebtId` (when present on a `DEBT_PAYMENT` expense) identifies the debt the payment was registered against, resolved and stored at creation time. It may be `null` on expenses created before this field existed.
 
 ## Debts And Payments
 

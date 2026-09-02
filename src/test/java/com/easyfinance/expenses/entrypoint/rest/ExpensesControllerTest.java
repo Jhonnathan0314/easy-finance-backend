@@ -205,6 +205,42 @@ class ExpensesControllerTest {
     }
 
     @Test
+    void listReceivesDebtPaymentOriginTrueParam() throws Exception {
+        when(listExpensesPort.listExpenses(any())).thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0));
+
+        mockMvc.perform(get("/api/v1/accounts/1/expenses?debtPaymentOrigin=true"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<ListExpensesQuery> captor = ArgumentCaptor.forClass(ListExpensesQuery.class);
+        verify(listExpensesPort).listExpenses(captor.capture());
+        assertThat(captor.getValue().debtPaymentOrigin()).isTrue();
+    }
+
+    @Test
+    void listReceivesDebtPaymentOriginFalseParam() throws Exception {
+        when(listExpensesPort.listExpenses(any())).thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0));
+
+        mockMvc.perform(get("/api/v1/accounts/1/expenses?debtPaymentOrigin=false"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<ListExpensesQuery> captor = ArgumentCaptor.forClass(ListExpensesQuery.class);
+        verify(listExpensesPort).listExpenses(captor.capture());
+        assertThat(captor.getValue().debtPaymentOrigin()).isFalse();
+    }
+
+    @Test
+    void listOmitsDebtPaymentOriginByDefault() throws Exception {
+        when(listExpensesPort.listExpenses(any())).thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0));
+
+        mockMvc.perform(get("/api/v1/accounts/1/expenses"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<ListExpensesQuery> captor = ArgumentCaptor.forClass(ListExpensesQuery.class);
+        verify(listExpensesPort).listExpenses(captor.capture());
+        assertThat(captor.getValue().debtPaymentOrigin()).isNull();
+    }
+
+    @Test
     void installmentExpenseEndpointDelegates() throws Exception {
         when(createInstallmentExpensePort.createInstallmentExpense(any())).thenReturn(installmentExpense());
 

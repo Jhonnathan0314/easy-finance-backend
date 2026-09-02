@@ -27,14 +27,14 @@ Columns:
 - `id BIGSERIAL PRIMARY KEY`
 - `email VARCHAR(150) NOT NULL`
 - `password_hash VARCHAR(255) NOT NULL`
-- `state VARCHAR(30) NOT NULL`
-- `last_login TIMESTAMPTZ NULL`
+- `full_name VARCHAR(150) NOT NULL`
+- `status VARCHAR(30) NOT NULL`
 - audit fields
 
 Constraints:
 
 - `uq_users_email`
-- `chk_users_state`
+- `chk_users_status`
 
 ### global_roles
 
@@ -68,9 +68,8 @@ Columns:
 
 - `id BIGSERIAL PRIMARY KEY`
 - `user_id BIGINT NOT NULL`
-- `name VARCHAR(120) NOT NULL`
-- `phone VARCHAR(30) NULL`
-- `state VARCHAR(30) NOT NULL`
+- `display_name VARCHAR(150) NOT NULL`
+- `status VARCHAR(30) NOT NULL`
 - audit fields
 
 Constraints:
@@ -84,13 +83,13 @@ Columns:
 
 - `id BIGSERIAL PRIMARY KEY`
 - `name VARCHAR(120) NOT NULL`
-- `description VARCHAR(255) NULL`
-- `state VARCHAR(30) NOT NULL`
+- `description VARCHAR(500) NULL`
+- `status VARCHAR(30) NOT NULL`
 - audit fields
 
 Indexes:
 
-- `idx_accounts_state`
+- `idx_accounts_status`
 
 ### account_participants
 
@@ -99,15 +98,15 @@ Columns:
 - `id BIGSERIAL PRIMARY KEY`
 - `account_id BIGINT NOT NULL`
 - `participant_id BIGINT NOT NULL`
-- `account_role VARCHAR(50) NOT NULL`
+- `role VARCHAR(50) NOT NULL`
 - `joined_at TIMESTAMPTZ NOT NULL`
-- `state VARCHAR(30) NOT NULL`
+- `status VARCHAR(30) NOT NULL`
 - audit fields
 
 Constraints:
 
 - unique `(account_id, participant_id)`
-- account role allowed values: `ACCOUNT_ADMIN`, `ACCOUNT_MEMBER`
+- role allowed values: `ACCOUNT_ADMIN`, `ACCOUNT_MEMBER`
 - foreign keys to `accounts` and `participants`
 
 Indexes:
@@ -121,14 +120,14 @@ Columns:
 
 - `id BIGSERIAL PRIMARY KEY`
 - `account_id BIGINT NOT NULL`
-- `name VARCHAR(100) NOT NULL`
-- `description VARCHAR(255) NULL`
-- `state VARCHAR(30) NOT NULL`
+- `name VARCHAR(120) NOT NULL`
+- `description VARCHAR(500) NULL`
+- `status VARCHAR(30) NOT NULL`
 - audit fields
 
 Constraints:
 
-- unique `(account_id, name)`
+- active uniqueness by `(account_id, type, normalized_name)` for `ACTIVE` records
 - foreign key to `accounts`
 
 ### payment_methods
@@ -280,15 +279,16 @@ Columns:
 - `account_id BIGINT NOT NULL`
 - `year INTEGER NOT NULL`
 - `month INTEGER NOT NULL`
-- `name VARCHAR(120) NOT NULL`
-- `description VARCHAR(255) NULL`
-- `state VARCHAR(30) NOT NULL`
+- `name VARCHAR(150) NULL`
+- `status VARCHAR(30) NOT NULL`
 - audit fields
+
+There is no `description` column on `budgets`.
 
 Constraints:
 
 - unique `(account_id, year, month)`
-- `month BETWEEN 1 AND 12`
+- `year BETWEEN 2000 AND 2100 AND month BETWEEN 1 AND 12`
 - foreign key to accounts
 
 Indexes:

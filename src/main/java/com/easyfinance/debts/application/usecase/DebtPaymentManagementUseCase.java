@@ -92,6 +92,7 @@ public class DebtPaymentManagementUseCase implements
                     command.categoryId(),
                     command.paymentMethodId(),
                     assignedParticipantId,
+                    command.debtId(),
                     savedPayment.id(),
                     command.expenseDescription(),
                     command.amount(),

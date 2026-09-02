@@ -40,7 +40,8 @@ Invalidate after create/update/deactivate.
 
 ## Feature Filter State
 
-Keep filters route-local:
+Filters are persisted per feature and per account in `localStorage` through a shared `FeatureFilterStorageService`
+(`getFilters`/`setFilters`/`clearFilters`), under the key `easyFinance.filters.<feature>.<accountId>`:
 
 - expenses filters
 - debt filters
@@ -49,7 +50,9 @@ Keep filters route-local:
 - analytics date ranges
 - import batch ID/status
 
-Use query params for shareable table filters where helpful.
+This makes filters durable across reloads/navigation for the same browser, but they are not currently shareable
+through the URL (no query params are read or written for these filters). Using query params for shareable table
+filters remains a possible future improvement, not the current behavior.
 
 ## Loading And Errors
 

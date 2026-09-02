@@ -19,6 +19,7 @@ public record ExpenseResponse(
         String expenseType,
         String sourceType,
         Long sourceDebtPaymentId,
+        Long sourceDebtId,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -38,6 +39,6 @@ public record ExpenseResponse(
             Instant createdAt,
             Instant updatedAt
     ) {
-        this(id, accountId, categoryId, paymentMethodId, participantId, description, amount, currency, expenseDate, paymentState, status, expenseType, "MANUAL", null, createdAt, updatedAt);
+        this(id, accountId, categoryId, paymentMethodId, participantId, description, amount, currency, expenseDate, paymentState, status, expenseType, "MANUAL", null, null, createdAt, updatedAt);
     }
 }

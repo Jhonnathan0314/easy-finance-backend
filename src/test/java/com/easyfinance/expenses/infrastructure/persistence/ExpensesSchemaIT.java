@@ -159,6 +159,7 @@ class ExpensesSchemaIT {
                 null,
                 null,
                 "mercado",
+                null,
                 PageQuery.of(0, 20),
                 "expenseDate,asc"
         ));
@@ -183,6 +184,7 @@ class ExpensesSchemaIT {
                 null,
                 null,
                 "   ",
+                null,
                 PageQuery.of(0, 20),
                 "expenseDate,asc"
         ));
@@ -197,6 +199,7 @@ class ExpensesSchemaIT {
                 null,
                 null,
                 "MERcado",
+                null,
                 PageQuery.of(0, 20),
                 "expenseDate,asc"
         ));
@@ -224,6 +227,7 @@ class ExpensesSchemaIT {
                 null,
                 null,
                 null,
+                null,
                 PageQuery.of(0, 20),
                 "expenseDate,asc"
         ));
@@ -238,6 +242,7 @@ class ExpensesSchemaIT {
                 null,
                 ExpenseType.SIMPLE,
                 null,
+                null,
                 PageQuery.of(0, 20),
                 "expenseDate,asc"
         ));
@@ -251,6 +256,7 @@ class ExpensesSchemaIT {
                 null,
                 null,
                 ExpenseType.INSTALLMENT,
+                null,
                 null,
                 PageQuery.of(0, 20),
                 "expenseDate,asc"

@@ -43,7 +43,8 @@ Create through the public API:
 - One derived debt.
 - One debt payment.
 - One income.
-- One Excel import preview and confirmation batch.
+- One Excel import preview and confirmation batch (expenses).
+- One direct Excel import (preview + create) each for income, categories, payment methods, and annual budget.
 
 ## Smoke Tests
 
@@ -183,17 +184,103 @@ Expected result:
 Steps:
 
 1. Download the dynamic `.xlsx` template.
-2. Upload `.xlsx` preview with headers: `Fecha`, `Descripción`, `Monto`, `Categoría`, `MedioPago`, `EstadoPago`.
-3. Review valid and invalid row counts.
-4. Confirm the batch.
-5. Reconfirm the same batch.
+2. Upload `.xlsx` preview with headers: `Fecha`, `Descripción`, `Monto`, `Categoría`, `MedioPago`, `EstadoPago`, `AplicaPagoDeuda`, `Deuda`, `TipoPagoDeuda`, `NotasPagoDeuda`, `Participante`.
+3. Include at least one row with a valid explicit `Participante` and one row with `Participante` left blank.
+4. Include at least one intentionally invalid row (e.g. unknown category).
+5. Review valid and invalid row counts.
+6. Confirm the batch.
+7. Reconfirm the same batch.
+8. Repeat preview and confirm on a valid file as `ACCOUNT_MEMBER`.
+9. Upload a file with more rows than the configured limit (`EXPENSE_IMPORT_MAX_ROWS`, default `1500`).
 
 Expected result:
 
-- Preview does not create expenses.
+- Preview does not create expenses; invalid rows are reported without blocking valid rows from being previewed.
 - Confirm creates only valid expenses and debt payments for rows marked as debt payments.
 - Debt-payment rows create both a simple imported expense and a debt payment in one transaction.
 - Second confirm fails with `IMPORT_ALREADY_CONFIRMED`.
+- Row with an explicit `Participante` resolves to that participant; row with blank `Participante` falls back to the participant confirming the batch.
+- `ACCOUNT_MEMBER` can preview and confirm (not admin-only).
+- File over the row limit fails with `IMPORT_ROW_LIMIT_EXCEEDED`.
+
+### 11. Income Import
+
+Steps:
+
+1. Download the `.xlsx` template with headers `Fecha`, `Descripcion`, `Categoria`, `Monto`, `Participante`.
+2. Upload for `POST /imports/incomes/preview` with at least one valid row, one row with `Participante` blank, and one intentionally invalid row (e.g. unknown category).
+3. Upload the same file to `POST /imports/incomes` (direct create, no batch persisted).
+4. Repeat preview and direct create on a valid file as `ACCOUNT_MEMBER`.
+5. Upload a file with more rows than the configured limit (default `1000`).
+
+Expected result:
+
+- Preview validates without creating incomes and returns parsed row data plus errors.
+- If any row is invalid, the direct import creates nothing; if all rows are valid, all incomes are created in one transaction as `ACTIVE`.
+- Row with blank `Participante` falls back to the participant running the import.
+- `ACCOUNT_MEMBER` can preview and import (not admin-only).
+- File over the row limit fails with `IMPORT_ROW_LIMIT_EXCEEDED`.
+
+### 12. Category Import
+
+Steps:
+
+1. Download the `.xlsx` template with headers `Nombre`, `Tipo`, `Descripcion` (optional).
+2. Upload for `POST /imports/categories/preview` with at least one valid row, one row with `Tipo` missing, and one row with an invalid `Tipo` value.
+3. Upload the same file to `POST /imports/categories` (direct create, no batch persisted).
+4. Attempt preview and direct create as `ACCOUNT_MEMBER`.
+5. Upload a file with more rows than the configured limit (default `1000`).
+
+Expected result:
+
+- Preview validates without creating categories and returns parsed row data plus errors.
+- Missing `Tipo` and invalid `Tipo` are reported as row errors.
+- If any row is invalid, the direct import creates nothing; if all rows are valid, all categories are created in one transaction as `ACTIVE`.
+- Categories import does not use a `Participante` column.
+- `ACCOUNT_MEMBER` is rejected with `ACCOUNT_ADMIN_REQUIRED`; only `ACCOUNT_ADMIN` can preview/create.
+- File over the row limit fails with `IMPORT_ROW_LIMIT_EXCEEDED`.
+
+### 13. Payment Method Import
+
+Steps:
+
+1. Download the `.xlsx` template with headers `Nombre`, `Tipo`, `Descripcion` (optional).
+2. Upload for `POST /imports/payment-methods/preview` with at least one valid row, one row with `Tipo` missing, and one row with an invalid `Tipo` value.
+3. Upload the same file to `POST /imports/payment-methods` (direct create, no batch persisted).
+4. Attempt preview and direct create as `ACCOUNT_MEMBER`.
+5. Upload a file with more rows than the configured limit (default `1000`).
+
+Expected result:
+
+- Preview validates without creating payment methods and returns parsed row data plus errors.
+- Missing `Tipo` and invalid `Tipo` are reported as row errors.
+- If any row is invalid, the direct import creates nothing; if all rows are valid, all payment methods are created in one transaction as `ACTIVE`.
+- Payment method import does not use a `Participante` column.
+- `ACCOUNT_MEMBER` is rejected with `ACCOUNT_ADMIN_REQUIRED`; only `ACCOUNT_ADMIN` can preview/create.
+- File over the row limit fails with `IMPORT_ROW_LIMIT_EXCEEDED`.
+
+### 14. Annual Budget Import
+
+Steps:
+
+1. Download the `.xlsx` template with headers `Año`, `Mes`, `NombrePresupuesto`, `Categoria`, `NombreSubpresupuesto`, `Valor`, `Participante`.
+2. Upload for `POST /imports/budgets/annual/preview` with a `Todos` base row, at least one month-specific override row, one row with `Participante` blank, and one row with an explicit `Participante`.
+3. Include one intentionally invalid row (e.g. `Valor` equal to zero).
+4. Upload the same file to `POST /imports/budgets/annual` (direct create) for a year with no existing monthly budgets.
+5. Repeat the same import for a year that already has at least one existing monthly budget.
+6. Attempt preview and direct create as `ACCOUNT_MEMBER`.
+7. Upload a file with more rows than the configured limit (default `1000`).
+
+Expected result:
+
+- Preview validates without creating budgets and returns parsed row data, resolved `categoryId`/`participantId`, `appliedMonths`, and row errors.
+- If any row is invalid, the direct import creates nothing.
+- If valid, all 12 monthly budgets are created in one transaction with `MANUAL`/`ACTIVE` sub-budgets; row with blank `Participante` creates a global (unscoped) sub-budget, row with an explicit `Participante` scopes execution to that participant.
+- Import against a year that already has any existing monthly budget fails with `ANNUAL_BUDGET_MONTH_ALREADY_EXISTS`.
+- `ACCOUNT_MEMBER` is rejected with `ACCOUNT_ADMIN_REQUIRED`; only `ACCOUNT_ADMIN` can preview/create.
+- File over the row limit fails with `IMPORT_ROW_LIMIT_EXCEEDED`.
+
+Debt import remains out of scope for this checklist: it is not implemented.
 
 ## Approval Criteria
 

@@ -19,6 +19,7 @@ public record ListExpensesQuery(
         ExpenseStatus status,
         ExpenseType expenseType,
         String search,
+        Boolean debtPaymentOrigin,
         PageQuery pageQuery,
         String sort
 ) {

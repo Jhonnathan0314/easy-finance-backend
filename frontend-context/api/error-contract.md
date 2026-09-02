@@ -20,13 +20,15 @@ interface FieldErrorResponse {
 }
 ```
 
+`error` is `HttpStatus.name()` (`GlobalExceptionHandler`/`RestSecurityExceptionHandler`), so it is always SCREAMING_SNAKE_CASE (`BAD_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `UNPROCESSABLE_ENTITY`, `PAYLOAD_TOO_LARGE`), never the HTTP reason phrase (`"Bad Request"`).
+
 ## Validation Error
 
 ```json
 {
   "timestamp": "2026-05-12T17:00:00Z",
   "status": 400,
-  "error": "Bad Request",
+  "error": "BAD_REQUEST",
   "code": "VALIDATION_ERROR",
   "message": "Request validation failed.",
   "path": "/api/v1/accounts",
@@ -43,7 +45,7 @@ interface FieldErrorResponse {
 {
   "timestamp": "2026-05-12T17:00:00Z",
   "status": 401,
-  "error": "Unauthorized",
+  "error": "UNAUTHORIZED",
   "code": "INVALID_TOKEN",
   "message": "Invalid authentication token.",
   "path": "/api/v1/accounts",
@@ -58,7 +60,7 @@ interface FieldErrorResponse {
 {
   "timestamp": "2026-05-12T17:00:00Z",
   "status": 403,
-  "error": "Forbidden",
+  "error": "FORBIDDEN",
   "code": "ACCOUNT_ADMIN_REQUIRED",
   "message": "Account admin role is required.",
   "path": "/api/v1/accounts/1/categories",
@@ -73,7 +75,7 @@ interface FieldErrorResponse {
 {
   "timestamp": "2026-05-12T17:00:00Z",
   "status": 404,
-  "error": "Not Found",
+  "error": "NOT_FOUND",
   "code": "ACCOUNT_NOT_FOUND",
   "message": "Account was not found.",
   "path": "/api/v1/accounts/99",
@@ -87,8 +89,8 @@ interface FieldErrorResponse {
 ```json
 {
   "timestamp": "2026-05-12T17:00:00Z",
-  "status": 409,
-  "error": "Conflict",
+  "status": 422,
+  "error": "UNPROCESSABLE_ENTITY",
   "code": "DEBT_PAYMENT_EXCEEDS_REMAINING_BALANCE",
   "message": "Debt payment exceeds remaining balance.",
   "path": "/api/v1/accounts/1/debts/1/payments",
@@ -97,13 +99,15 @@ interface FieldErrorResponse {
 }
 ```
 
+`BusinessRuleViolationException` always maps to `422 Unprocessable Entity`. The backend does not use `409 Conflict` for business rule violations.
+
 ## Malformed JSON
 
 ```json
 {
   "timestamp": "2026-05-12T17:00:00Z",
   "status": 400,
-  "error": "Bad Request",
+  "error": "BAD_REQUEST",
   "code": "MALFORMED_JSON",
   "message": "Malformed JSON request.",
   "path": "/api/v1/accounts",
@@ -118,7 +122,7 @@ interface FieldErrorResponse {
 {
   "timestamp": "2026-05-12T17:00:00Z",
   "status": 413,
-  "error": "Payload Too Large",
+  "error": "PAYLOAD_TOO_LARGE",
   "code": "IMPORT_FILE_TOO_LARGE",
   "message": "Import file exceeds the configured maximum size.",
   "path": "/api/v1/accounts/1/imports/expenses/preview",

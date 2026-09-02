@@ -149,7 +149,7 @@ Deliverables:
 
 ## Phase 10 - Imports
 
-Goals:
+Goals (original scope, expense import only):
 
 - Implement Excel expense import preview.
 - Validate categories, responsible participants, payment methods, dates, and amounts.
@@ -158,11 +158,20 @@ Goals:
 - Implement confirmation.
 - Ensure confirmation is transactional.
 
-Deliverables:
+Deliverables (original scope, expense import only):
 
 - Preview returns row-level validation errors.
 - Confirmation creates expenses.
 - Rows marked as debt payments create the imported expense and register the debt payment in one transaction.
+
+Current status (this phase grew beyond its original expense-only scope; verified against controllers/use cases):
+
+- Expense import: **implemented**. Batch-persisted preview + confirm, optional debt-payment metadata, optional row-level `Participante` (blank falls back to the confirming participant). `ACCOUNT_MEMBER` or `ACCOUNT_ADMIN`.
+- Income import: **implemented**. Direct validate-then-create (no preview batch persisted), optional row-level `Participante` (blank falls back to the participant running the import). `ACCOUNT_MEMBER` or `ACCOUNT_ADMIN`.
+- Category import: **implemented**. Direct validate-then-create, no `Participante` column (account-level catalog). `ACCOUNT_ADMIN` only.
+- Payment method import: **implemented**. Direct validate-then-create, no `Participante` column (account-level catalog). `ACCOUNT_ADMIN` only.
+- Annual budget import: **implemented**. Direct validate-then-create of all 12 monthly budgets with `MANUAL`/`ACTIVE` sub-budgets, optional row-level `Participante` (blank means a global sub-budget instead of falling back to the importing participant). `ACCOUNT_ADMIN` only. Distinct from `POST /budgets/annual` (direct JSON creation, no Excel file).
+- Debt import: **not implemented**.
 
 ## Phase 11 - Analytics
 

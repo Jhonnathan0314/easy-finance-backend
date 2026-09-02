@@ -84,9 +84,10 @@ For financial entities, prefer state transitions over physical delete.
 - `401 Unauthorized`: missing or invalid authentication.
 - `403 Forbidden`: authenticated but not authorized.
 - `404 Not Found`: resource not found or hidden due to access rules.
-- `409 Conflict`: business conflict or invariant violation.
-- `422 Unprocessable Entity`: valid JSON but invalid domain operation.
+- `422 Unprocessable Entity`: valid JSON but invalid domain operation, including business rule/invariant violations.
 - `500 Internal Server Error`: unexpected server error.
+
+`GlobalExceptionHandler` maps every `BusinessRuleViolationException` to `422`. `409 Conflict` is not currently produced by any handler.
 
 ## Standard Error Format
 
@@ -165,11 +166,11 @@ Response example:
   "page": 0,
   "size": 20,
   "totalElements": 120,
-  "totalPages": 6,
-  "first": true,
-  "last": false
+  "totalPages": 6
 }
 ```
+
+`PageResponseDto<T>` only exposes `content`, `page`, `size`, `totalElements`, and `totalPages`. It does not include `first`/`last`.
 
 ## Filtering
 
@@ -239,6 +240,8 @@ POST /api/v1/accounts/{accountId}/expenses/installments
 GET /api/v1/accounts/{accountId}/expenses
 ```
 
+`GET /expenses` accepts an optional `debtPaymentOrigin` boolean filter (`true` = only `sourceType = DEBT_PAYMENT`, `false` = anything else, omitted = no filter). Expenses with `sourceType = DEBT_PAYMENT` cannot be updated (`EXPENSE_DEBT_PAYMENT_UPDATE_NOT_ALLOWED`) or cancelled (`EXPENSE_DEBT_PAYMENT_CANCEL_NOT_ALLOWED`) directly; they must be managed from the associated debt payment. They can still be duplicated; the duplicate is always created as `sourceType = MANUAL`.
+
 Debts:
 
 ```text
@@ -252,9 +255,15 @@ Budgets:
 ```text
 GET /api/v1/accounts/{accountId}/budgets
 GET /api/v1/accounts/{accountId}/budgets/{year}/{month}
+PUT /api/v1/accounts/{accountId}/budgets/{year}/{month}
 POST /api/v1/accounts/{accountId}/budgets/{sourceYear}/{sourceMonth}/duplicate
+POST /api/v1/accounts/{accountId}/budgets/annual
 POST /api/v1/accounts/{accountId}/budgets/{budgetId}/sub-budgets
 ```
+
+`POST /budgets/{sourceYear}/{sourceMonth}/duplicate` (`DuplicateBudgetRequest`: `targetYear`, `targetMonth`, `name`) copies active `MANUAL` sub-budgets from an existing month into a new one; fails with `BUDGET_TARGET_ALREADY_EXISTS` if the target month already exists. `ACCOUNT_ADMIN` only.
+
+`POST /budgets/annual` (`CreateAnnualBudgetRequest`: `year`, `name`, `status`, `subBudgets: CreateAnnualSubBudgetBaseRequest[]`) creates all 12 monthly budgets for a year directly from the request body (not from an Excel file); fails with `ANNUAL_BUDGET_MONTH_ALREADY_EXISTS` if any month of that year already exists. `ACCOUNT_ADMIN` only. This is a different feature from `POST /imports/budgets/annual`, which creates the same kind of structure from an uploaded Excel file.
 
 Imports:
 
@@ -369,6 +378,5 @@ No mutual debt endpoints.
 
 ## Pending Decisions
 
-- Whether to use `422` or `409` consistently for specific domain invariant violations.
 - Exact OpenAPI generation library.
 - Whether file import confirmation references a persisted import batch id or a signed temporary token.

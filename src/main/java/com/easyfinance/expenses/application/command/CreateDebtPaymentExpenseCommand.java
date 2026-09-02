@@ -9,6 +9,7 @@ public record CreateDebtPaymentExpenseCommand(
         Long categoryId,
         Long paymentMethodId,
         Long participantId,
+        Long debtId,
         Long debtPaymentId,
         String description,
         Money amount,

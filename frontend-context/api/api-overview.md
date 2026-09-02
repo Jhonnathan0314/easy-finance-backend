@@ -91,6 +91,7 @@ Authorization: Bearer <accessToken>
 | PUT | `/api/v1/accounts/{accountId}/budgets/{year}/{month}` | Create/update monthly budget; admin only. |
 | GET | `/api/v1/accounts/{accountId}/budgets/{year}/{month}` | Get budget detail with sub-budgets and impacts. Manual sub-budget `spentAmount` is calculated from active simple expenses in the month/category. |
 | POST | `/api/v1/accounts/{accountId}/budgets/{sourceYear}/{sourceMonth}/duplicate` | Duplicate a monthly budget into a target period; admin only. |
+| POST | `/api/v1/accounts/{accountId}/budgets/annual` | Create all 12 monthly budgets for a year directly from the request body (`CreateAnnualBudgetRequest`); admin only. Different from the Excel-based `/imports/budgets/annual`. |
 | GET | `/api/v1/accounts/{accountId}/budgets` | List budgets. Query: `year`, `status`, `sort`, `page`, `size`. |
 | POST | `/api/v1/accounts/{accountId}/budgets/{budgetId}/sub-budgets` | Create manual sub-budget; admin only. |
 | PUT | `/api/v1/accounts/{accountId}/budgets/{budgetId}/sub-budgets/{subBudgetId}` | Update manual sub-budget; admin only. |

@@ -96,6 +96,7 @@ public final class ExpenseRestMapper {
                 response.expenseType(),
                 response.sourceType(),
                 response.sourceDebtPaymentId(),
+                response.sourceDebtId(),
                 response.createdAt(),
                 response.updatedAt()
         );

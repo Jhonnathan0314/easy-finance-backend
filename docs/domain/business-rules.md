@@ -160,7 +160,7 @@ Rules:
 - A paid debt cannot receive new payments.
 - If remaining balance becomes zero, debt state becomes `PAID`.
 - If remaining balance is greater than zero, debt state remains `ACTIVE`.
-- Debt payments must be audited functionally.
+- Debt payments are a target for functional audit events once that capability is implemented (see "Audit" section below); this is not yet enforced by any code.
 - Manual debt payment registration can optionally create an associated conceptual expense when the request explicitly sets `createExpense = true`.
 - Associated debt-payment expenses are `SIMPLE`, `ACTIVE`, `PAID`, use `sourceType = DEBT_PAYMENT`, and keep a reference to the created debt payment.
 
@@ -224,20 +224,15 @@ Rules:
 
 ## Audit
 
-- Main financial entities require technical audit fields:
+- Main financial entities require technical audit fields (implemented today):
   - `created_at`
   - `updated_at`
   - `created_by`
   - `updated_by`
-- Critical operations require functional audit events:
-  - expense creation
-  - derived debt creation
-  - manual debt creation
-  - debt payment registration
-  - budget creation
-  - budget impact creation/update
-  - Excel import confirmation
-  - account role changes
+- Functional audit events for critical operations are a planned capability, not yet implemented. No code
+  currently emits functional audit events for: expense creation, derived debt creation, manual debt creation,
+  debt payment registration, budget creation, budget impact creation/update, Excel import confirmation, or
+  account role changes. See `docs/audit/audit-strategy.md` for the target design.
 
 ## Outside the MVP
 

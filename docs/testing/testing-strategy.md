@@ -51,7 +51,7 @@ Focus areas:
 - Authorization checks.
 - Transactional workflow expectations.
 - Domain exceptions.
-- Audit event creation.
+- Audit event creation (blocked until functional audit event emission is implemented; see `docs/audit/audit-strategy.md`; not part of the current test suite).
 - Calls to repository ports.
 
 Example test classes:
@@ -83,6 +83,8 @@ JpaDebtRepositoryAdapterIT
 JpaBudgetRepositoryAdapterIT
 AuditEventRepositoryIT
 ```
+
+`AuditEventRepositoryIT` only becomes relevant once functional audit event emission is implemented; it does not exist today (there is no `AuditEvent` entity or repository).
 
 Rules:
 
@@ -144,7 +146,7 @@ Critical MVP flows:
 7. Verify budget impacts created.
 8. Register debt payment.
 9. Verify remaining balance.
-10. Verify audit event.
+10. Verify audit event (pending until functional audit event emission is implemented; not currently verifiable).
 
 Recommended test class:
 
@@ -197,7 +199,7 @@ Highest priority:
 - installment debt creation
 - budget impact creation
 - account authorization
-- audit event persistence
+- audit event persistence (blocked until functional audit event emission is implemented; not part of current coverage)
 
 Medium priority:
 

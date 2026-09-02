@@ -19,6 +19,7 @@ public record ExpenseResponseDto(
         String expenseType,
         String sourceType,
         Long sourceDebtPaymentId,
+        Long sourceDebtId,
         Instant createdAt,
         Instant updatedAt
 ) {

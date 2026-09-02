@@ -64,6 +64,9 @@ public class ExpenseJpaEntity extends AuditableJpaEntity {
     @Column(name = "source_debt_payment_id")
     private Long sourceDebtPaymentId;
 
+    @Column(name = "source_debt_id")
+    private Long sourceDebtId;
+
     public Long getId() {
         return id;
     }
@@ -174,5 +177,13 @@ public class ExpenseJpaEntity extends AuditableJpaEntity {
 
     public void setSourceDebtPaymentId(Long sourceDebtPaymentId) {
         this.sourceDebtPaymentId = sourceDebtPaymentId;
+    }
+
+    public Long getSourceDebtId() {
+        return sourceDebtId;
+    }
+
+    public void setSourceDebtId(Long sourceDebtId) {
+        this.sourceDebtId = sourceDebtId;
     }
 }

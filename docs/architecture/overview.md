@@ -59,7 +59,8 @@ PostgreSQL / external resources
 - `income`: income records.
 - `imports`: Excel upload, validation, preview, confirmation.
 - `analytics`: dashboard and reports.
-- `audit`: technical and functional audit.
+- `audit`: cross-cutting audit concerns. Technical audit is implemented (`shared.infrastructure.audit`). Functional
+  audit (`audit_events`) is schema-only today; no code emits functional audit events yet (see `docs/audit/audit-strategy.md`).
 - `shared`: shared domain primitives and cross-cutting contracts.
 
 ## Consequences

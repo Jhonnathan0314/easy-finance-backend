@@ -31,6 +31,7 @@ import com.easyfinance.expenses.application.query.ListExpensesQuery;
 import com.easyfinance.expenses.application.response.ExpenseResponse;
 import com.easyfinance.expenses.application.response.PageResponse;
 import com.easyfinance.expenses.domain.model.Expense;
+import com.easyfinance.expenses.domain.model.ExpenseSourceType;
 import com.easyfinance.expenses.domain.model.ExpenseStatus;
 import com.easyfinance.expenses.domain.model.ExpenseType;
 import com.easyfinance.shared.domain.Money;
@@ -130,6 +131,7 @@ public class ExpenseManagementUseCase implements
                 command.categoryId(),
                 command.paymentMethodId(),
                 command.participantId(),
+                command.debtId(),
                 command.debtPaymentId(),
                 command.description(),
                 command.amount(),
@@ -207,6 +209,7 @@ public class ExpenseManagementUseCase implements
         Expense expense = findExpense(command.accountId(), command.expenseId());
         expense.ensureActive();
         ensureSimpleExpenseLifecycleOperation(expense, "INSTALLMENT_EXPENSE_UPDATE_NOT_ALLOWED", "Installment expense update is not available in this phase.");
+        ensureNotDebtPaymentOrigin(expense, "EXPENSE_DEBT_PAYMENT_UPDATE_NOT_ALLOWED", "Expense originated from a debt payment and must be managed from the associated debt.");
         ensureCanMutate(expense, access, currentUser.participantId(), "EXPENSE_UPDATE_NOT_ALLOWED");
         validateCategory(command.accountId(), command.categoryId());
         validatePaymentMethod(command.accountId(), command.paymentMethodId());
@@ -261,6 +264,7 @@ public class ExpenseManagementUseCase implements
         Expense expense = findExpense(accountId, expenseId);
         expense.ensureActive();
         ensureSimpleExpenseLifecycleOperation(expense, "INSTALLMENT_EXPENSE_CANCEL_NOT_ALLOWED", "Installment expense cancellation is not available in this phase.");
+        ensureNotDebtPaymentOrigin(expense, "EXPENSE_DEBT_PAYMENT_CANCEL_NOT_ALLOWED", "Expense originated from a debt payment and must be managed from the associated debt.");
         ensureCanMutate(expense, access, currentUser.participantId(), "EXPENSE_CANCEL_NOT_ALLOWED");
         expenseRepository.save(expense.cancel());
     }
@@ -289,6 +293,12 @@ public class ExpenseManagementUseCase implements
 
     private void ensureSimpleExpenseLifecycleOperation(Expense expense, String code, String message) {
         if (expense.expenseType() == ExpenseType.INSTALLMENT) {
+            throw new BusinessRuleViolationException(code, message);
+        }
+    }
+
+    private void ensureNotDebtPaymentOrigin(Expense expense, String code, String message) {
+        if (expense.sourceType() == ExpenseSourceType.DEBT_PAYMENT) {
             throw new BusinessRuleViolationException(code, message);
         }
     }
@@ -354,6 +364,7 @@ public class ExpenseManagementUseCase implements
                 expense.expenseType().name(),
                 expense.sourceType().name(),
                 expense.sourceDebtPaymentId(),
+                expense.sourceDebtId(),
                 expense.createdAt(),
                 expense.updatedAt()
         );

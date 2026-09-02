@@ -44,7 +44,8 @@ Do not include all account memberships in the JWT for the MVP. Account authoriza
 - Store only password hashes.
 - Use BCrypt through Spring Security.
 - Never log passwords or raw tokens.
-- Passwords must contain at least 8 characters, one letter, and one number.
+- Passwords must contain at least 8 characters, one letter, and one number. This complexity rule is enforced in
+  the application layer (`RegisterUserUseCase.validatePassword`), not only through `@Size` on `RegisterRequest`.
 
 ## Phase 2 Auth Endpoints
 
@@ -154,11 +155,15 @@ AccountAuthorizationPort.requireAnyRole(accountId, participantId, ACCOUNT_ADMIN,
 | Manage payment methods | Yes | No |
 | Create expense | Yes | Yes |
 | Create installment expense | Yes | Yes |
-| Create manual debt | Yes | Yes, pending confirmation |
+| Create manual debt | Yes | Yes |
 | Register debt payment | Yes | Yes |
 | Manage monthly budgets | Yes | No |
+| Duplicate/create annual budget | Yes | No |
 | View budgets | Yes | Yes |
-| Import Excel expenses | Yes | Pending confirmation |
+| Import expenses (Excel) | Yes | Yes |
+| Import income (Excel) | Yes | Yes |
+| Import categories/payment methods (Excel) | Yes | No |
+| Import annual budget (Excel) | Yes | No |
 | View analytics/reports | Yes | Yes |
 
 ## Endpoint Security
@@ -188,7 +193,8 @@ findByIdAndAccountId(entityId, accountId)
 
 ## Audit and Security
 
-Security-sensitive actions must create functional audit events:
+Security-sensitive actions should create functional audit events once that capability is implemented (see
+`docs/audit/audit-strategy.md`); this is not enforced by any code today:
 
 - login failures when implemented
 - account role changes
@@ -199,5 +205,10 @@ Security-sensitive actions must create functional audit events:
 ## Pending Decisions
 
 - JWT expiration and refresh-token strategy.
-- Whether `ACCOUNT_MEMBER` can create manual debts and imports.
 - Whether `SUPER_ADMIN` can access account data for support workflows.
+
+Resolved: `ACCOUNT_MEMBER` can create manual debts and import expenses/income (`requireActiveMemberForActiveAccount`
+in `DebtManagementUseCase`, `ExpenseImportManagementUseCase`, `IncomeImportUseCase`). Category, payment method, and
+annual budget Excel imports require `ACCOUNT_ADMIN` (`requireActiveAdminForActiveAccount` in `CategoryImportUseCase`,
+`PaymentMethodImportUseCase`, `BudgetImportUseCase`). There are no `@PreAuthorize`/`@Secured` annotations; all of
+this is enforced in application-layer use cases via `AccountAuthorizationService`.

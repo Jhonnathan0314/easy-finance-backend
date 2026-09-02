@@ -103,6 +103,7 @@ class DebtPaymentManagementUseCaseTest {
         assertThat(captor.getValue().categoryId()).isEqualTo(2L);
         assertThat(captor.getValue().paymentMethodId()).isEqualTo(3L);
         assertThat(captor.getValue().participantId()).isEqualTo(10L);
+        assertThat(captor.getValue().debtId()).isEqualTo(5L);
         assertThat(captor.getValue().debtPaymentId()).isEqualTo(50L);
         assertThat(captor.getValue().description()).isEqualTo("Debt payment expense");
         assertThat(captor.getValue().amount().amount()).isEqualByComparingTo("40000");
@@ -350,6 +351,7 @@ class DebtPaymentManagementUseCaseTest {
                 "SIMPLE",
                 "DEBT_PAYMENT",
                 50L,
+                5L,
                 Instant.now(),
                 Instant.now()
         );

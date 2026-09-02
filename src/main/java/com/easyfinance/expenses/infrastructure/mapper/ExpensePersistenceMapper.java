@@ -30,6 +30,7 @@ public class ExpensePersistenceMapper {
                 ExpenseType.valueOf(entity.getExpenseType().name()),
                 entity.getSourceType() == null ? ExpenseSourceType.MANUAL : ExpenseSourceType.valueOf(entity.getSourceType().name()),
                 entity.getSourceDebtPaymentId(),
+                entity.getSourceDebtId(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );
@@ -56,5 +57,6 @@ public class ExpensePersistenceMapper {
         entity.setExpenseType(ExpenseTypeJpa.valueOf(expense.expenseType().name()));
         entity.setSourceType(ExpenseSourceTypeJpa.valueOf(expense.sourceType().name()));
         entity.setSourceDebtPaymentId(expense.sourceDebtPaymentId());
+        entity.setSourceDebtId(expense.sourceDebtId());
     }
 }

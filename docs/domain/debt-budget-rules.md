@@ -39,10 +39,10 @@ Rules:
 
 Transactional behavior:
 
-1. Create the expense with payment type `INSTALLMENTS`.
+1. Create the expense with `expenseType = INSTALLMENT` (initial `paymentState = PENDING` unless the caller sets another valid state).
 2. Create exactly one derived debt linked to the expense.
 3. Generate monthly budget impacts for the debt installments.
-4. Persist functional audit events.
+4. Persist functional audit events (planned; not implemented today, this step is currently a no-op).
 5. Commit all changes together.
 
 If any step fails, the full transaction must rollback.
@@ -71,17 +71,15 @@ financed debt total cannot be lower than the origin expense amount.
 
 Debt end date is calculated by adding calendar months from the start date according to the number of installments.
 
-Recommended rule:
+Implemented rule (`Debt.calculateEndDate`, verified by `DebtTest` unit tests):
 
 ```text
-endDate = startDate.plusMonths(installments - 1)
+endDate = startDate.plusMonths(installmentCount)
 ```
 
-Rationale:
-
-- Installment 1 belongs to the start month.
-- Installment 2 belongs to the next month.
-- A 1-installment debt ends in the start month.
+This adds one full calendar month past the month of the last installment. Installment `n` (1-indexed) is due
+in `startDate.plusMonths(n - 1)`, so the last installment (`n = installmentCount`) is due one month before
+`endDate`.
 
 Example:
 
@@ -89,10 +87,10 @@ Example:
 startDate: 2026-01-15
 installments: 3
 
-installment 1: 2026-01
-installment 2: 2026-02
-installment 3: 2026-03
-endDate: 2026-03-15
+installment 1 due: 2026-01
+installment 2 due: 2026-02
+installment 3 due: 2026-03
+endDate: 2026-04-15
 ```
 
 ## Monthly Budget Impact Generation
@@ -142,7 +140,7 @@ Required fields:
 - year
 - month
 - name
-- state `ACTIVE`
+- status `ACTIVE`
 - audit fields
 
 ## Budget Impact Fields
@@ -193,7 +191,7 @@ Transactional behavior:
 3. Update debt state.
 4. Update related budget impact progress when applicable.
 5. Optionally create an associated conceptual expense when requested explicitly.
-6. Persist functional audit event.
+6. Persist functional audit event (planned; not implemented today, this step is currently a no-op).
 
 Associated expense behavior:
 
@@ -234,5 +232,4 @@ Mutual debts are outside the MVP and must not participate in this flow.
 
 ## Pending Decisions
 
-- Whether `endDate = startDate.plusMonths(installments - 1)` or `startDate.plusMonths(installments)` is preferred by the business wording. This document recommends `installments - 1` because the first installment belongs to the start month.
 - Whether capital payments should reduce future budget impacts automatically.

@@ -137,6 +137,7 @@ class ExpenseManagementUseCaseTest {
                 2L,
                 3L,
                 10L,
+                30L,
                 50L,
                 "Debt payment",
                 Money.cop(new BigDecimal("40000")),
@@ -147,6 +148,7 @@ class ExpenseManagementUseCaseTest {
         assertThat(response.expenseType()).isEqualTo("SIMPLE");
         assertThat(response.sourceType()).isEqualTo("DEBT_PAYMENT");
         assertThat(response.sourceDebtPaymentId()).isEqualTo(50L);
+        assertThat(response.sourceDebtId()).isEqualTo(30L);
     }
 
     @Test
@@ -420,6 +422,16 @@ class ExpenseManagementUseCaseTest {
     }
 
     @Test
+    void updateDebtPaymentExpenseFails() {
+        givenAdminAccess(AccountStatus.ACTIVE, 10L);
+        when(expenseRepository.findByAccountIdAndId(1L, 5L)).thenReturn(Optional.of(debtPaymentExpense(5L, 20L, ExpenseStatus.ACTIVE)));
+
+        assertThatThrownBy(() -> useCase.updateExpense(updateCommand()))
+                .isInstanceOfSatisfying(BusinessRuleViolationException.class, ex -> assertThat(ex.code()).isEqualTo("EXPENSE_DEBT_PAYMENT_UPDATE_NOT_ALLOWED"));
+        verify(expenseRepository, never()).save(any());
+    }
+
+    @Test
     void updateCancelledExpenseFails() {
         givenAdminAccess(AccountStatus.ACTIVE, 10L);
         when(expenseRepository.findByAccountIdAndId(1L, 5L)).thenReturn(Optional.of(expense(5L, 20L, ExpenseStatus.CANCELLED)));
@@ -455,6 +467,16 @@ class ExpenseManagementUseCaseTest {
 
         assertThatThrownBy(() -> useCase.cancelExpense(1L, 5L))
                 .isInstanceOfSatisfying(BusinessRuleViolationException.class, ex -> assertThat(ex.code()).isEqualTo("INSTALLMENT_EXPENSE_CANCEL_NOT_ALLOWED"));
+        verify(expenseRepository, never()).save(any());
+    }
+
+    @Test
+    void cancelDebtPaymentExpenseFails() {
+        givenAdminAccess(AccountStatus.ACTIVE, 10L);
+        when(expenseRepository.findByAccountIdAndId(1L, 5L)).thenReturn(Optional.of(debtPaymentExpense(5L, 20L, ExpenseStatus.ACTIVE)));
+
+        assertThatThrownBy(() -> useCase.cancelExpense(1L, 5L))
+                .isInstanceOfSatisfying(BusinessRuleViolationException.class, ex -> assertThat(ex.code()).isEqualTo("EXPENSE_DEBT_PAYMENT_CANCEL_NOT_ALLOWED"));
         verify(expenseRepository, never()).save(any());
     }
 
@@ -511,6 +533,46 @@ class ExpenseManagementUseCaseTest {
         assertThat(duplicate.description()).isEqualTo(source.description());
         assertThat(duplicate.amount().amount()).isEqualByComparingTo(source.amount().amount());
         assertThat(duplicate.paymentState()).isEqualTo(source.paymentState());
+    }
+
+    @Test
+    void duplicatingDebtPaymentExpenseResetsSourceToManual() {
+        givenAdminAccess(AccountStatus.ACTIVE, 10L);
+        givenValidCatalogs();
+        Expense source = debtPaymentExpense(5L, 20L, ExpenseStatus.ACTIVE);
+        when(expenseRepository.findByAccountIdAndId(1L, 5L)).thenReturn(Optional.of(source));
+        when(expenseRepository.save(any(Expense.class))).thenAnswer(invocation -> persistedWithId(invocation.getArgument(0), 9L));
+
+        var response = useCase.duplicateExpense(duplicateCommand());
+
+        ArgumentCaptor<Expense> captor = ArgumentCaptor.forClass(Expense.class);
+        verify(expenseRepository).save(captor.capture());
+        Expense duplicate = captor.getValue();
+        assertThat(response.sourceType()).isEqualTo("MANUAL");
+        assertThat(response.sourceDebtPaymentId()).isNull();
+        assertThat(response.sourceDebtId()).isNull();
+        assertThat(duplicate.sourceType()).isEqualTo(ExpenseSourceType.MANUAL);
+        assertThat(duplicate.sourceDebtPaymentId()).isNull();
+        assertThat(duplicate.sourceDebtId()).isNull();
+    }
+
+    @Test
+    void duplicateOfDebtPaymentExpenseCanBeUpdatedAndCancelledAfterward() {
+        givenAdminAccess(AccountStatus.ACTIVE, 10L);
+        givenValidCatalogs();
+        Expense source = debtPaymentExpense(5L, 20L, ExpenseStatus.ACTIVE);
+        when(expenseRepository.findByAccountIdAndId(1L, 5L)).thenReturn(Optional.of(source));
+        when(expenseRepository.save(any(Expense.class))).thenAnswer(invocation -> persistedWithId(invocation.getArgument(0), 9L));
+
+        useCase.duplicateExpense(duplicateCommand());
+
+        Expense duplicated = expense(9L, 20L, ExpenseStatus.ACTIVE);
+        when(expenseRepository.findByAccountIdAndId(1L, 9L)).thenReturn(Optional.of(duplicated));
+
+        var updateResponse = useCase.updateExpense(new UpdateExpenseCommand(1L, 9L, null, 2L, 3L, "Dinner", Money.cop(new BigDecimal("15000")), LocalDate.now(), ExpensePaymentState.PAID));
+        assertThat(updateResponse.description()).isEqualTo("Dinner");
+
+        useCase.cancelExpense(1L, 9L);
     }
 
     @Test
@@ -676,11 +738,11 @@ class ExpenseManagementUseCaseTest {
     }
 
     private static Expense persisted(Expense expense) {
-        return Expense.restore(5L, expense.accountId(), expense.categoryId(), expense.paymentMethodId(), expense.participantId(), expense.description(), expense.amount(), expense.expenseDate(), expense.paymentState(), expense.status(), expense.expenseType(), expense.sourceType(), expense.sourceDebtPaymentId(), Instant.now(), Instant.now());
+        return Expense.restore(5L, expense.accountId(), expense.categoryId(), expense.paymentMethodId(), expense.participantId(), expense.description(), expense.amount(), expense.expenseDate(), expense.paymentState(), expense.status(), expense.expenseType(), expense.sourceType(), expense.sourceDebtPaymentId(), expense.sourceDebtId(), Instant.now(), Instant.now());
     }
 
     private static Expense persistedWithId(Expense expense, Long id) {
-        return Expense.restore(id, expense.accountId(), expense.categoryId(), expense.paymentMethodId(), expense.participantId(), expense.description(), expense.amount(), expense.expenseDate(), expense.paymentState(), expense.status(), expense.expenseType(), expense.sourceType(), expense.sourceDebtPaymentId(), Instant.now(), Instant.now());
+        return Expense.restore(id, expense.accountId(), expense.categoryId(), expense.paymentMethodId(), expense.participantId(), expense.description(), expense.amount(), expense.expenseDate(), expense.paymentState(), expense.status(), expense.expenseType(), expense.sourceType(), expense.sourceDebtPaymentId(), expense.sourceDebtId(), Instant.now(), Instant.now());
     }
 
     private static Expense expense(Long id, Long participantId, ExpenseStatus status) {
@@ -689,5 +751,9 @@ class ExpenseManagementUseCaseTest {
 
     private static Expense installmentExpense(Long id, Long participantId, ExpenseStatus status) {
         return Expense.restore(id, 1L, 2L, 3L, participantId, "Laptop", Money.cop(new BigDecimal("1200000")), LocalDate.now(), ExpensePaymentState.PENDING, status, ExpenseType.INSTALLMENT, Instant.now(), Instant.now());
+    }
+
+    private static Expense debtPaymentExpense(Long id, Long participantId, ExpenseStatus status) {
+        return Expense.restore(id, 1L, 2L, 3L, participantId, "Debt payment", Money.cop(new BigDecimal("40000")), LocalDate.now(), ExpensePaymentState.PAID, status, ExpenseType.SIMPLE, ExpenseSourceType.DEBT_PAYMENT, 50L, 30L, Instant.now(), Instant.now());
     }
 }

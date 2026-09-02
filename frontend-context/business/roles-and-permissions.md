@@ -15,8 +15,9 @@
 | Create/update/deactivate payment method | Yes | No | N/A | Account must be `ACTIVE`. |
 | Create simple expense | Yes | Yes | N/A | Category/payment method must be active and same account. |
 | List/view expenses | Yes | Yes | N/A | Current member required. |
-| Update simple expense | Yes | No | Yes | `INSTALLMENT` expense update is blocked. |
-| Cancel simple expense | Yes | No | Yes | `INSTALLMENT` expense cancel is blocked. |
+| Update simple expense | Yes | No | Yes | `INSTALLMENT` and `DEBT_PAYMENT` expense update is blocked. |
+| Cancel simple expense | Yes | No | Yes | `INSTALLMENT` and `DEBT_PAYMENT` expense cancel is blocked. |
+| Duplicate expense | Yes | No | Yes | Allowed even for `DEBT_PAYMENT` expenses; duplicate is always created as `sourceType = MANUAL`. |
 | Create installment expense | Yes | Yes | N/A | Creates debt and budget impacts transactionally. |
 | Create manual debt | Yes | Yes | N/A | Account must be `ACTIVE`. |
 | List/view debts | Yes | Yes | N/A | Current member required. |
@@ -24,6 +25,8 @@
 | Register debt payment | Yes | Yes | N/A | Debt must be `ACTIVE`; no overpayment. |
 | List/view debt payments | Yes | Yes | N/A | Current member required. |
 | Upsert budget | Yes | No | N/A | Account must be `ACTIVE`; year 2000-2100, month 1-12. |
+| Duplicate budget | Yes | No | N/A | Fails with `BUDGET_TARGET_ALREADY_EXISTS` if target month exists. |
+| Create annual budget | Yes | No | N/A | Fails with `ANNUAL_BUDGET_MONTH_ALREADY_EXISTS` if any month of that year exists. |
 | View/list budgets | Yes | Yes | N/A | Current member required. |
 | Create/update/deactivate manual sub-budget | Yes | No | N/A | Derived sub-budgets are not editable manually. |
 | Create income | Yes | Yes | N/A | Category must be `INCOME`, active, same account. |

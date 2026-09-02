@@ -1113,15 +1113,21 @@ Implemented:
 - Debt payments with balance updates and automatic `PAID` state.
 - Monthly budgets, manual sub-budgets, and debt-derived budget impacts.
 - Incomes scoped by account.
-- Basic read-only dashboard/analytics endpoints.
+- Basic read-only dashboard/analytics endpoints, including cashflow, conceptual expense breakdowns (by
+  category/payment-method/payment-method-type), and budget-vs-expenses-by-category.
+- Excel import for simple expenses (preview/confirm, with optional debt-payment metadata).
+- Direct Excel import (validate-then-create, no preview batch) for income, categories, payment methods, and
+  annual budgets.
+- Direct JSON creation of an annual budget (`POST /budgets/annual`) and monthly budget duplication
+  (`POST /budgets/{year}/{month}/duplicate`).
 - Baseline tests.
 
 Not implemented yet:
 
-- advanced reporting
-- advanced analytics
-- functional audit event emission beyond the initial `audit_events` table
-- income/debt imports
+- advanced reporting/exportation
+- advanced analytics beyond the endpoints listed above
+- functional audit event emission beyond the initial `audit_events` table (schema only, no consumer)
+- debt imports
 - payment reversals
 - refresh tokens
 

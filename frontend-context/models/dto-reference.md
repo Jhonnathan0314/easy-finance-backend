@@ -73,7 +73,7 @@ interface CreateExpenseRequest { categoryId: number; participantId?: number | nu
 interface UpdateExpenseRequest { categoryId: number; participantId?: number | null; paymentMethodId: number; description: string; amount: number; expenseDate: string; paymentState: "PENDING" | "PARTIAL" | "PAID"; }
 interface DuplicateExpenseRequest { expenseDate: string; amount?: number | null; description?: string | null; paymentState?: "PENDING" | "PARTIAL" | "PAID" | null; }
 interface CreateInstallmentExpenseRequest { categoryId: number; participantId?: number | null; paymentMethodId: number; description: string; totalAmount: number; expenseDate: string; installmentCount: number; installmentAmount: number; firstInstallmentDate: string; debtName?: string | null; notes?: string | null; }
-interface ExpenseResponse { id: number; accountId: number; categoryId: number; paymentMethodId: number; participantId: number; description: string; amount: number; currency: "COP"; expenseDate: string; paymentState: string; status: string; expenseType: string; sourceType: "MANUAL" | "IMPORT" | "DEBT_PAYMENT"; sourceDebtPaymentId?: number | null; createdAt: string; updatedAt: string; }
+interface ExpenseResponse { id: number; accountId: number; categoryId: number; paymentMethodId: number; participantId: number; description: string; amount: number; currency: "COP"; expenseDate: string; paymentState: string; status: string; expenseType: string; sourceType: "MANUAL" | "IMPORT" | "DEBT_PAYMENT"; sourceDebtPaymentId?: number | null; sourceDebtId?: number | null; createdAt: string; updatedAt: string; }
 ```
 
 Validation:
@@ -83,6 +83,9 @@ Validation:
 - installment count: min 1
 - installment rule: `installmentAmount * installmentCount >= totalAmount`
 - `totalAmount` is the original purchase/advance amount; `installmentAmount * installmentCount` is the financed debt total to pay.
+- `sourceDebtId` is only set when `sourceType = "DEBT_PAYMENT"`, and only for expenses created after this field was introduced; expenses created before it exist with `sourceDebtId = null` even though `sourceType = "DEBT_PAYMENT"`. Resolve the related debt through this field when present; do not assume it is always populated for `DEBT_PAYMENT` expenses.
+- `PUT .../expenses/{expenseId}` and `PATCH .../expenses/{expenseId}/cancel` reject expenses with `sourceType = "DEBT_PAYMENT"` (`EXPENSE_DEBT_PAYMENT_UPDATE_NOT_ALLOWED` / `EXPENSE_DEBT_PAYMENT_CANCEL_NOT_ALLOWED`). `POST .../expenses/{expenseId}/duplicate` still allows it and always creates the duplicate as `sourceType = "MANUAL"` with `sourceDebtPaymentId = null` and `sourceDebtId = null`.
+- `GET .../expenses` accepts an optional `debtPaymentOrigin` boolean query parameter: `true` returns only `sourceType = "DEBT_PAYMENT"`; `false` returns everything else; omitted applies no filter on origin.
 
 ## Debts And Payments
 
@@ -98,6 +101,10 @@ interface RegisterDebtPaymentResponse { payment: DebtPaymentResponse; debt: Debt
 
 ```ts
 interface UpsertBudgetRequest { name?: string | null; status?: "ACTIVE" | "CLOSED" | "ARCHIVED" | null; }
+interface DuplicateBudgetRequest { targetYear: number; targetMonth: number; name?: string | null; }
+interface CreateAnnualSubBudgetBaseRequest { name: string; categoryId?: number | null; plannedAmount: number; }
+interface CreateAnnualBudgetRequest { year: number; name?: string | null; status?: "ACTIVE" | "CLOSED" | "ARCHIVED" | null; subBudgets: CreateAnnualSubBudgetBaseRequest[]; }
+interface AnnualBudgetResponse { accountId: number; year: number; createdBudgets: BudgetResponse[]; }
 interface CreateSubBudgetRequest { categoryId?: number | null; participantId?: number | null; name: string; plannedAmount: number; }
 interface UpdateSubBudgetRequest { categoryId?: number | null; participantId?: number | null; name: string; plannedAmount: number; }
 interface BudgetResponse { id: number; accountId: number; year: number; month: number; name?: string | null; status: string; createdAt: string; updatedAt: string; }
@@ -107,6 +114,10 @@ interface BudgetDetailResponse { budget: BudgetResponse; subBudgets: SubBudgetRe
 ```
 
 Budget note: manual sub-budget `spentAmount` is a read-time calculation from active simple expenses in the same month/category with `sourceType = "MANUAL" | "IMPORT"`. `sourceType = "DEBT_PAYMENT"` is excluded to avoid double counting debt payments. Debt-derived sub-budgets use budget impacts.
+
+`DuplicateBudgetRequest` (`POST /budgets/{sourceYear}/{sourceMonth}/duplicate`) copies active `MANUAL` sub-budgets from the source month into `targetYear`/`targetMonth`; fails with `BUDGET_TARGET_ALREADY_EXISTS` if the target month already exists. `ACCOUNT_ADMIN` only.
+
+`CreateAnnualBudgetRequest` (`POST /budgets/annual`) creates all 12 monthly budgets for `year` directly from the request body (not from an uploaded file); fails with `ANNUAL_BUDGET_MONTH_ALREADY_EXISTS` if any month of that year already exists. `ACCOUNT_ADMIN` only. Do not confuse with the Excel-based `POST /imports/budgets/annual`.
 
 ## Income
 

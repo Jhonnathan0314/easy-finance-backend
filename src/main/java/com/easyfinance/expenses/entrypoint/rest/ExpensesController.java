@@ -90,6 +90,7 @@ public class ExpensesController {
             @RequestParam(required = false) ExpenseStatusDto status,
             @RequestParam(required = false) ExpenseType expenseType,
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean debtPaymentOrigin,
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size,
             @RequestParam(required = false) String sort
@@ -105,6 +106,7 @@ public class ExpensesController {
                 status == null ? null : ExpenseStatus.valueOf(status.name()),
                 expenseType,
                 search,
+                debtPaymentOrigin,
                 PageQuery.of(page, size),
                 sort
         );

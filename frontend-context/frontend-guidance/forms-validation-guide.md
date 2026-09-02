@@ -82,9 +82,18 @@ Mirror backend validation to reduce failed submissions.
 
 ## Imports
 
+Excel imports differ by type. Do not assume identical headers, `Participante` support, or row limits across all
+of them.
+
+General:
+
 - file required.
 - extension `.xlsx`.
 - max file size: 5MB unless backend config changes.
+- formulas are rejected.
+
+### Expense Import
+
 - first sheet headers:
   - `Fecha`
   - `Descripción`
@@ -96,10 +105,31 @@ Mirror backend validation to reduce failed submissions.
   - `Deuda`
   - `TipoPagoDeuda`
   - `NotasPagoDeuda`
-- older files without debt-payment columns remain accepted.
+  - `Participante`
+- older files without debt-payment columns, or without `Participante`, remain accepted.
+- `Participante` is optional (header `Participante`). Blank or missing falls back to the participant confirming the batch.
 - `AplicaPagoDeuda` supports `SI` or `NO`; blank is treated as `NO`.
 - if `AplicaPagoDeuda = SI`, `Deuda` and `TipoPagoDeuda` are required.
 - if `AplicaPagoDeuda = NO` or blank, debt-payment fields must stay empty.
 - confirm creates the expense and registers the debt payment for rows marked with `SI`.
-- max rows: backend-configured, currently documented as 1500.
-- formulas are rejected.
+- max rows: backend-configured, currently `1500` (`EXPENSE_IMPORT_MAX_ROWS`, exposed as an environment variable).
+
+### Income Import (direct, no preview batch persisted)
+
+- first sheet headers: `Fecha`, `Descripcion`, `Categoria`, `Monto`, `Participante`.
+- `Participante` is optional (header `Participante`). Blank or missing falls back to the participant running the import.
+- max rows: currently defaults to `1000`, configured independently from expenses and not yet exposed as an environment variable.
+
+### Category Import / Payment Method Import (direct, no preview batch persisted)
+
+- first sheet headers: `Nombre` (required), `Tipo` (required), `Descripcion` (optional).
+- these two imports do **not** have a `Participante` column; categories and payment methods are account-level catalogs, not participant-scoped.
+- max rows: currently defaults to `1000` each, configured independently from expenses and not yet exposed as environment variables.
+
+### Annual Budget Import (direct, no preview batch persisted)
+
+- first sheet headers: `Año` (required), `Mes`, `NombrePresupuesto`, `Categoria` (required), `NombreSubpresupuesto` (required), `Valor` (required), `Participante`.
+- `Participante` is optional (header `Participante`), but its blank behavior differs from expense/income imports:
+  blank/missing means a global (unscoped) sub-budget, while a selected participant scopes execution to that
+  participant. It does not fall back to the participant running the import.
+- max rows: currently defaults to `1000`, configured independently from expenses and not yet exposed as an environment variable.

@@ -237,7 +237,7 @@ class ExpenseImportManagementUseCaseTest {
         ExpenseImportBatch batch = new ExpenseImportBatch(77L, 1L, 10L, "expenses.xlsx", ExpenseImportStatus.PREVIEW, 1, 1, 0, null, null, null, List.of(storedDebtPaymentRow(101L, "  Imported payment  ")));
         when(repository.findByAccountIdAndIdForUpdate(1L, 77L)).thenReturn(Optional.of(batch));
         when(registerDebtPaymentPort.registerDebtPayment(any())).thenReturn(debtPaymentResponse(900L));
-        when(createDebtPaymentExpensePort.createDebtPaymentExpense(any())).thenReturn(new ExpenseResponse(500L, 1L, 10L, 20L, 10L, "Lunch", new BigDecimal("120.00"), "COP", LocalDate.of(2026, 5, 1), "PAID", "ACTIVE", "SIMPLE", "DEBT_PAYMENT", 900L, Instant.now(), Instant.now()));
+        when(createDebtPaymentExpensePort.createDebtPaymentExpense(any())).thenReturn(new ExpenseResponse(500L, 1L, 10L, 20L, 10L, "Lunch", new BigDecimal("120.00"), "COP", LocalDate.of(2026, 5, 1), "PAID", "ACTIVE", "SIMPLE", "DEBT_PAYMENT", 900L, 30L, Instant.now(), Instant.now()));
         when(repository.saveBatch(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         var response = useCase.confirm(1L, 77L);
@@ -255,6 +255,7 @@ class ExpenseImportManagementUseCaseTest {
         ));
         verify(repository).updateCreatedExpenseId(1L, 101L, 500L);
         verify(repository).updateCreatedDebtPaymentId(1L, 101L, 900L);
+        verify(createDebtPaymentExpensePort).createDebtPaymentExpense(argThat(command -> command.debtId().equals(30L)));
     }
 
     @Test
@@ -263,7 +264,7 @@ class ExpenseImportManagementUseCaseTest {
         ExpenseImportBatch batch = new ExpenseImportBatch(77L, 1L, 10L, "expenses.xlsx", ExpenseImportStatus.PREVIEW, 1, 1, 0, null, null, null, List.of(storedDebtPaymentRow(101L, " ")));
         when(repository.findByAccountIdAndIdForUpdate(1L, 77L)).thenReturn(Optional.of(batch));
         when(registerDebtPaymentPort.registerDebtPayment(any())).thenReturn(debtPaymentResponse(900L));
-        when(createDebtPaymentExpensePort.createDebtPaymentExpense(any())).thenReturn(new ExpenseResponse(500L, 1L, 10L, 20L, 10L, "Lunch", new BigDecimal("120.00"), "COP", LocalDate.of(2026, 5, 1), "PAID", "ACTIVE", "SIMPLE", "DEBT_PAYMENT", 900L, Instant.now(), Instant.now()));
+        when(createDebtPaymentExpensePort.createDebtPaymentExpense(any())).thenReturn(new ExpenseResponse(500L, 1L, 10L, 20L, 10L, "Lunch", new BigDecimal("120.00"), "COP", LocalDate.of(2026, 5, 1), "PAID", "ACTIVE", "SIMPLE", "DEBT_PAYMENT", 900L, 30L, Instant.now(), Instant.now()));
         when(repository.saveBatch(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         useCase.confirm(1L, 77L);

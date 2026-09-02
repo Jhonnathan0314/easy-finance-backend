@@ -11,6 +11,21 @@ Technical audit answers: who created or updated a row and when.
 
 Functional audit answers: what business operation happened, who did it, in which account, and what changed.
 
+## Implementation Status
+
+- **Technical audit: implemented.** `AuditableJpaEntity` + `AuditingEntityListener` + `AuditorAware<Long>`
+  (`JpaAuditingConfig`) populate `created_at`/`updated_at`/`created_by`/`updated_by` on every table listed under
+  "Technical Audit" below.
+- **Functional audit infrastructure: schema only.** The `audit_events` table exists in the database (migration
+  `V1__initial_schema.sql`) with the columns and indexes described under "audit_events Structure".
+- **Functional audit event emission: not implemented.** No application use case, repository, or adapter in
+  `src/main/java` writes to `audit_events`. There is no `AuditEvent` domain class and no port for it. The
+  `correlation_id` mechanism (`CorrelationIdFilter`) works and appears in logs/API errors, but is not currently
+  linked to any audit event because none are ever created.
+
+Everything under "Functional Audit" below (event types, metadata shape, transactional behavior) is the target
+design for a future implementation, not current behavior.
+
 ## Technical Audit
 
 Use Spring Data JPA Auditing.
@@ -47,7 +62,7 @@ Tables requiring technical audit:
 - `budget_impacts`
 - `incomes`
 
-## Functional Audit
+## Functional Audit (Planned, Not Yet Implemented)
 
 Use a dedicated `audit_events` table.
 
@@ -83,7 +98,7 @@ idx_audit_events_aggregate
 idx_audit_events_correlation_id
 ```
 
-## Auditable Events
+## Auditable Events (Planned, Not Yet Implemented)
 
 Critical MVP events:
 

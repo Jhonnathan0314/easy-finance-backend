@@ -8,6 +8,7 @@ import com.easyfinance.expenses.domain.model.ExpenseStatus;
 import com.easyfinance.expenses.infrastructure.mapper.ExpensePersistenceMapper;
 import com.easyfinance.expenses.infrastructure.persistence.jpa.ExpenseJpaEntity;
 import com.easyfinance.expenses.infrastructure.persistence.jpa.ExpensePaymentStateJpa;
+import com.easyfinance.expenses.infrastructure.persistence.jpa.ExpenseSourceTypeJpa;
 import com.easyfinance.expenses.infrastructure.persistence.jpa.ExpenseStatusJpa;
 import com.easyfinance.expenses.infrastructure.persistence.jpa.ExpenseTypeJpa;
 import com.easyfinance.expenses.infrastructure.persistence.jpa.SpringDataExpenseRepository;
@@ -86,6 +87,11 @@ public class JpaExpenseRepositoryAdapter implements ExpenseRepositoryPort {
             }
             if (query.search() != null) {
                 predicate = builder.and(predicate, builder.like(builder.lower(root.get("description")), likePattern(query.search()), '\\'));
+            }
+            if (query.debtPaymentOrigin() != null) {
+                predicate = query.debtPaymentOrigin()
+                        ? builder.and(predicate, builder.equal(root.get("sourceType"), ExpenseSourceTypeJpa.DEBT_PAYMENT))
+                        : builder.and(predicate, builder.notEqual(root.get("sourceType"), ExpenseSourceTypeJpa.DEBT_PAYMENT));
             }
             return predicate;
         };

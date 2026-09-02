@@ -108,9 +108,11 @@ Main concepts:
 
 ### Audit
 
-Owns functional audit events.
+Planned bounded context for functional audit events. Not implemented today: there is no `AuditEvent` domain
+class in the codebase, and `audit_events` is currently an unused table (schema only). See
+`docs/audit/audit-strategy.md` for the target design.
 
-Main concepts:
+Main concepts (planned):
 
 - `AuditEvent`
 - `AuditEventType`
@@ -126,8 +128,8 @@ Fields:
 - `id`
 - `email`
 - `passwordHash`
-- `state`
-- `lastLogin`
+- `fullName`
+- `status`
 
 ### Participant
 
@@ -137,9 +139,8 @@ Fields:
 
 - `id`
 - `userId`
-- `name`
-- `phone`
-- `state`
+- `displayName`
+- `status`
 
 ### Account
 
@@ -150,7 +151,7 @@ Fields:
 - `id`
 - `name`
 - `description`
-- `state`
+- `status`
 
 ### AccountParticipant
 
@@ -161,9 +162,9 @@ Fields:
 - `id`
 - `accountId`
 - `participantId`
-- `accountRole`
+- `role`
 - `joinedAt`
-- `state`
+- `status`
 
 ### Category
 
@@ -176,7 +177,7 @@ Fields:
 - `name`
 - `description`
 - `type`
-- `state`
+- `status`
 
 ### PaymentMethod
 
@@ -189,7 +190,7 @@ Fields:
 - `name`
 - `description`
 - `type`
-- `state`
+- `status`
 
 ### Expense
 
