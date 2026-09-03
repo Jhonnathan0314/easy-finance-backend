@@ -179,17 +179,34 @@ Rules:
 
 - Debt must exist.
 - Debt must be active.
-- Payment amount must be greater than zero.
-- Payment amount cannot exceed remaining balance.
+- Capital amount must be greater than zero.
+- Interest amount cannot be negative; it defaults to zero when omitted.
+- A `CAPITAL_PAYMENT` cannot carry an interest amount (`DEBT_PAYMENT_CAPITAL_PAYMENT_INTEREST_NOT_ALLOWED`).
+- Capital amount cannot exceed remaining balance (interest is not compared against remaining balance).
 - Responsible participant must belong to the debt account.
 - Payment type must be `INSTALLMENT` or `CAPITAL_PAYMENT`.
 
+Capital/interest split (models a standard bank loan/credit amortization):
+
+- Each debt payment is entered as `capitalAmount` + `interestAmount`. The split is optional per payment
+  (`interestAmount` defaults to `0`), so debts without real financing cost keep working with a single value.
+- Only `capitalAmount` reduces `Debt.remainingBalance`. This is the fix for a pre-existing inconsistency: before
+  this split existed, the full paid amount (including any interest baked into the cuota) was subtracted from
+  `remainingBalance`, which could exhaust the balance before all installments were paid on interest-bearing debts.
+- `interestAmount` is stored on the `DebtPayment` for reporting/analytics only; it never affects `remainingBalance`.
+- `DebtPayment.amount` is the derived total (`capitalAmount + interestAmount`) and is what budget impacts and the
+  optional associated expense use - see below.
+- No historical backfill: payments registered before this split treat their existing `amount` as 100% capital with
+  `interestAmount = 0`, matching how they already behaved. This is not retroactively corrected.
+- The Excel debt-payment import flow (`AplicaPagoDeuda`) is unaffected: it continues registering 100% capital,
+  0 interest.
+
 Transactional behavior:
 
-1. Create `DebtPayment`.
-2. Reduce debt remaining balance.
+1. Create `DebtPayment` with `capitalAmount`/`interestAmount`.
+2. Reduce debt remaining balance by `capitalAmount` only.
 3. Update debt state.
-4. Update related budget impact progress when applicable.
+4. Update related budget impact progress using the total amount (`capitalAmount + interestAmount`) when applicable.
 5. Optionally create an associated conceptual expense when requested explicitly.
 6. Persist functional audit event (planned; not implemented today, this step is currently a no-op).
 
@@ -197,14 +214,16 @@ Associated expense behavior:
 
 - `createExpense` defaults to `false`.
 - When `createExpense = true`, the request must include an active account-scoped expense category, an active account-scoped payment method, and a non-blank expense description.
-- The associated expense uses the debt payment amount and date, is created as `SIMPLE`, `ACTIVE`, `PAID`, and is marked with `sourceType = DEBT_PAYMENT`.
+- The associated expense uses the debt payment's total amount (`capitalAmount + interestAmount`) and date - it reflects the real cash outflow, not just the capital portion. It is created as `SIMPLE`, `ACTIVE`, `PAID`, and is marked with `sourceType = DEBT_PAYMENT`.
 - Cashflow still counts only the debt payment as real outflow; the associated expense remains available for conceptual expense analytics.
 
 ## Budget Impact Update on Payment
 
 For installment payments:
 
-- Apply payment progress to the earliest unpaid debt-derived impact for the debt.
+- Apply payment progress to the earliest unpaid debt-derived impact for the debt, using the total paid amount
+  (`capitalAmount + interestAmount`) - `expectedAmount` already represents the full cuota including any implicit
+  financing cost, so this behavior is unchanged by the capital/interest split.
 - Increase `paidAmount`.
 - Do not allow `paidAmount` to exceed `amount`.
 

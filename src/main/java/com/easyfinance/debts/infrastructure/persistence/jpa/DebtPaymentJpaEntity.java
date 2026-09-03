@@ -37,6 +37,12 @@ public class DebtPaymentJpaEntity extends AuditableJpaEntity {
     @Column(name = "amount", nullable = false, precision = 19, scale = 2)
     private BigDecimal amount;
 
+    @Column(name = "capital_amount", nullable = false, precision = 19, scale = 2)
+    private BigDecimal capitalAmount;
+
+    @Column(name = "interest_amount", nullable = false, precision = 19, scale = 2)
+    private BigDecimal interestAmount;
+
     @Column(name = "currency", nullable = false, length = 3)
     private String currency;
 
@@ -62,6 +68,10 @@ public class DebtPaymentJpaEntity extends AuditableJpaEntity {
     public void setPaymentType(DebtPaymentTypeJpa paymentType) { this.paymentType = paymentType; }
     public BigDecimal getAmount() { return amount; }
     public void setAmount(BigDecimal amount) { this.amount = amount; }
+    public BigDecimal getCapitalAmount() { return capitalAmount; }
+    public void setCapitalAmount(BigDecimal capitalAmount) { this.capitalAmount = capitalAmount; }
+    public BigDecimal getInterestAmount() { return interestAmount; }
+    public void setInterestAmount(BigDecimal interestAmount) { this.interestAmount = interestAmount; }
     public String getCurrency() { return currency; }
     public void setCurrency(String currency) { this.currency = currency; }
     public LocalDate getPaymentDate() { return paymentDate; }

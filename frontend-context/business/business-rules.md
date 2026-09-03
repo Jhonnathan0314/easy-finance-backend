@@ -53,13 +53,19 @@
 
 - Manual debts do not create expenses or budget impacts.
 - Installment debts are derived from installment expenses.
-- A debt payment reduces `remainingAmount`.
-- Payment amount cannot exceed the remaining debt balance.
+- A debt payment is entered as `capitalAmount` + optional `interestAmount` (defaults to `0`). Only `capitalAmount`
+  reduces `remainingAmount`; `interestAmount` is recorded on the payment for reporting/analytics only and never
+  affects the debt balance. This models a standard bank loan/credit amortization (cuota fija split between capital
+  and interest).
+- `CAPITAL_PAYMENT` ("abono a capital") never carries an interest amount; a nonzero `interestAmount` on a
+  `CAPITAL_PAYMENT` is rejected (`DEBT_PAYMENT_CAPITAL_PAYMENT_INTEREST_NOT_ALLOWED`).
+- Capital amount cannot exceed the remaining debt balance.
 - A total payment marks the debt `PAID`.
 - Payments on `PAID` or `CANCELLED` debts are rejected.
 - Debt payment registration uses pessimistic locking to avoid concurrent overpayment.
 - Manual debt payment registration can optionally create an associated conceptual expense when `createExpense=true`.
-- The associated expense is explicit, account-scoped, and excluded from cashflow simple outflow.
+- The associated expense uses the payment's total amount (`capitalAmount + interestAmount`, the real cash outflow); it is explicit, account-scoped, and excluded from cashflow simple outflow.
+- Debt payments registered before the capital/interest split existed are treated as 100% capital (`interestAmount = 0`); this is not retroactively recalculated.
 
 ## Budgets And Impacts
 

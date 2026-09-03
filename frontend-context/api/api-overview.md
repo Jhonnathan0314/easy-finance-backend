@@ -81,7 +81,7 @@ Authorization: Bearer <accessToken>
 
 | Method | Path | Purpose |
 |---|---|---|
-| POST | `/api/v1/accounts/{accountId}/debts/{debtId}/payments` | Register payment and update debt/budget impacts. Optional `createExpense=true` creates a conceptual expense with `sourceType=DEBT_PAYMENT`. |
+| POST | `/api/v1/accounts/{accountId}/debts/{debtId}/payments` | Register payment (`capitalAmount` + optional `interestAmount`) and update debt/budget impacts. Only `capitalAmount` reduces the debt remaining balance; `interestAmount` is recorded for reporting only and defaults to `0`. Optional `createExpense=true` creates a conceptual expense (amount = `capitalAmount + interestAmount`) with `sourceType=DEBT_PAYMENT`. |
 | GET | `/api/v1/accounts/{accountId}/debts/{debtId}/payments` | List payments. Query: `from`, `to`, `paymentType`, `status`, `page`, `size`, `sort`. |
 | GET | `/api/v1/accounts/{accountId}/debts/{debtId}/payments/{paymentId}` | Get payment detail. |
 

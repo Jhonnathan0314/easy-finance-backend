@@ -86,6 +86,80 @@ class DebtPaymentManagementUseCaseTest {
     }
 
     @Test
+    void interestBearingInstallmentPaymentOnlyReducesCapitalButAppliesTotalToImpacts() {
+        givenMemberAccess(AccountStatus.ACTIVE, 10L);
+        Debt derivedDebt = derivedDebt(
+                Money.cop(new BigDecimal("1200000")),
+                Money.cop(new BigDecimal("1200000")),
+                Money.cop(new BigDecimal("100000")),
+                DebtState.ACTIVE
+        );
+        when(debtRepository.findByAccountIdAndIdForUpdate(1L, 5L)).thenReturn(Optional.of(derivedDebt));
+        when(paymentRepository.save(any(DebtPayment.class))).thenAnswer(invocation -> persistedPayment(invocation.getArgument(0)));
+        when(debtRepository.save(any(Debt.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        RegisterDebtPaymentCommand splitCommand = new RegisterDebtPaymentCommand(
+                1L, 5L, DebtPaymentType.INSTALLMENT,
+                Money.cop(new BigDecimal("80000")), Money.cop(new BigDecimal("20000")),
+                LocalDate.of(2026, 5, 11), "Installment with interest",
+                false, null, null, null
+        );
+
+        var response = useCase.registerDebtPayment(splitCommand);
+
+        assertThat(response.payment().capitalAmount()).isEqualByComparingTo("80000.00");
+        assertThat(response.payment().interestAmount()).isEqualByComparingTo("20000.00");
+        assertThat(response.payment().amount()).isEqualByComparingTo("100000.00");
+        assertThat(response.debt().remainingAmount()).isEqualByComparingTo("1120000.00");
+
+        ArgumentCaptor<com.easyfinance.budgets.application.command.ApplyDebtPaymentImpactCommand> impactCaptor =
+                ArgumentCaptor.forClass(com.easyfinance.budgets.application.command.ApplyDebtPaymentImpactCommand.class);
+        verify(budgetDebtImpactPort).applyDebtPaymentToImpacts(impactCaptor.capture());
+        assertThat(impactCaptor.getValue().amount().amount()).isEqualByComparingTo("100000.00");
+    }
+
+    @Test
+    void interestBearingInstallmentPaymentWithAssociatedExpenseUsesTotalAmount() {
+        givenMemberAccess(AccountStatus.ACTIVE, 10L);
+        when(debtRepository.findByAccountIdAndIdForUpdate(1L, 5L)).thenReturn(Optional.of(debt(Money.cop(new BigDecimal("100000")), DebtState.ACTIVE)));
+        when(paymentRepository.save(any(DebtPayment.class))).thenAnswer(invocation -> persistedPayment(invocation.getArgument(0)));
+        when(debtRepository.save(any(Debt.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(createDebtPaymentExpensePort.createDebtPaymentExpense(any())).thenReturn(expenseResponse(700L));
+
+        RegisterDebtPaymentCommand splitCommand = new RegisterDebtPaymentCommand(
+                1L, 5L, DebtPaymentType.INSTALLMENT,
+                Money.cop(new BigDecimal("30000")), Money.cop(new BigDecimal("10000")),
+                LocalDate.of(2026, 5, 11), "Installment with interest",
+                true, 2L, 3L, "Debt payment expense"
+        );
+
+        useCase.registerDebtPayment(splitCommand);
+
+        ArgumentCaptor<com.easyfinance.expenses.application.command.CreateDebtPaymentExpenseCommand> captor =
+                ArgumentCaptor.forClass(com.easyfinance.expenses.application.command.CreateDebtPaymentExpenseCommand.class);
+        verify(createDebtPaymentExpensePort).createDebtPaymentExpense(captor.capture());
+        assertThat(captor.getValue().amount().amount()).isEqualByComparingTo("40000.00");
+    }
+
+    @Test
+    void capitalPaymentWithInterestAmountFails() {
+        givenMemberAccess(AccountStatus.ACTIVE, 10L);
+        when(debtRepository.findByAccountIdAndIdForUpdate(1L, 5L)).thenReturn(Optional.of(debt(Money.cop(new BigDecimal("100000")), DebtState.ACTIVE)));
+
+        RegisterDebtPaymentCommand invalidCommand = new RegisterDebtPaymentCommand(
+                1L, 5L, DebtPaymentType.CAPITAL_PAYMENT,
+                Money.cop(new BigDecimal("30000")), Money.cop(new BigDecimal("1")),
+                LocalDate.of(2026, 5, 11), null,
+                false, null, null, null
+        );
+
+        assertThatThrownBy(() -> useCase.registerDebtPayment(invalidCommand))
+                .isInstanceOfSatisfying(BusinessRuleViolationException.class, ex -> assertThat(ex.code()).isEqualTo("DEBT_PAYMENT_CAPITAL_PAYMENT_INTEREST_NOT_ALLOWED"));
+        verify(paymentRepository, never()).save(any());
+        verify(debtRepository, never()).save(any());
+    }
+
+    @Test
     void paymentWithAssociatedExpenseCreatesDebtPaymentExpense() {
         givenMemberAccess(AccountStatus.ACTIVE, 10L);
         when(debtRepository.findByAccountIdAndIdForUpdate(1L, 5L)).thenReturn(Optional.of(debt(Money.cop(new BigDecimal("100000")), DebtState.ACTIVE)));
@@ -385,10 +459,10 @@ class DebtPaymentManagementUseCaseTest {
     }
 
     private static DebtPayment persistedPayment(DebtPayment payment) {
-        return DebtPayment.restore(50L, payment.accountId(), payment.debtId(), payment.participantId(), payment.paymentType(), payment.amount(), payment.paymentDate(), payment.notes(), payment.status(), Instant.now(), Instant.now());
+        return DebtPayment.restore(50L, payment.accountId(), payment.debtId(), payment.participantId(), payment.paymentType(), payment.capitalAmount(), payment.interestAmount(), payment.paymentDate(), payment.notes(), payment.status(), Instant.now(), Instant.now());
     }
 
     private static DebtPayment payment() {
-        return DebtPayment.restore(50L, 1L, 5L, 10L, DebtPaymentType.INSTALLMENT, Money.cop(new BigDecimal("50000")), LocalDate.now(), null, DebtPaymentStatus.ACTIVE, Instant.now(), Instant.now());
+        return DebtPayment.restore(50L, 1L, 5L, 10L, DebtPaymentType.INSTALLMENT, Money.cop(new BigDecimal("50000")), Money.zeroCop(), LocalDate.now(), null, DebtPaymentStatus.ACTIVE, Instant.now(), Instant.now());
     }
 }

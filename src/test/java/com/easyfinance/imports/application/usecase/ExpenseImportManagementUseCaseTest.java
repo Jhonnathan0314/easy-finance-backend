@@ -247,7 +247,8 @@ class ExpenseImportManagementUseCaseTest {
                 command.accountId().equals(1L)
                         && command.debtId().equals(30L)
                         && command.paymentType() == DebtPaymentType.INSTALLMENT
-                        && command.amount().amount().compareTo(new BigDecimal("120.00")) == 0
+                        && command.capitalAmount().amount().compareTo(new BigDecimal("120.00")) == 0
+                        && command.interestAmount().amount().compareTo(BigDecimal.ZERO) == 0
                         && command.paymentDate().equals(LocalDate.of(2026, 5, 1))
                         && command.participantId().equals(10L)
                         && command.notes().equals("Imported payment")
@@ -407,7 +408,7 @@ class ExpenseImportManagementUseCaseTest {
 
     private static RegisterDebtPaymentResponse debtPaymentResponse(Long paymentId) {
         return new RegisterDebtPaymentResponse(
-                new DebtPaymentResponse(paymentId, 1L, 30L, 10L, "INSTALLMENT", new BigDecimal("120.00"), "COP", LocalDate.of(2026, 5, 1), "Imported payment", "ACTIVE", Instant.now(), Instant.now()),
+                new DebtPaymentResponse(paymentId, 1L, 30L, 10L, "INSTALLMENT", new BigDecimal("120.00"), new BigDecimal("120.00"), BigDecimal.ZERO, "COP", LocalDate.of(2026, 5, 1), "Imported payment", "ACTIVE", Instant.now(), Instant.now()),
                 new DebtResponse(30L, 1L, 10L, null, "MANUAL", "Loan", null, new BigDecimal("1000.00"), new BigDecimal("1000.00"), "COP", new BigDecimal("380.00"), "COP", null, null, null, LocalDate.of(2026, 5, 1), null, "ACTIVE", null, Instant.now(), Instant.now())
         );
     }

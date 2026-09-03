@@ -96,9 +96,12 @@
   - `POST /debts/{debtId}/payments`
   - `GET /debts/{debtId}/payments`
   - `GET /debts/{debtId}/payments/{paymentId}`
-- Actions: register payment, filter payment history.
-- Components: payment form, optional associated-expense fields, payment history table.
-- Errors: overpayment, debt already paid, debt cancelled.
+- Actions: register payment (capital + optional interest for `INSTALLMENT` payments), filter payment history.
+- Components: payment form with `capitalAmount` field and an `interestAmount` field shown only for `INSTALLMENT`
+  payments (hidden/reset to `0` for `CAPITAL_PAYMENT`), optional associated-expense fields, payment history table
+  showing a capital/interest breakdown when `interestAmount > 0`.
+- Errors: overpayment (compares `capitalAmount` against remaining balance), debt already paid, debt cancelled,
+  `DEBT_PAYMENT_CAPITAL_PAYMENT_INTEREST_NOT_ALLOWED` when `interestAmount` is sent on a `CAPITAL_PAYMENT`.
 
 ## Budgets
 

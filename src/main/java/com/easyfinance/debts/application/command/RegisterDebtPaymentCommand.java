@@ -10,7 +10,8 @@ public record RegisterDebtPaymentCommand(
         Long participantId,
         Long debtId,
         DebtPaymentType paymentType,
-        Money amount,
+        Money capitalAmount,
+        Money interestAmount,
         LocalDate paymentDate,
         String notes,
         Boolean createExpense,
@@ -26,7 +27,7 @@ public record RegisterDebtPaymentCommand(
             LocalDate paymentDate,
             String notes
     ) {
-        this(accountId, null, debtId, paymentType, amount, paymentDate, notes, false, null, null, null);
+        this(accountId, null, debtId, paymentType, amount, Money.zeroCop(), paymentDate, notes, false, null, null, null);
     }
 
     public RegisterDebtPaymentCommand(
@@ -41,10 +42,46 @@ public record RegisterDebtPaymentCommand(
             Long paymentMethodId,
             String expenseDescription
     ) {
-        this(accountId, null, debtId, paymentType, amount, paymentDate, notes, createExpense, categoryId, paymentMethodId, expenseDescription);
+        this(accountId, null, debtId, paymentType, amount, Money.zeroCop(), paymentDate, notes, createExpense, categoryId, paymentMethodId, expenseDescription);
+    }
+
+    public RegisterDebtPaymentCommand(
+            Long accountId,
+            Long debtId,
+            DebtPaymentType paymentType,
+            Money capitalAmount,
+            Money interestAmount,
+            LocalDate paymentDate,
+            String notes,
+            Boolean createExpense,
+            Long categoryId,
+            Long paymentMethodId,
+            String expenseDescription
+    ) {
+        this(accountId, null, debtId, paymentType, capitalAmount, interestAmount, paymentDate, notes, createExpense, categoryId, paymentMethodId, expenseDescription);
+    }
+
+    public RegisterDebtPaymentCommand(
+            Long accountId,
+            Long participantId,
+            Long debtId,
+            DebtPaymentType paymentType,
+            Money amount,
+            LocalDate paymentDate,
+            String notes,
+            Boolean createExpense,
+            Long categoryId,
+            Long paymentMethodId,
+            String expenseDescription
+    ) {
+        this(accountId, participantId, debtId, paymentType, amount, Money.zeroCop(), paymentDate, notes, createExpense, categoryId, paymentMethodId, expenseDescription);
     }
 
     public boolean shouldCreateExpense() {
         return Boolean.TRUE.equals(createExpense);
+    }
+
+    public Money totalAmount() {
+        return capitalAmount.plus(interestAmount);
     }
 }

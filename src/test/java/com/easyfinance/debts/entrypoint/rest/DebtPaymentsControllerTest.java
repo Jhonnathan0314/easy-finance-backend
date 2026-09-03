@@ -51,7 +51,7 @@ class DebtPaymentsControllerTest {
         mockMvc.perform(post("/api/v1/accounts/1/debts/5/payments")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"paymentType":"INSTALLMENT","amount":50000,"paymentDate":"2026-05-11","notes":"First"}
+                                {"paymentType":"INSTALLMENT","capitalAmount":50000,"paymentDate":"2026-05-11","notes":"First"}
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.payment.amount").value(50000))
@@ -82,13 +82,23 @@ class DebtPaymentsControllerTest {
         mockMvc.perform(post("/api/v1/accounts/1/debts/5/payments")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"paymentType":"INSTALLMENT","amount":0,"paymentDate":"2026-05-11"}
+                                {"paymentType":"INSTALLMENT","capitalAmount":0,"paymentDate":"2026-05-11"}
+                                """))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void registerPaymentValidatesNegativeInterestAmount() throws Exception {
+        mockMvc.perform(post("/api/v1/accounts/1/debts/5/payments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"paymentType":"INSTALLMENT","capitalAmount":50000,"interestAmount":-1,"paymentDate":"2026-05-11"}
                                 """))
                 .andExpect(status().isBadRequest());
     }
 
     private static DebtPaymentResponse payment() {
-        return new DebtPaymentResponse(50L, 1L, 5L, 10L, "INSTALLMENT", new BigDecimal("50000"), "COP", LocalDate.of(2026, 5, 11), "First", "ACTIVE", Instant.now(), Instant.now());
+        return new DebtPaymentResponse(50L, 1L, 5L, 10L, "INSTALLMENT", new BigDecimal("50000"), new BigDecimal("50000"), BigDecimal.ZERO, "COP", LocalDate.of(2026, 5, 11), "First", "ACTIVE", Instant.now(), Instant.now());
     }
 
     private static DebtResponse debt(String state, BigDecimal remaining) {

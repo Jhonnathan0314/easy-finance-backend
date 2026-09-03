@@ -95,9 +95,10 @@ Validation:
 
 ```ts
 interface CreateManualDebtRequest { name: string; participantId?: number | null; description?: string | null; totalAmount: number; installmentCount?: number | null; installmentAmount?: number | null; startDate: string; dueDate?: string | null; notes?: string | null; }
-interface RegisterDebtPaymentRequest { paymentType: "INSTALLMENT" | "CAPITAL_PAYMENT"; amount: number; paymentDate: string; notes?: string | null; createExpense?: boolean | null; categoryId?: number | null; paymentMethodId?: number | null; expenseDescription?: string | null; }
+interface RegisterDebtPaymentRequest { paymentType: "INSTALLMENT" | "CAPITAL_PAYMENT"; capitalAmount: number; interestAmount?: number | null; paymentDate: string; notes?: string | null; createExpense?: boolean | null; categoryId?: number | null; paymentMethodId?: number | null; expenseDescription?: string | null; }
 interface DebtResponse { id: number; accountId: number; participantId: number; originExpenseId?: number | null; sourceType: string; name: string; description?: string | null; totalAmount: number; scheduledTotalAmount: number; totalCurrency: "COP"; remainingAmount: number; remainingCurrency: "COP"; installmentCount?: number | null; installmentAmount?: number | null; installmentCurrency?: "COP" | null; startDate: string; endDate?: string | null; state: string; notes?: string | null; createdAt: string; updatedAt: string; }
-interface DebtPaymentResponse { id: number; accountId: number; debtId: number; participantId: number; paymentType: string; amount: number; currency: "COP"; paymentDate: string; notes?: string | null; status: string; createdAt: string; updatedAt: string; }
+interface DebtPaymentResponse { id: number; accountId: number; debtId: number; participantId: number; paymentType: string; amount: number; capitalAmount: number; interestAmount: number; currency: "COP"; paymentDate: string; notes?: string | null; status: string; createdAt: string; updatedAt: string; }
+// `amount` is the derived total (`capitalAmount + interestAmount`). `interestAmount` is `0` unless the payment was registered with an explicit interest portion (INSTALLMENT payments only; CAPITAL_PAYMENT never carries interest).
 interface RegisterDebtPaymentResponse { payment: DebtPaymentResponse; debt: DebtResponse; createdExpenseId?: number | null; }
 ```
 

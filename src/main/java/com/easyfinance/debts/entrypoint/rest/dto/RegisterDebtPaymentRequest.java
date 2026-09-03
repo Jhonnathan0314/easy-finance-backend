@@ -9,7 +9,8 @@ import java.time.LocalDate;
 
 public record RegisterDebtPaymentRequest(
         @NotNull DebtPaymentTypeDto paymentType,
-        @NotNull @DecimalMin(value = "0.01") BigDecimal amount,
+        @NotNull @DecimalMin(value = "0.01") BigDecimal capitalAmount,
+        @DecimalMin(value = "0.00") BigDecimal interestAmount,
         @NotNull LocalDate paymentDate,
         @Size(max = 1000) String notes,
         Boolean createExpense,
@@ -17,4 +18,7 @@ public record RegisterDebtPaymentRequest(
         Long paymentMethodId,
         @Size(max = 500) String expenseDescription
 ) {
+    public BigDecimal resolvedInterestAmount() {
+        return interestAmount == null ? BigDecimal.ZERO : interestAmount;
+    }
 }

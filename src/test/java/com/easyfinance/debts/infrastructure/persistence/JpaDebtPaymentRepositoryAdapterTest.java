@@ -47,6 +47,6 @@ class JpaDebtPaymentRepositoryAdapterTest {
     }
 
     private static DebtPayment payment(Long id) {
-        return DebtPayment.restore(id, 1L, 5L, 10L, DebtPaymentType.INSTALLMENT, Money.cop(new BigDecimal("50000")), LocalDate.now(), null, DebtPaymentStatus.ACTIVE, Instant.now(), Instant.now());
+        return DebtPayment.restore(id, 1L, 5L, 10L, DebtPaymentType.INSTALLMENT, Money.cop(new BigDecimal("50000")), Money.zeroCop(), LocalDate.now(), null, DebtPaymentStatus.ACTIVE, Instant.now(), Instant.now());
     }
 }

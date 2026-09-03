@@ -11,6 +11,8 @@ public record DebtPaymentResponse(
         Long participantId,
         String paymentType,
         BigDecimal amount,
+        BigDecimal capitalAmount,
+        BigDecimal interestAmount,
         String currency,
         LocalDate paymentDate,
         String notes,

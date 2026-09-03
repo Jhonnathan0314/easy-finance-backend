@@ -74,11 +74,12 @@ public class DebtPaymentManagementUseCase implements
                 command.debtId(),
                 assignedParticipantId,
                 command.paymentType(),
-                command.amount(),
+                command.capitalAmount(),
+                command.interestAmount(),
                 command.paymentDate(),
                 command.notes()
         );
-        Debt updatedDebt = debt.applyPayment(payment.amount());
+        Debt updatedDebt = debt.applyPayment(payment.capitalAmount());
         DebtPayment savedPayment = paymentRepository.save(payment);
         Debt savedDebt = debtRepository.save(updatedDebt);
         if (savedDebt.originExpenseId() != null) {
@@ -95,7 +96,7 @@ public class DebtPaymentManagementUseCase implements
                     command.debtId(),
                     savedPayment.id(),
                     command.expenseDescription(),
-                    command.amount(),
+                    command.totalAmount(),
                     command.paymentDate()
             ));
             createdExpenseId = expense.id();
@@ -160,6 +161,8 @@ public class DebtPaymentManagementUseCase implements
                 payment.participantId(),
                 payment.paymentType().name(),
                 payment.amount().amount(),
+                payment.capitalAmount().amount(),
+                payment.interestAmount().amount(),
                 payment.amount().currency().name(),
                 payment.paymentDate(),
                 payment.notes(),

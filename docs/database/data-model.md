@@ -246,7 +246,9 @@ Columns:
 - `debt_id BIGINT NOT NULL`
 - `participant_id BIGINT NOT NULL`
 - `payment_type VARCHAR(30) NOT NULL`
-- `amount NUMERIC(19,2) NOT NULL`
+- `amount NUMERIC(19,2) NOT NULL` - derived total (`capital_amount + interest_amount`), kept for backward compatibility
+- `capital_amount NUMERIC(19,2) NOT NULL` - portion applied to the debt's remaining balance
+- `interest_amount NUMERIC(19,2) NOT NULL DEFAULT 0` - portion recorded for reporting only, never reduces the balance
 - `currency VARCHAR(3) NOT NULL DEFAULT 'COP'`
 - `payment_date DATE NOT NULL`
 - `notes VARCHAR(1000) NULL`
@@ -256,9 +258,15 @@ Columns:
 Constraints:
 
 - `amount > 0`
+- `capital_amount > 0`
+- `interest_amount >= 0`
 - allowed payment types: `INSTALLMENT`, `CAPITAL_PAYMENT`
 - allowed statuses: `ACTIVE`, `CANCELLED`
 - foreign keys to account-scoped debts and account participant membership
+- application-level rule (not a DB constraint): `interest_amount` must be `0` for `CAPITAL_PAYMENT` rows
+- `capital_amount`/`interest_amount` were added by `V20__debt_payment_capital_interest_split.sql`; rows created
+  before that migration were backfilled with `capital_amount = amount`, `interest_amount = 0` (no retroactive
+  recalculation of what portion was "really" interest)
 
 Indexes:
 
