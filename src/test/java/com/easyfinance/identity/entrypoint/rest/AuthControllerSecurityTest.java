@@ -2,13 +2,17 @@ package com.easyfinance.identity.entrypoint.rest;
 
 import com.easyfinance.identity.application.port.in.GetCurrentUserPort;
 import com.easyfinance.identity.application.port.in.LoginPort;
+import com.easyfinance.identity.application.port.in.LogoutPort;
+import com.easyfinance.identity.application.port.in.RefreshSessionPort;
 import com.easyfinance.identity.application.port.in.RegisterUserPort;
 import com.easyfinance.identity.application.port.in.UpdateProfilePort;
+import com.easyfinance.identity.application.response.AuthSessionResult;
 import com.easyfinance.identity.application.response.AuthTokenResponse;
 import com.easyfinance.identity.application.response.AuthenticatedUserResponse;
 import com.easyfinance.shared.infrastructure.security.JwtAuthenticationException;
 import com.easyfinance.shared.infrastructure.security.JwtAuthenticationFilter;
 import com.easyfinance.shared.infrastructure.security.JwtTokenService;
+import com.easyfinance.shared.infrastructure.security.RefreshTokenProperties;
 import com.easyfinance.shared.infrastructure.security.RestSecurityExceptionHandler;
 import com.easyfinance.shared.infrastructure.security.SecurityConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -26,6 +30,8 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Set;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -57,6 +63,12 @@ class AuthControllerSecurityTest {
 
     @Autowired
     private UpdateProfilePort updateProfilePort;
+
+    @Autowired
+    private RefreshSessionPort refreshSessionPort;
+
+    @Autowired
+    private LogoutPort logoutPort;
 
     @Autowired
     private JwtTokenService jwtTokenService;
@@ -99,7 +111,7 @@ class AuthControllerSecurityTest {
 
     @Test
     void registerRemainsPublic() throws Exception {
-        when(registerUserPort.register(any())).thenReturn(tokenResponse());
+        when(registerUserPort.register(any())).thenReturn(sessionResult());
 
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -112,7 +124,7 @@ class AuthControllerSecurityTest {
 
     @Test
     void loginRemainsPublic() throws Exception {
-        when(loginPort.login(any())).thenReturn(tokenResponse());
+        when(loginPort.login(any())).thenReturn(sessionResult());
 
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -132,6 +144,26 @@ class AuthControllerSecurityTest {
                 .andExpect(status().isOk())
                 .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:4200"))
                 .andExpect(header().string("Access-Control-Allow-Credentials", "true"));
+    }
+
+    @Test
+    void refreshRemainsPublic() throws Exception {
+        when(refreshSessionPort.refreshSession(any())).thenReturn(sessionResult());
+
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .cookie(new jakarta.servlet.http.Cookie("refreshToken", "raw-refresh-token")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").value("token"));
+    }
+
+    @Test
+    void logoutRemainsPublic() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/logout"))
+                .andExpect(status().isNoContent());
+    }
+
+    private static AuthSessionResult sessionResult() {
+        return new AuthSessionResult(tokenResponse(), "raw-refresh-token", Instant.now().plusSeconds(2592000));
     }
 
     private static AuthTokenResponse tokenResponse() {
@@ -167,6 +199,21 @@ class AuthControllerSecurityTest {
         @Bean
         UpdateProfilePort updateProfilePort() {
             return mock(UpdateProfilePort.class);
+        }
+
+        @Bean
+        RefreshSessionPort refreshSessionPort() {
+            return mock(RefreshSessionPort.class);
+        }
+
+        @Bean
+        LogoutPort logoutPort() {
+            return mock(LogoutPort.class);
+        }
+
+        @Bean
+        RefreshTokenProperties refreshTokenProperties() {
+            return new RefreshTokenProperties(Duration.ofDays(30), true);
         }
 
         @Bean

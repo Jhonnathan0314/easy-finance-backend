@@ -49,11 +49,33 @@ Do not include all account memberships in the JWT for the MVP. Account authoriza
 
 ## Phase 2 Auth Endpoints
 
-- `POST /api/v1/auth/register`: creates an ACTIVE user, ACTIVE participant, assigns `USER`, and returns a Bearer token.
-- `POST /api/v1/auth/login`: validates credentials and ACTIVE status, then returns a Bearer token.
+- `POST /api/v1/auth/register`: creates an ACTIVE user, ACTIVE participant, assigns `USER`, returns a Bearer token,
+  and sets an httpOnly `refreshToken` cookie.
+- `POST /api/v1/auth/login`: validates credentials and ACTIVE status, then returns a Bearer token and sets the
+  same refresh cookie.
 - `GET /api/v1/auth/me`: returns authenticated user and participant data from the token/database.
+- `PUT /api/v1/auth/me`: updates the authenticated user's `fullName` (and the linked participant's `displayName`).
+- `POST /api/v1/auth/refresh`: reads the `refreshToken` cookie, rotates it (single-use), and returns a new access
+  token plus a new refresh cookie. Public endpoint (no Bearer token required - it authenticates via the cookie).
+- `POST /api/v1/auth/logout`: revokes the presented refresh token server-side and clears the cookie. Public
+  endpoint; safe to call without a cookie present.
 
-Refresh tokens are outside the current phase.
+## Refresh Tokens
+
+Implemented (see `docs/implementation/refresh-token-plan.md` for the full design rationale):
+
+- The refresh token is a random 256-bit value, transported only as an httpOnly, `Secure`, `SameSite=None` cookie
+  scoped to `/api/v1/auth` - it is never present in any JSON response body and never readable by JavaScript.
+- Only its SHA-256 hash is persisted, in the `refresh_tokens` table (`shared/infrastructure/security`).
+- **Rotation with reuse detection**: every successful refresh revokes the presented token and issues a new one in
+  the same "family" (`family_id`). If an already-revoked token is ever presented again (a signal of token theft or
+  a replayed request), the entire family is revoked immediately, forcing re-login.
+- Default lifetime is 30 days (`easy-finance.security.refresh-token.expiration`), independent of the access
+  token's 1-hour lifetime (`easy-finance.security.jwt.expiration`).
+- `POST /auth/logout` revokes only the single presented token (not the whole family) - there is no
+  "logout everywhere" endpoint yet; the data model supports adding one later via a query on `user_id`.
+- CORS is already configured with `allowCredentials(true)` and explicit allowed origins (never `*`), which is a
+  prerequisite for the browser to send/accept this cookie cross-origin.
 
 ## Global Roles
 
@@ -204,8 +226,9 @@ Security-sensitive actions should create functional audit events once that capab
 
 ## Pending Decisions
 
-- JWT expiration and refresh-token strategy.
 - Whether `SUPER_ADMIN` can access account data for support workflows.
+- Whether a "logout everywhere" endpoint (revoking every refresh token for a user, not just the presented one) is
+  needed.
 
 Resolved: `ACCOUNT_MEMBER` can create manual debts and import expenses/income (`requireActiveMemberForActiveAccount`
 in `DebtManagementUseCase`, `ExpenseImportManagementUseCase`, `IncomeImportUseCase`). Category, payment method, and

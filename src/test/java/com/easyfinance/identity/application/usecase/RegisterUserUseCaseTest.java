@@ -3,8 +3,10 @@ package com.easyfinance.identity.application.usecase;
 import com.easyfinance.identity.application.command.RegisterUserCommand;
 import com.easyfinance.identity.application.port.out.ParticipantRepositoryPort;
 import com.easyfinance.identity.application.port.out.PasswordHasherPort;
+import com.easyfinance.identity.application.port.out.RefreshTokenPort;
 import com.easyfinance.identity.application.port.out.TokenIssuerPort;
 import com.easyfinance.identity.application.port.out.UserRepositoryPort;
+import com.easyfinance.identity.application.response.IssuedRefreshToken;
 import com.easyfinance.identity.domain.model.GlobalRoleName;
 import com.easyfinance.identity.domain.model.Participant;
 import com.easyfinance.identity.domain.model.ParticipantStatus;
@@ -14,6 +16,7 @@ import com.easyfinance.shared.domain.BusinessRuleViolationException;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.time.Instant;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -29,7 +32,8 @@ class RegisterUserUseCaseTest {
     private final ParticipantRepositoryPort participantRepository = mock(ParticipantRepositoryPort.class);
     private final PasswordHasherPort passwordHasher = mock(PasswordHasherPort.class);
     private final TokenIssuerPort tokenIssuer = mock(TokenIssuerPort.class);
-    private final RegisterUserUseCase useCase = new RegisterUserUseCase(userRepository, participantRepository, passwordHasher, tokenIssuer);
+    private final RefreshTokenPort refreshTokenPort = mock(RefreshTokenPort.class);
+    private final RegisterUserUseCase useCase = new RegisterUserUseCase(userRepository, participantRepository, passwordHasher, tokenIssuer, refreshTokenPort);
 
     @Test
     void registersUserParticipantAndDefaultRole() {
@@ -39,14 +43,16 @@ class RegisterUserUseCaseTest {
         when(participantRepository.save(any(Participant.class))).thenReturn(Participant.restore(20L, 1L, "Jane Doe", ParticipantStatus.ACTIVE));
         when(tokenIssuer.issueToken(any())).thenReturn("token");
         when(tokenIssuer.expiresInSeconds()).thenReturn(3600L);
+        when(refreshTokenPort.issue(1L)).thenReturn(new IssuedRefreshToken("raw-refresh-token", Instant.now().plusSeconds(2592000)));
 
         var response = useCase.register(new RegisterUserCommand(" Jane@Example.COM ", "abc12345", "Jane Doe"));
 
-        assertThat(response.accessToken()).isEqualTo("token");
-        assertThat(response.tokenType()).isEqualTo("Bearer");
-        assertThat(response.user().userId()).isEqualTo(1L);
-        assertThat(response.user().participantId()).isEqualTo(20L);
-        assertThat(response.user().globalRoles()).containsExactly("USER");
+        assertThat(response.tokenResponse().accessToken()).isEqualTo("token");
+        assertThat(response.tokenResponse().tokenType()).isEqualTo("Bearer");
+        assertThat(response.tokenResponse().user().userId()).isEqualTo(1L);
+        assertThat(response.tokenResponse().user().participantId()).isEqualTo(20L);
+        assertThat(response.tokenResponse().user().globalRoles()).containsExactly("USER");
+        assertThat(response.refreshToken()).isEqualTo("raw-refresh-token");
 
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(userCaptor.capture());

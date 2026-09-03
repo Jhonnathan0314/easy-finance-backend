@@ -12,10 +12,12 @@ Authorization: Bearer <accessToken>
 
 | Method | Path | Auth | Purpose |
 |---|---|---:|---|
-| POST | `/api/v1/auth/register` | No | Register user and participant, returns JWT. |
-| POST | `/api/v1/auth/login` | No | Login and return JWT. |
+| POST | `/api/v1/auth/register` | No | Register user and participant, returns JWT and sets an httpOnly refresh cookie. |
+| POST | `/api/v1/auth/login` | No | Login and return JWT, sets an httpOnly refresh cookie. |
 | GET | `/api/v1/auth/me` | Yes | Get current authenticated user. |
 | PUT | `/api/v1/auth/me` | Yes | Update own `fullName`. Also updates `Participant.displayName` to the same value. |
+| POST | `/api/v1/auth/refresh` | No (cookie) | Rotates the refresh cookie and returns a new access token. Call with `withCredentials: true`. |
+| POST | `/api/v1/auth/logout` | No (cookie) | Revokes the refresh token and clears the cookie. Call with `withCredentials: true`. |
 
 ## Accounts
 

@@ -51,7 +51,10 @@ Flyway is enabled at application startup and uses `classpath:db/migration`.
 - `JWT_SECRET` is mandatory in staging/prod and must not use local defaults.
 - Use a strong random secret with at least 32 bytes of entropy.
 - Keep `JWT_EXPIRATION` short enough for financial operations. Current recommendation: `PT1H`.
-- Refresh tokens are not implemented in the MVP.
+- Refresh tokens are implemented as an httpOnly, `Secure`, `SameSite=None` cookie (`REFRESH_TOKEN_EXPIRATION`,
+  default `P30D`; `REFRESH_TOKEN_COOKIE_SECURE`, default `true`). Staging/prod must serve the API over HTTPS for
+  the `Secure` cookie attribute to work, and the frontend origin must be in `CORS_ALLOWED_ORIGINS` with
+  `CORS_ALLOW_CREDENTIALS=true` (already the default) since the cookie relies on `withCredentials` requests.
 
 ## Profile
 

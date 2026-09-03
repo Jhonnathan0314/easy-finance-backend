@@ -222,5 +222,4 @@ Do not implement:
 
 - Whether to use Maven multi-module from day one.
 - Exact frontend authentication flow.
-- Refresh token strategy.
 - Import batch persistence strategy.

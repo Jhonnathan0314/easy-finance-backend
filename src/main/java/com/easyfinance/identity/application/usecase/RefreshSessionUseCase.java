@@ -1,16 +1,14 @@
 package com.easyfinance.identity.application.usecase;
 
-import com.easyfinance.identity.application.command.LoginCommand;
-import com.easyfinance.identity.application.port.in.LoginPort;
+import com.easyfinance.identity.application.port.in.RefreshSessionPort;
 import com.easyfinance.identity.application.port.out.ParticipantRepositoryPort;
-import com.easyfinance.identity.application.port.out.PasswordHasherPort;
 import com.easyfinance.identity.application.port.out.RefreshTokenPort;
 import com.easyfinance.identity.application.port.out.TokenIssuerPort;
 import com.easyfinance.identity.application.port.out.UserRepositoryPort;
 import com.easyfinance.identity.application.response.AuthSessionResult;
 import com.easyfinance.identity.application.response.AuthTokenResponse;
 import com.easyfinance.identity.application.response.AuthenticatedUserResponse;
-import com.easyfinance.identity.application.response.IssuedRefreshToken;
+import com.easyfinance.identity.application.response.RotatedRefreshToken;
 import com.easyfinance.identity.domain.model.Participant;
 import com.easyfinance.identity.domain.model.User;
 import com.easyfinance.shared.domain.BusinessRuleViolationException;
@@ -19,44 +17,40 @@ import com.easyfinance.shared.domain.UnauthorizedOperationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
-public class LoginUseCase implements LoginPort {
+public class RefreshSessionUseCase implements RefreshSessionPort {
 
+    private final RefreshTokenPort refreshTokenPort;
     private final UserRepositoryPort userRepository;
     private final ParticipantRepositoryPort participantRepository;
-    private final PasswordHasherPort passwordHasher;
     private final TokenIssuerPort tokenIssuer;
-    private final RefreshTokenPort refreshTokenPort;
 
-    public LoginUseCase(
+    public RefreshSessionUseCase(
+            RefreshTokenPort refreshTokenPort,
             UserRepositoryPort userRepository,
             ParticipantRepositoryPort participantRepository,
-            PasswordHasherPort passwordHasher,
-            TokenIssuerPort tokenIssuer,
-            RefreshTokenPort refreshTokenPort
+            TokenIssuerPort tokenIssuer
     ) {
+        this.refreshTokenPort = refreshTokenPort;
         this.userRepository = userRepository;
         this.participantRepository = participantRepository;
-        this.passwordHasher = passwordHasher;
         this.tokenIssuer = tokenIssuer;
-        this.refreshTokenPort = refreshTokenPort;
     }
 
     @Override
     @Transactional
-    public AuthSessionResult login(LoginCommand command) {
-        String email = command.email() == null ? "" : command.email().trim().toLowerCase(Locale.ROOT);
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(LoginUseCase::invalidCredentials);
-
-        if (!passwordHasher.matches(command.password(), user.passwordHash())) {
-            throw invalidCredentials();
+    public AuthSessionResult refreshSession(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new UnauthorizedOperationException("INVALID_REFRESH_TOKEN", "Refresh token is required.");
         }
 
+        RotatedRefreshToken rotated = refreshTokenPort.rotate(refreshToken);
+
+        User user = userRepository.findById(rotated.userId())
+                .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND", "User was not found."));
         try {
             user.ensureCanLogin();
         } catch (BusinessRuleViolationException ex) {
@@ -68,12 +62,7 @@ public class LoginUseCase implements LoginPort {
 
         AuthenticatedUserResponse response = toResponse(user, participant.id());
         AuthTokenResponse tokenResponse = new AuthTokenResponse(tokenIssuer.issueToken(response), "Bearer", tokenIssuer.expiresInSeconds(), response);
-        IssuedRefreshToken refreshToken = refreshTokenPort.issue(user.id());
-        return new AuthSessionResult(tokenResponse, refreshToken.rawToken(), refreshToken.expiresAt());
-    }
-
-    private static UnauthorizedOperationException invalidCredentials() {
-        return new UnauthorizedOperationException("INVALID_CREDENTIALS", "Invalid email or password.");
+        return new AuthSessionResult(tokenResponse, rotated.rawToken(), rotated.expiresAt());
     }
 
     private AuthenticatedUserResponse toResponse(User user, Long participantId) {

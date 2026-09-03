@@ -78,6 +78,9 @@ easy-finance:
       issuer: ${JWT_ISSUER:easy-finance}
       secret: ${JWT_SECRET:local-development-jwt-secret-32bytes-minimum}
       expiration: ${JWT_EXPIRATION:PT1H}
+    refresh-token:
+      expiration: ${REFRESH_TOKEN_EXPIRATION:P30D}
+      cookie-secure: ${REFRESH_TOKEN_COOKIE_SECURE:true}
   imports:
     expenses:
       max-file-size-bytes: ${EXPENSE_IMPORT_MAX_FILE_SIZE_BYTES:5242880}

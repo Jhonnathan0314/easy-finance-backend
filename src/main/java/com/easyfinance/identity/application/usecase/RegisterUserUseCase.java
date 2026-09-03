@@ -4,10 +4,13 @@ import com.easyfinance.identity.application.command.RegisterUserCommand;
 import com.easyfinance.identity.application.port.in.RegisterUserPort;
 import com.easyfinance.identity.application.port.out.ParticipantRepositoryPort;
 import com.easyfinance.identity.application.port.out.PasswordHasherPort;
+import com.easyfinance.identity.application.port.out.RefreshTokenPort;
 import com.easyfinance.identity.application.port.out.TokenIssuerPort;
 import com.easyfinance.identity.application.port.out.UserRepositoryPort;
+import com.easyfinance.identity.application.response.AuthSessionResult;
 import com.easyfinance.identity.application.response.AuthTokenResponse;
 import com.easyfinance.identity.application.response.AuthenticatedUserResponse;
+import com.easyfinance.identity.application.response.IssuedRefreshToken;
 import com.easyfinance.identity.domain.model.Participant;
 import com.easyfinance.identity.domain.model.User;
 import com.easyfinance.shared.domain.BusinessRuleViolationException;
@@ -28,22 +31,25 @@ public class RegisterUserUseCase implements RegisterUserPort {
     private final ParticipantRepositoryPort participantRepository;
     private final PasswordHasherPort passwordHasher;
     private final TokenIssuerPort tokenIssuer;
+    private final RefreshTokenPort refreshTokenPort;
 
     public RegisterUserUseCase(
             UserRepositoryPort userRepository,
             ParticipantRepositoryPort participantRepository,
             PasswordHasherPort passwordHasher,
-            TokenIssuerPort tokenIssuer
+            TokenIssuerPort tokenIssuer,
+            RefreshTokenPort refreshTokenPort
     ) {
         this.userRepository = userRepository;
         this.participantRepository = participantRepository;
         this.passwordHasher = passwordHasher;
         this.tokenIssuer = tokenIssuer;
+        this.refreshTokenPort = refreshTokenPort;
     }
 
     @Override
     @Transactional
-    public AuthTokenResponse register(RegisterUserCommand command) {
+    public AuthSessionResult register(RegisterUserCommand command) {
         validatePassword(command.password());
         String normalizedEmail = command.email() == null ? null : command.email().trim().toLowerCase();
         if (userRepository.existsByEmail(normalizedEmail)) {
@@ -54,7 +60,9 @@ public class RegisterUserUseCase implements RegisterUserPort {
         Participant savedParticipant = participantRepository.save(Participant.createForUser(savedUser.id(), savedUser.fullName()));
         AuthenticatedUserResponse user = toResponse(savedUser, savedParticipant.id());
 
-        return new AuthTokenResponse(tokenIssuer.issueToken(user), "Bearer", tokenIssuer.expiresInSeconds(), user);
+        AuthTokenResponse tokenResponse = new AuthTokenResponse(tokenIssuer.issueToken(user), "Bearer", tokenIssuer.expiresInSeconds(), user);
+        IssuedRefreshToken refreshToken = refreshTokenPort.issue(savedUser.id());
+        return new AuthSessionResult(tokenResponse, refreshToken.rawToken(), refreshToken.expiresAt());
     }
 
     private void validatePassword(String password) {

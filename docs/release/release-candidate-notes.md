@@ -27,7 +27,6 @@ This release candidate includes:
 - Reports/exportation.
 - Debt import (income, category, payment method, and annual budget imports are already implemented).
 - Payment reversal/cancellation.
-- Refresh tokens.
 - Advanced dashboard and analytics.
 - Rate limiting.
 - Load testing.
@@ -38,7 +37,8 @@ This release candidate includes:
 
 - Swagger/OpenAPI is documented as requiring production protection or disablement, but no profile-specific code switch was added in this release.
 - Functional audit table exists as foundation, but complete event emission is not implemented.
-- Refresh token lifecycle is deferred.
+- Refresh tokens are implemented (rotation + reuse detection via httpOnly cookie), but there is no "logout
+  everywhere" endpoint yet - only the presented token is revoked on logout.
 - Payment reversal is deferred, so operational correction must be handled manually by administrators outside this MVP.
 - `mvn verify -Pci` requires Docker and must run in CI/staging even if local developer machines cannot run it.
 
