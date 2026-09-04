@@ -171,7 +171,10 @@ Current status (this phase grew beyond its original expense-only scope; verified
 - Category import: **implemented**. Direct validate-then-create, no `Participante` column (account-level catalog). `ACCOUNT_ADMIN` only.
 - Payment method import: **implemented**. Direct validate-then-create, no `Participante` column (account-level catalog). `ACCOUNT_ADMIN` only.
 - Annual budget import: **implemented**. Direct validate-then-create of all 12 monthly budgets with `MANUAL`/`ACTIVE` sub-budgets, optional row-level `Participante` (blank means a global sub-budget instead of falling back to the importing participant). `ACCOUNT_ADMIN` only. Distinct from `POST /budgets/annual` (direct JSON creation, no Excel file).
-- Debt import: **not implemented**.
+- Debt import: **implemented**. Direct validate-then-create (like income), manual debts only, optional row-level
+  `Participante` (blank falls back to the importing participant) and optional `SaldoPendiente` (lets a migrated
+  debt start with a balance already paid down instead of always starting at the full capital). `ACCOUNT_MEMBER` or
+  `ACCOUNT_ADMIN`.
 
 ## Phase 11 - Analytics
 

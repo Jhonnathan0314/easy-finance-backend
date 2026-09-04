@@ -24,6 +24,33 @@ class DebtTest {
     }
 
     @Test
+    void createManualDebtWithoutInitialRemainingBalanceDefaultsToTotalAmount() {
+        Debt debt = Debt.createManual(1L, 10L, "Loan", null, Money.cop(new BigDecimal("100000")), null, null, LocalDate.of(2026, 5, 11), null, null, null);
+
+        assertThat(debt.remainingBalance()).isEqualTo(debt.totalAmount());
+    }
+
+    @Test
+    void createManualDebtWithInitialRemainingBalanceStartsAtThatBalance() {
+        Debt debt = Debt.createManual(1L, 10L, "Loan", null, Money.cop(new BigDecimal("100000")), null, null, LocalDate.of(2026, 5, 11), null, null, Money.cop(new BigDecimal("60000")));
+
+        assertThat(debt.remainingBalance().amount()).isEqualByComparingTo("60000.00");
+        assertThat(debt.state()).isEqualTo(DebtState.ACTIVE);
+    }
+
+    @Test
+    void rejectInitialRemainingBalanceGreaterThanTotalAmount() {
+        assertThatThrownBy(() -> Debt.createManual(1L, 10L, "Loan", null, Money.cop(new BigDecimal("100000")), null, null, LocalDate.now(), null, null, Money.cop(new BigDecimal("100001"))))
+                .isInstanceOfSatisfying(BusinessRuleViolationException.class, ex -> assertThat(ex.code()).isEqualTo("DEBT_AMOUNT_INVALID"));
+    }
+
+    @Test
+    void rejectNegativeInitialRemainingBalance() {
+        assertThatThrownBy(() -> Debt.createManual(1L, 10L, "Loan", null, Money.cop(new BigDecimal("100000")), null, null, LocalDate.now(), null, null, Money.cop(new BigDecimal("-1"))))
+                .isInstanceOf(BusinessRuleViolationException.class);
+    }
+
+    @Test
     void createInstallmentDebtCalculatesEndDate() {
         Debt debt = Debt.createFromInstallmentExpense(1L, 10L, 99L, "Laptop", null, Money.cop(new BigDecimal("1000000")), 6, Money.cop(new BigDecimal("200000")), LocalDate.of(2026, 6, 1), null);
 

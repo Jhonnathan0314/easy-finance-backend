@@ -66,6 +66,7 @@
 - Manual debt payment registration can optionally create an associated conceptual expense when `createExpense=true`.
 - The associated expense uses the payment's total amount (`capitalAmount + interestAmount`, the real cash outflow); it is explicit, account-scoped, and excluded from cashflow simple outflow.
 - Debt payments registered before the capital/interest split existed are treated as 100% capital (`interestAmount = 0`); this is not retroactively recalculated.
+- A manual debt can optionally start with an `initialRemainingBalance` lower than `totalAmount` (must be `>= 0` and `<= totalAmount`), for the case of registering/importing a debt that has already been partially paid down elsewhere. When omitted, `remainingAmount` starts equal to `totalAmount` as before.
 
 ## Budgets And Impacts
 
@@ -109,3 +110,4 @@
 - Confirm is locked per batch to avoid duplicate expenses.
 - Confirm is transactional: if one valid row fails, no partial expenses or partial row updates remain.
 - Income and annual-budget imports also support optional `Participante` in their templates/previews. For budgets, blank participant means a global sub-budget, while a selected participant creates participant-scoped execution.
+- Debt import creates manual debts only (`INSTALLMENT_EXPENSE` debts can only be derived from an installment expense, never imported directly). It follows the same direct validate-then-create pattern as income/categories/payment methods/annual budgets (no persisted batch); if any row is invalid, nothing is created. `ACCOUNT_MEMBER` or `ACCOUNT_ADMIN` can import, matching who can create a manual debt via `POST /debts`. The optional `SaldoPendiente` column sets `initialRemainingBalance` per row.

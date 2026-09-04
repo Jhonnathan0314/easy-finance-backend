@@ -80,7 +80,8 @@ public class DebtManagementUseCase implements
                 command.installmentAmount(),
                 command.startDate(),
                 command.dueDate(),
-                command.notes()
+                command.notes(),
+                command.initialRemainingBalance()
         );
         return toResponse(debtRepository.save(debt));
     }

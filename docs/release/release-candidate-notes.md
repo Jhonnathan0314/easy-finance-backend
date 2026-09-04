@@ -16,7 +16,8 @@ This release candidate includes:
 - Income.
 - Basic analytics/dashboard queries.
 - Excel import for simple expenses with preview and confirmation (including debt-payment rows).
-- Direct Excel import (validate-then-create, no preview batch) for income, categories, payment methods, and annual budgets.
+- Direct Excel import (validate-then-create, no preview batch) for income, categories, payment methods, annual
+  budgets, and manual debts (optionally starting from a partially-paid balance for migrated debts).
 - PostgreSQL Flyway migrations.
 - Docker image and local Docker Compose.
 - Unit, REST, security, schema, transaction, rollback, and concurrency test coverage.
@@ -25,7 +26,6 @@ This release candidate includes:
 
 - Functional audit event emission for critical financial actions.
 - Reports/exportation.
-- Debt import (income, category, payment method, and annual budget imports are already implemented).
 - Payment reversal/cancellation.
 - Advanced dashboard and analytics.
 - Rate limiting.

@@ -82,9 +82,25 @@ public final class Debt {
             LocalDate dueDate,
             String notes
     ) {
+        return createManual(accountId, participantId, name, description, totalAmount, installmentCount, installmentAmount, startDate, dueDate, notes, null);
+    }
+
+    public static Debt createManual(
+            Long accountId,
+            Long participantId,
+            String name,
+            String description,
+            Money totalAmount,
+            Integer installmentCount,
+            Money installmentAmount,
+            LocalDate startDate,
+            LocalDate dueDate,
+            String notes,
+            Money initialRemainingBalance
+    ) {
         LocalDate endDate = installmentCount == null ? dueDate : calculateEndDate(startDate, installmentCount);
         Money scheduledTotal = scheduledTotalAmount(totalAmount, installmentCount, installmentAmount);
-        return new Debt(null, accountId, participantId, null, DebtSourceType.MANUAL, name, description, totalAmount, scheduledTotal, totalAmount, installmentCount, installmentAmount, startDate, endDate, DebtState.ACTIVE, notes, null, null);
+        return new Debt(null, accountId, participantId, null, DebtSourceType.MANUAL, name, description, totalAmount, scheduledTotal, initialRemainingBalance, installmentCount, installmentAmount, startDate, endDate, DebtState.ACTIVE, notes, null, null);
     }
 
     public static Debt createFromInstallmentExpense(

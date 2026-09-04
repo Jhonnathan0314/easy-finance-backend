@@ -75,6 +75,18 @@ class DebtManagementUseCaseTest {
     }
 
     @Test
+    void memberCreatesManualDebtWithInitialRemainingBalance() {
+        givenMemberAccess(AccountStatus.ACTIVE, 10L);
+        when(debtRepository.save(any(Debt.class))).thenAnswer(invocation -> persisted(invocation.getArgument(0)));
+
+        var command = new CreateManualDebtCommand(1L, null, "Loan", null, Money.cop(new BigDecimal("100000")), null, null, LocalDate.of(2026, 5, 11), null, null, Money.cop(new BigDecimal("60000")));
+        var response = useCase.createManualDebt(command);
+
+        assertThat(response.remainingAmount()).isEqualByComparingTo("60000.00");
+        assertThat(response.totalAmount()).isEqualByComparingTo("100000.00");
+    }
+
+    @Test
     void adminCreatesManualDebtAssignedToAnotherActiveParticipant() {
         givenAdminAccess(AccountStatus.ACTIVE, 10L);
         givenAssignedParticipant(20L, AccountParticipantStatus.ACTIVE);

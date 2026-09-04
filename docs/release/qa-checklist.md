@@ -280,7 +280,29 @@ Expected result:
 - `ACCOUNT_MEMBER` is rejected with `ACCOUNT_ADMIN_REQUIRED`; only `ACCOUNT_ADMIN` can preview/create.
 - File over the row limit fails with `IMPORT_ROW_LIMIT_EXCEEDED`.
 
-Debt import remains out of scope for this checklist: it is not implemented.
+### Debt Import
+
+1. Download the `.xlsx` template with headers `Nombre`, `Descripcion`, `Capital`, `SaldoPendiente`, `NumeroCuotas`,
+   `ValorCuota`, `FechaInicio`, `FechaVencimiento`, `Participante`, `Notas`.
+2. Upload for `POST /imports/debts/preview` with: one row without `SaldoPendiente`/`NumeroCuotas`/`ValorCuota`
+   (simple debt, no installments), one row with `SaldoPendiente` set lower than `Capital` (simulating a debt
+   already partially paid elsewhere), one row with `NumeroCuotas`/`ValorCuota` both set, one row with only one of
+   `NumeroCuotas`/`ValorCuota` set (invalid pairing), and one row with an explicit `Participante`.
+3. Upload the same file to `POST /imports/debts` (direct create).
+4. Attempt preview and direct create as `ACCOUNT_MEMBER`.
+5. Upload a file with more rows than the configured limit (default `1000`).
+
+Expected result:
+
+- Preview validates without creating debts and returns parsed row data, resolved `participantId`, and row errors.
+- If any row is invalid, the direct import creates nothing (same all-or-nothing behavior as income/categories/
+  payment methods/annual budgets).
+- The row missing `SaldoPendiente` creates a debt with `remainingAmount` equal to `Capital`; the row with
+  `SaldoPendiente` set creates a debt starting at that lower balance instead.
+- The row with only one of `NumeroCuotas`/`ValorCuota` fails with a row error requiring both together.
+- `ACCOUNT_MEMBER` can preview/create (same authorization as manual debt creation via `POST /debts` - not
+  restricted to `ACCOUNT_ADMIN` like catalogs/annual budget imports).
+- File over the row limit fails with `IMPORT_ROW_LIMIT_EXCEEDED`.
 
 ## Approval Criteria
 

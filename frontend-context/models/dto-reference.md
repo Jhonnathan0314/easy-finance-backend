@@ -177,4 +177,7 @@ interface PaymentMethodImportResponse { createdCount: number; rows: PaymentMetho
 
 interface AnnualBudgetImportRowResponse { rowNumber: number; year?: number | null; month?: string | null; budgetName?: string | null; categoryName?: string | null; categoryId?: number | null; subBudgetName?: string | null; plannedAmount?: number | null; participantLabel?: string | null; participantId?: number | null; valid: boolean; appliedMonths: number[]; errors: string[]; }
 interface AnnualBudgetImportResponse { year?: number | null; createdBudgetsCount: number; createdSubBudgetsCount: number; rows: AnnualBudgetImportRowResponse[]; }
+
+interface DebtImportRowResponse { rowNumber: number; name?: string | null; description?: string | null; totalAmount?: number | null; remainingBalance?: number | null; installmentCount?: number | null; installmentAmount?: number | null; startDate?: string | null; dueDate?: string | null; participantLabel?: string | null; participantId?: number | null; notes?: string | null; valid: boolean; createdDebtId?: number | null; errors: string[]; }
+interface DebtImportResponse { createdCount: number; rows: DebtImportRowResponse[]; }
 ```

@@ -194,6 +194,21 @@ annual budget imports are direct: `/preview` only validates without persisting a
 - Notes: `ACCOUNT_ADMIN` only. Optional `Participante` per row: blank means a global sub-budget, a selected participant scopes it. Fails with `ANNUAL_BUDGET_MONTH_ALREADY_EXISTS` if any month of that year already exists. Distinct from `POST /budgets/annual` (direct JSON creation, no Excel file).
 - Errors: file required, invalid type, template invalid, row limit exceeded, row errors, admin required.
 
+### Debt Import
+
+- Goal: direct Excel import of manual debts (no persisted batch).
+- Endpoints:
+  - `GET /imports/debts/template`
+  - `POST /imports/debts/preview`
+  - `POST /imports/debts`
+- Actions: download template, upload for preview-only validation, upload again to create.
+- Components: template download action, upload dropzone, preview summary, row error table.
+- Notes: `ACCOUNT_MEMBER` or `ACCOUNT_ADMIN` can import (same as manual debt creation). Optional `SaldoPendiente`
+  column lets an imported debt start at a balance lower than the full capital, for migrating a debt already
+  partially paid elsewhere. Optional `Participante` per row: blank falls back to the importing participant. Only
+  creates `MANUAL` debts - derived (`INSTALLMENT_EXPENSE`) debts cannot be imported.
+- Errors: file required, invalid type, template invalid, row limit exceeded, row errors.
+
 ## Members
 
 - Goal: manage account membership.

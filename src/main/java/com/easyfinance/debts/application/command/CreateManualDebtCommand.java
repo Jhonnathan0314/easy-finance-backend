@@ -14,6 +14,21 @@ public record CreateManualDebtCommand(
         Money installmentAmount,
         LocalDate startDate,
         LocalDate dueDate,
-        String notes
+        String notes,
+        Money initialRemainingBalance
 ) {
+    public CreateManualDebtCommand(
+            Long accountId,
+            Long participantId,
+            String name,
+            String description,
+            Money totalAmount,
+            Integer installmentCount,
+            Money installmentAmount,
+            LocalDate startDate,
+            LocalDate dueDate,
+            String notes
+    ) {
+        this(accountId, participantId, name, description, totalAmount, installmentCount, installmentAmount, startDate, dueDate, notes, null);
+    }
 }

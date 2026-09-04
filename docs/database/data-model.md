@@ -225,6 +225,10 @@ Constraints:
 - `remaining_amount >= 0`
 - `remaining_amount <= total_amount`
 - installment count/amount are required only for `INSTALLMENT_EXPENSE`
+- for `MANUAL` debts, `remaining_amount` defaults to `total_amount` at creation but can be set lower (still
+  `>= 0` and `<= total_amount`) via an optional `initialRemainingBalance` on `Debt.createManual` (used by the
+  debt import flow, via its optional `SaldoPendiente` column) - not yet exposed on the single manual-debt-creation
+  API/form, which still always starts at the full `total_amount`
 - allowed source types: `MANUAL`, `INSTALLMENT_EXPENSE`
 - allowed states: `ACTIVE`, `PAID`, `CANCELLED`
 - foreign keys to account, account participant membership, and optional origin expense

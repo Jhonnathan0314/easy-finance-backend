@@ -168,4 +168,12 @@ Authorization: Bearer <accessToken>
 | POST | `/api/v1/accounts/{accountId}/imports/budgets/annual/preview` | Multipart `.xlsx` preview; validates without creating and returns parsed row data, `categoryId`, `participantId`, `participantLabel`, `appliedMonths` and errors. |
 | POST | `/api/v1/accounts/{accountId}/imports/budgets/annual` | Direct multipart `.xlsx` import; admin-only, validates all rows then creates 12 monthly budgets in one transaction. |
 
+## Debt Imports
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/v1/accounts/{accountId}/imports/debts/template` | Download direct manual-debt `.xlsx` template with an optional participant dropdown. |
+| POST | `/api/v1/accounts/{accountId}/imports/debts/preview` | Multipart `.xlsx` preview; validates without creating and returns parsed row data, `participantId`, `participantLabel` and errors. |
+| POST | `/api/v1/accounts/{accountId}/imports/debts` | Direct multipart `.xlsx` import; `ACCOUNT_MEMBER` or `ACCOUNT_ADMIN` (same authorization as `POST /debts`), validates all rows then creates every manual debt in one transaction. Optional `SaldoPendiente` column lets an imported debt start at a partially-paid balance instead of the full capital - useful when migrating a debt from another tool. |
+
 Debt payment registration accepts optional `createExpense`, `categoryId`, `paymentMethodId`, and `expenseDescription`. When `createExpense=true`, backend creates a conceptual expense with `sourceType=DEBT_PAYMENT`; cashflow still counts only the debt payment outflow.
