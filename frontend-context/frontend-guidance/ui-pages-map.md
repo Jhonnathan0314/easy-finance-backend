@@ -1,5 +1,18 @@
 # UI Pages Map
 
+## App Shell (Private Layout)
+
+- The topbar (visible on every authenticated page, next to "Mi perfil"/"Salir") has a "Modo oscuro"/"Modo claro"
+  toggle. Preference is auto-detected from `prefers-color-scheme` on first visit, then persisted in
+  `localStorage` (`easyFinance.theme`) - it is a local device preference, not synced server-side.
+- Dark mode is implemented as CSS custom properties (`--color-*` tokens) in `src/styles.scss`, toggled via a
+  `data-theme` attribute on `<html>` (see `core/theme/theme.service.ts`).
+- **Only the app shell and shared global classes are dark-mode-aware today** (layout, topbar, `.panel`, `.button`,
+  `.field input/textarea/select`). Each feature page's own `.scss` (dashboard, expenses, debts, budgets, income,
+  catalogs, imports, accounts, members, profile, auth) still uses hardcoded light-mode colors and is migrated to
+  the token system in later, independent phases - a page not yet migrated will look mostly light even with dark
+  mode active.
+
 ## Login
 
 - Goal: authenticate existing user.
