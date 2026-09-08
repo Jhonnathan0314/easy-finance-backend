@@ -109,7 +109,8 @@ public class ApachePoiDebtImportParser implements DebtImportParserPort {
             errors.add("Saldo pendiente no puede superar el capital");
         }
 
-        return new DebtImportParsedRow(row.getRowNum() + 1, name, description, totalAmount, remainingBalance, installmentCount, installmentAmount, startDate, dueDate, participant, notes, errors);
+        String status = columns.containsKey("Estado") ? optionalText(optionalCell(row, columns, "Estado")) : null;
+        return new DebtImportParsedRow(row.getRowNum() + 1, name, description, totalAmount, remainingBalance, installmentCount, installmentAmount, startDate, dueDate, participant, notes, status, errors);
     }
 
     private BigDecimal readAmount(Cell cell, String field, boolean required, List<String> errors) {

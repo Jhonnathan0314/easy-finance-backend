@@ -92,7 +92,8 @@ public class ApachePoiIncomeImportParser implements IncomeImportParserPort {
         if (description != null) {
             description = description.trim();
         }
-        return new IncomeImportParsedRow(row.getRowNum() + 1, date, description, category, participant, amount, errors);
+        String status = columns.containsKey("Estado") ? optionalText(optionalCell(row, columns, "Estado")) : null;
+        return new IncomeImportParsedRow(row.getRowNum() + 1, date, description, category, participant, amount, status, errors);
     }
 
     private LocalDate readDate(Cell cell, List<String> errors) {

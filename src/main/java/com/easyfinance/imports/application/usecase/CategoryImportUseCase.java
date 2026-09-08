@@ -84,6 +84,7 @@ public class CategoryImportUseCase implements GenerateCategoryImportTemplatePort
                 var created = createCategoryPort.createCategory(
                         new CreateCategoryCommand(command.accountId(), row.name(), row.description(), row.type())
                 );
+                if ("INACTIVE".equalsIgnoreCase(row.status())) categoryRepository.findByAccountIdAndId(command.accountId(), created.id()).ifPresent(c -> categoryRepository.save(c.deactivate()));
                 createdRows.add(new CategoryImportRowResponse(
                         row.rowNumber(),
                         row.name(),
@@ -137,7 +138,8 @@ public class CategoryImportUseCase implements GenerateCategoryImportTemplatePort
                         parsedRow.rowNumber(),
                         parsedRow.name().trim(),
                         parsedRow.description(),
-                        parsedRow.type()
+                        parsedRow.type(),
+                        parsedRow.status()
                 ));
             }
             validationRows.add(new CategoryImportRowResponse(
@@ -177,6 +179,7 @@ public class CategoryImportUseCase implements GenerateCategoryImportTemplatePort
             String name,
             String description,
             CategoryType type
+            , String status
     ) {
     }
 

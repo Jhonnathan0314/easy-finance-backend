@@ -9,6 +9,7 @@ import com.easyfinance.accounts.application.service.AssignedParticipantValidator
 import com.easyfinance.accounts.domain.model.AccountParticipantStatus;
 import com.easyfinance.debts.application.command.CreateManualDebtCommand;
 import com.easyfinance.debts.application.port.in.CreateManualDebtPort;
+import com.easyfinance.debts.application.port.out.DebtRepositoryPort;
 import com.easyfinance.imports.application.command.ImportDebtCommand;
 import com.easyfinance.imports.application.port.in.GenerateDebtImportTemplatePort;
 import com.easyfinance.imports.application.port.in.ImportDebtPort;
@@ -27,6 +28,7 @@ import com.easyfinance.shared.domain.DomainException;
 import com.easyfinance.shared.domain.Money;
 import com.easyfinance.shared.domain.UnauthorizedOperationException;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -55,8 +57,10 @@ public class DebtImportUseCase implements GenerateDebtImportTemplatePort, Import
     private final DebtImportParserPort parserPort;
     private final DebtImportTemplateGeneratorPort templateGeneratorPort;
     private final CreateManualDebtPort createManualDebtPort;
+    private final DebtRepositoryPort debtRepository;
     private final long maxFileSizeBytes;
 
+    @Autowired
     public DebtImportUseCase(
             CurrentUserProvider currentUserProvider,
             AccountAuthorizationService accountAuthorizationService,
@@ -66,6 +70,7 @@ public class DebtImportUseCase implements GenerateDebtImportTemplatePort, Import
             DebtImportParserPort parserPort,
             DebtImportTemplateGeneratorPort templateGeneratorPort,
             CreateManualDebtPort createManualDebtPort,
+            DebtRepositoryPort debtRepository,
             @Value("${easy-finance.imports.debts.max-file-size-bytes:5242880}") long maxFileSizeBytes
     ) {
         this.currentUserProvider = currentUserProvider;
@@ -76,7 +81,12 @@ public class DebtImportUseCase implements GenerateDebtImportTemplatePort, Import
         this.parserPort = parserPort;
         this.templateGeneratorPort = templateGeneratorPort;
         this.createManualDebtPort = createManualDebtPort;
+        this.debtRepository = debtRepository;
         this.maxFileSizeBytes = maxFileSizeBytes;
+    }
+
+    public DebtImportUseCase(CurrentUserProvider a, AccountAuthorizationService b, AssignedParticipantValidator c, AccountParticipantRepositoryPort d, ParticipantLookupPort e, DebtImportParserPort f, DebtImportTemplateGeneratorPort g, CreateManualDebtPort h, long i) {
+        this(a,b,c,d,e,f,g,h,null,i);
     }
 
     @Override
@@ -112,6 +122,7 @@ public class DebtImportUseCase implements GenerateDebtImportTemplatePort, Import
                     row.notes(),
                     row.remainingBalance() == null ? null : Money.cop(row.remainingBalance())
             ));
+            if (debtRepository != null && "CANCELLED".equalsIgnoreCase(row.status())) debtRepository.findByAccountIdAndId(command.accountId(), created.id()).ifPresent(d -> debtRepository.save(d.cancel()));
             createdRows.add(new DebtImportRowResponse(
                     row.rowNumber(),
                     row.name(),
@@ -165,7 +176,8 @@ public class DebtImportUseCase implements GenerateDebtImportTemplatePort, Import
                         parsedRow.dueDate(),
                         participant.label(),
                         participant.participantId(),
-                        parsedRow.notes()
+                        parsedRow.notes(),
+                        parsedRow.status()
                 ));
             }
             validationRows.add(new DebtImportRowResponse(
@@ -311,6 +323,7 @@ public class DebtImportUseCase implements GenerateDebtImportTemplatePort, Import
             String participantLabel,
             Long participantId,
             String notes
+            , String status
     ) {
     }
 

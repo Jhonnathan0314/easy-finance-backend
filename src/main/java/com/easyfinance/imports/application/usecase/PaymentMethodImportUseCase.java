@@ -84,6 +84,7 @@ public class PaymentMethodImportUseCase implements GeneratePaymentMethodImportTe
                 var created = createPaymentMethodPort.createPaymentMethod(
                         new CreatePaymentMethodCommand(command.accountId(), row.name(), row.description(), row.type())
                 );
+                if ("INACTIVE".equalsIgnoreCase(row.status())) paymentMethodRepository.findByAccountIdAndId(command.accountId(), created.id()).ifPresent(p -> paymentMethodRepository.save(p.deactivate()));
                 createdRows.add(new PaymentMethodImportRowResponse(
                         row.rowNumber(),
                         row.name(),
@@ -135,7 +136,8 @@ public class PaymentMethodImportUseCase implements GeneratePaymentMethodImportTe
                         parsedRow.rowNumber(),
                         parsedRow.name().trim(),
                         parsedRow.description(),
-                        parsedRow.type()
+                        parsedRow.type(),
+                        parsedRow.status()
                 ));
             }
             validationRows.add(new PaymentMethodImportRowResponse(
@@ -175,6 +177,7 @@ public class PaymentMethodImportUseCase implements GeneratePaymentMethodImportTe
             String name,
             String description,
             PaymentMethodType type
+            , String status
     ) {
     }
 

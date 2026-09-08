@@ -34,7 +34,7 @@ public class ApachePoiBudgetImportTemplateGenerator implements AnnualBudgetImpor
     private static final String MONTH_RANGE = "MesesPresupuesto";
     private static final String PARTICIPANT_RANGE = "ParticipantesPresupuesto";
     private static final String[] MONTHS = {"Todos", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"};
-    private static final String[] HEADERS = {"Año", "Mes", "NombrePresupuesto", "Categoria", "NombreSubpresupuesto", "Valor"};
+    private static final String[] HEADERS = {"Año", "Mes", "NombrePresupuesto", "Categoria", "NombreSubpresupuesto", "Valor", "Estado"};
 
     @Override
     public byte[] generate(AnnualBudgetImportTemplateData data) {

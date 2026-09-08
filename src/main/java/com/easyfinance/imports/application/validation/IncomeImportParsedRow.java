@@ -11,8 +11,10 @@ public record IncomeImportParsedRow(
         String categoryName,
         String participantLabel,
         BigDecimal amount,
+        String status,
         List<String> errors
 ) {
+    public IncomeImportParsedRow(Integer rowNumber, LocalDate incomeDate, String description, String categoryName, String participantLabel, BigDecimal amount, List<String> errors) { this(rowNumber,incomeDate,description,categoryName,participantLabel,amount,null,errors); }
     public IncomeImportParsedRow {
         errors = errors == null ? List.of() : List.copyOf(errors);
     }

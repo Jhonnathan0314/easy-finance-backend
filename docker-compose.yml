@@ -39,5 +39,15 @@ services:
     ports:
       - "${APP_PORT:-8080}:8080"
 
+  frontend:
+    build:
+      context: ../easy-finance-frontend
+    container_name: easy-finance-frontend
+    depends_on:
+      app:
+        condition: service_started
+    ports:
+      - "${FRONTEND_PORT:-4200}:80"
+
 volumes:
   easy-finance-postgres-data:

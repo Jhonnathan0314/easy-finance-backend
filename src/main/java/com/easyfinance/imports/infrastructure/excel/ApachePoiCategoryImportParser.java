@@ -94,7 +94,8 @@ public class ApachePoiCategoryImportParser implements CategoryImportParserPort {
                 errors.add("Categoria duplicada dentro del archivo");
             }
         }
-        return new CategoryImportParsedRow(row.getRowNum() + 1, name, description, type, errors);
+        String status = columns.containsKey("Estado") ? optionalText(row.getCell(columns.get("Estado"))) : null;
+        return new CategoryImportParsedRow(row.getRowNum() + 1, name, description, type, status, errors);
     }
 
     private String requiredText(Cell cell, String field, List<String> errors) {

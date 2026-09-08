@@ -42,7 +42,7 @@ public class ApachePoiExpenseImportTemplateGenerator implements ExpenseImportTem
     private static final String DEBT_PAYMENT_FLAG_RANGE = "AplicaPagoDeudaValores";
     private static final String DEBT_PAYMENT_TYPE_RANGE = "TiposPagoDeuda";
     private static final String PARTICIPANT_RANGE = "ParticipantesGastos";
-    private static final String[] HEADERS = {"Fecha", "DescripciÃ³n", "Monto", "CategorÃ­a", "MedioPago", "EstadoPago", "AplicaPagoDeuda", "Deuda", "TipoPagoDeuda", "NotasPagoDeuda", "Participante"};
+    private static final String[] HEADERS = {"Fecha", "DescripciÃ³n", "Monto", "CategorÃ­a", "MedioPago", "EstadoPago", "AplicaPagoDeuda", "Deuda", "TipoPagoDeuda", "NotasPagoDeuda", "Participante", "Estado"};
     private static final String[] PAYMENT_STATES = {"PENDING", "PARTIAL", "PAID"};
     private static final String[] DEBT_PAYMENT_FLAGS = {"SI", "NO"};
     private static final String[] DEBT_PAYMENT_TYPES = {"INSTALLMENT", "CAPITAL_PAYMENT"};
@@ -294,4 +294,3 @@ public class ApachePoiExpenseImportTemplateGenerator implements ExpenseImportTem
         return result;
     }
 }
-

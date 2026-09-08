@@ -29,7 +29,7 @@ public class ApachePoiPaymentMethodImportTemplateGenerator implements PaymentMet
     private static final String SHEET = "MediosPago";
     private static final String VALUES_SHEET = "Valores";
     private static final String TYPES_RANGE = "TiposMedioPago";
-    private static final String[] HEADERS = {"Nombre", "Tipo", "Descripcion"};
+    private static final String[] HEADERS = {"Nombre", "Tipo", "Descripcion", "Estado"};
 
     @Override
     public byte[] generate() {

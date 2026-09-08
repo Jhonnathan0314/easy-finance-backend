@@ -25,12 +25,14 @@ import com.easyfinance.imports.application.template.IncomeImportTemplateData;
 import com.easyfinance.imports.application.validation.IncomeImportParsedRow;
 import com.easyfinance.income.application.command.CreateIncomeCommand;
 import com.easyfinance.income.application.port.in.CreateIncomePort;
+import com.easyfinance.income.application.port.out.IncomeRepositoryPort;
 import com.easyfinance.shared.application.CurrentUser;
 import com.easyfinance.shared.application.CurrentUserProvider;
 import com.easyfinance.shared.domain.BusinessRuleViolationException;
 import com.easyfinance.shared.domain.DomainException;
 import com.easyfinance.shared.domain.UnauthorizedOperationException;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -60,8 +62,10 @@ public class IncomeImportUseCase implements GenerateIncomeImportTemplatePort, Im
     private final IncomeImportParserPort parserPort;
     private final IncomeImportTemplateGeneratorPort templateGeneratorPort;
     private final CreateIncomePort createIncomePort;
+    private final IncomeRepositoryPort incomeRepository;
     private final long maxFileSizeBytes;
 
+    @Autowired
     public IncomeImportUseCase(
             CurrentUserProvider currentUserProvider,
             AccountAuthorizationService accountAuthorizationService,
@@ -73,6 +77,7 @@ public class IncomeImportUseCase implements GenerateIncomeImportTemplatePort, Im
             IncomeImportParserPort parserPort,
             IncomeImportTemplateGeneratorPort templateGeneratorPort,
             CreateIncomePort createIncomePort,
+            IncomeRepositoryPort incomeRepository,
             @Value("${easy-finance.imports.incomes.max-file-size-bytes:5242880}") long maxFileSizeBytes
     ) {
         this.currentUserProvider = currentUserProvider;
@@ -85,7 +90,12 @@ public class IncomeImportUseCase implements GenerateIncomeImportTemplatePort, Im
         this.parserPort = parserPort;
         this.templateGeneratorPort = templateGeneratorPort;
         this.createIncomePort = createIncomePort;
+        this.incomeRepository = incomeRepository;
         this.maxFileSizeBytes = maxFileSizeBytes;
+    }
+
+    public IncomeImportUseCase(CurrentUserProvider a, AccountAuthorizationService b, AssignedParticipantValidator c, AccountParticipantRepositoryPort d, ParticipantLookupPort e, CatalogValidationPort f, CategoryRepositoryPort g, IncomeImportParserPort h, IncomeImportTemplateGeneratorPort i, CreateIncomePort j, long k) {
+        this(a,b,c,d,e,f,g,h,i,j,null,k);
     }
 
     @Override
@@ -120,6 +130,7 @@ public class IncomeImportUseCase implements GenerateIncomeImportTemplatePort, Im
                     com.easyfinance.shared.domain.Money.cop(row.amount()),
                     row.incomeDate()
             ));
+            if (incomeRepository != null && "CANCELLED".equalsIgnoreCase(row.status())) incomeRepository.findByAccountIdAndId(command.accountId(), created.id()).ifPresent(i -> incomeRepository.save(i.cancel()));
             createdRows.add(new IncomeImportRowResponse(
                     row.rowNumber(),
                     row.incomeDate(),
@@ -166,7 +177,8 @@ public class IncomeImportUseCase implements GenerateIncomeImportTemplatePort, Im
                         participant.label(),
                         participant.participantId(),
                         parsedRow.amount(),
-                        categoryId
+                        categoryId,
+                        parsedRow.status()
                 ));
             }
             validationRows.add(new IncomeImportRowResponse(
@@ -322,6 +334,7 @@ public class IncomeImportUseCase implements GenerateIncomeImportTemplatePort, Im
             Long participantId,
             BigDecimal amount,
             Long categoryId
+            , String status
     ) {
     }
 
@@ -354,4 +367,3 @@ public class IncomeImportUseCase implements GenerateIncomeImportTemplatePort, Im
         }
     }
 }
-

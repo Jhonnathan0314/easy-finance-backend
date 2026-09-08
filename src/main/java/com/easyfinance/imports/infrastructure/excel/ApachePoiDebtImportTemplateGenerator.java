@@ -34,7 +34,7 @@ public class ApachePoiDebtImportTemplateGenerator implements DebtImportTemplateG
     private static final String PARTICIPANT_RANGE = "ParticipantesDeuda";
     private static final String[] HEADERS = {
             "Nombre", "Descripcion", "Capital", "SaldoPendiente", "NumeroCuotas",
-            "ValorCuota", "FechaInicio", "FechaVencimiento", "Participante", "Notas"
+            "ValorCuota", "FechaInicio", "FechaVencimiento", "Participante", "Notas", "Estado"
     };
 
     @Override

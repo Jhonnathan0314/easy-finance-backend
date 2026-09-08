@@ -94,7 +94,8 @@ public class ApachePoiPaymentMethodImportParser implements PaymentMethodImportPa
                 errors.add("Medio de pago duplicado dentro del archivo");
             }
         }
-        return new PaymentMethodImportParsedRow(row.getRowNum() + 1, name, description, type, errors);
+        String status = columns.containsKey("Estado") ? optionalText(row.getCell(columns.get("Estado"))) : null;
+        return new PaymentMethodImportParsedRow(row.getRowNum() + 1, name, description, type, status, errors);
     }
 
     private String requiredText(Cell cell, String field, List<String> errors) {
