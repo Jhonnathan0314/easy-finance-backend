@@ -6,12 +6,18 @@ import com.easyfinance.analytics.application.query.CashflowSummaryQuery;
 import com.easyfinance.analytics.application.query.ExpenseBreakdownQuery;
 import com.easyfinance.analytics.application.query.ExpenseSummaryQuery;
 import com.easyfinance.analytics.application.query.IncomeBreakdownQuery;
+import com.easyfinance.analytics.application.query.DebtAnalyticsQuery;
+import com.easyfinance.analytics.application.query.DebtAnalyticsState;
 import com.easyfinance.analytics.application.response.BudgetSummaryResponse;
 import com.easyfinance.analytics.application.response.BudgetVsExpensesCategoryItem;
 import com.easyfinance.analytics.application.response.CashflowItem;
 import com.easyfinance.analytics.application.response.CashflowSummaryResponse;
 import com.easyfinance.analytics.application.response.CategoryAmountItem;
 import com.easyfinance.analytics.application.response.DebtSummaryResponse;
+import com.easyfinance.analytics.application.response.DebtAnalyticsResponse;
+import com.easyfinance.analytics.application.response.DebtAnalyticsSummary;
+import com.easyfinance.analytics.application.response.DebtAnalyticsPeriod;
+import com.easyfinance.analytics.application.response.DebtAnalyticsDebt;
 import com.easyfinance.analytics.application.response.ExpenseSummaryResponse;
 import com.easyfinance.analytics.application.response.MonthlySummaryResponse;
 import com.easyfinance.analytics.application.response.PaymentMethodAmountItem;
@@ -330,6 +336,56 @@ public class JpaAnalyticsQueryAdapter implements AnalyticsQueryPort {
                 accountId,
                 accountId
         );
+    }
+
+    @Override
+    public DebtAnalyticsResponse getDebtAnalytics(DebtAnalyticsQuery query) {
+        MapSqlParameterSource params = rangeParams(query.accountId(), query.from(), query.to())
+                .addValue("categoryId", query.categoryId())
+                .addValue("paymentMethodId", query.paymentMethodId());
+        String stateFilter = query.state() == DebtAnalyticsState.ALL ? "1 = 1" : "d.state = :state";
+        String participantFilter = query.participantId() == null ? "1 = 1" : "d.participant_id = :participantId";
+        if (query.state() != DebtAnalyticsState.ALL) {
+            params.addValue("state", query.state().name());
+        }
+        if (query.participantId() != null) {
+            params.addValue("participantId", query.participantId());
+        }
+        String selected = """
+                SELECT d.* FROM debts d
+                WHERE d.account_id = :accountId
+                  AND (%s)
+                  AND (%s)
+                  AND (d.state <> 'CANCELLED' OR EXISTS (SELECT 1 FROM debt_payments x WHERE x.account_id=d.account_id AND x.debt_id=d.id AND x.status='ACTIVE' AND x.payment_date BETWEEN :from AND :to))
+                """.formatted(stateFilter, participantFilter);
+        String paymentWhere = "dp.account_id = :accountId AND dp.status = 'ACTIVE' AND dp.payment_date BETWEEN :from AND :to"
+                + " AND EXISTS (SELECT 1 FROM debts sd WHERE sd.account_id = dp.account_id AND sd.id = dp.debt_id"
+                + (query.state() == DebtAnalyticsState.ALL ? "" : " AND sd.state = :state")
+                + (query.participantId() == null ? "" : " AND sd.participant_id = :participantId AND dp.participant_id = :participantId")
+                + ")"
+                + (query.categoryId() == null && query.paymentMethodId() == null ? "" : " AND EXISTS (SELECT 1 FROM debts dd LEFT JOIN expenses oe ON oe.account_id=dd.account_id AND oe.id=dd.origin_expense_id WHERE dd.account_id=dp.account_id AND dd.id=dp.debt_id"
+                + (query.categoryId() == null ? "" : " AND oe.category_id=:categoryId") + (query.paymentMethodId() == null ? "" : " AND oe.payment_method_id=:paymentMethodId") + ")");
+        DebtAnalyticsSummary summary = namedJdbcTemplate.queryForObject("""
+                WITH selected AS (%s), payments AS (SELECT dp.debt_id, COALESCE(SUM(dp.capital_amount),0) capital, COALESCE(SUM(dp.interest_amount),0) interest, COALESCE(SUM(dp.amount),0) total FROM debt_payments dp WHERE %s GROUP BY dp.debt_id)
+                SELECT COALESCE(SUM(s.total_amount),0) original_amount, COALESCE(SUM(s.remaining_amount),0) remaining_amount,
+                  COALESCE(SUM(p.capital),0) capital_paid, COALESCE(SUM(p.interest),0) interest_paid, COALESCE(SUM(p.total),0) total_paid,
+                  COALESCE(SUM(CASE WHEN s.state='ACTIVE' THEN 1 ELSE 0 END),0) active_count, COALESCE(SUM(CASE WHEN s.state='PAID' THEN 1 ELSE 0 END),0) paid_count,
+                  COALESCE(SUM(CASE WHEN s.state='CANCELLED' THEN 1 ELSE 0 END),0) cancelled_count, COUNT(s.id) debts_count
+                FROM selected s LEFT JOIN payments p ON p.debt_id=s.id
+                """.formatted(selected, paymentWhere), params, (rs, n) -> new DebtAnalyticsSummary(money(rs,"original_amount"), money(rs,"remaining_amount"), money(rs,"capital_paid"), money(rs,"interest_paid"), money(rs,"total_paid"), count(rs,"active_count"), count(rs,"paid_count"), count(rs,"cancelled_count"), count(rs,"debts_count")));
+        String period = periodStartExpression("dp.payment_date", query.groupBy());
+        List<DebtAnalyticsPeriod> periods = namedJdbcTemplate.query("""
+                SELECT to_char(%s, '%s') period, COALESCE(SUM(dp.capital_amount),0) capital_paid, COALESCE(SUM(dp.interest_amount),0) interest_paid, COALESCE(SUM(dp.amount),0) total_paid
+                FROM debt_payments dp WHERE %s GROUP BY %s ORDER BY %s
+                """.formatted(period, query.groupBy() == CashflowGroupBy.MONTH ? "YYYY-MM" : "YYYY-MM-DD", paymentWhere, period, period), params,
+                (rs,n) -> new DebtAnalyticsPeriod(rs.getString("period"), money(rs,"capital_paid"), money(rs,"interest_paid"), money(rs,"total_paid")));
+        List<DebtAnalyticsDebt> debts = namedJdbcTemplate.query("""
+                WITH selected AS (%s), payments AS (SELECT dp.debt_id, COALESCE(SUM(dp.capital_amount),0) capital, COALESCE(SUM(dp.interest_amount),0) interest, COALESCE(SUM(dp.amount),0) total, COUNT(dp.id) payments_count FROM debt_payments dp WHERE %s GROUP BY dp.debt_id)
+                SELECT s.id debt_id, s.name, s.state, s.total_amount original_amount, COALESCE(p.capital,0) capital_paid, COALESCE(p.interest,0) interest_paid, COALESCE(p.total,0) total_paid, s.remaining_amount,
+                  CASE WHEN s.total_amount=0 THEN 0 ELSE ROUND(COALESCE(p.total,0)*100/s.total_amount,2) END paid_percentage, COALESCE(p.payments_count,0) payments_count
+                FROM selected s LEFT JOIN payments p ON p.debt_id=s.id ORDER BY s.name
+                """.formatted(selected, paymentWhere), params, (rs,n) -> new DebtAnalyticsDebt(rs.getLong("debt_id"), rs.getString("name"), rs.getString("state"), money(rs,"original_amount"), money(rs,"capital_paid"), money(rs,"interest_paid"), money(rs,"total_paid"), money(rs,"remaining_amount"), money(rs,"paid_percentage"), count(rs,"payments_count")));
+        return new DebtAnalyticsResponse(query.accountId(), query.from(), query.to(), query.groupBy(), query.state(), summary, periods, debts, Instant.now());
     }
 
     @Override

@@ -5,6 +5,7 @@ import com.easyfinance.analytics.application.port.in.GetCashflowSummaryPort;
 import com.easyfinance.analytics.application.port.in.GetBudgetSummaryPort;
 import com.easyfinance.analytics.application.port.in.GetBudgetVsExpensesByCategoryPort;
 import com.easyfinance.analytics.application.port.in.GetDebtSummaryPort;
+import com.easyfinance.analytics.application.port.in.GetDebtAnalyticsPort;
 import com.easyfinance.analytics.application.port.in.GetExpenseSummaryPort;
 import com.easyfinance.analytics.application.port.in.GetExpensesByCategoryPort;
 import com.easyfinance.analytics.application.port.in.GetExpensesByPaymentMethodPort;
@@ -12,6 +13,8 @@ import com.easyfinance.analytics.application.port.in.GetExpensesByPaymentMethodT
 import com.easyfinance.analytics.application.port.in.GetIncomesByCategoryPort;
 import com.easyfinance.analytics.application.port.in.GetMonthlySummaryPort;
 import com.easyfinance.analytics.application.query.CashflowGroupBy;
+import com.easyfinance.analytics.application.query.DebtAnalyticsQuery;
+import com.easyfinance.analytics.application.query.DebtAnalyticsState;
 import com.easyfinance.analytics.application.query.CashflowQuery;
 import com.easyfinance.analytics.application.query.CashflowSummaryQuery;
 import com.easyfinance.analytics.application.query.ExpenseBreakdownQuery;
@@ -24,6 +27,7 @@ import com.easyfinance.analytics.entrypoint.rest.dto.CashflowResponseDto;
 import com.easyfinance.analytics.entrypoint.rest.dto.CashflowSummaryResponseDto;
 import com.easyfinance.analytics.entrypoint.rest.dto.CategoryBreakdownResponseDto;
 import com.easyfinance.analytics.entrypoint.rest.dto.DebtSummaryResponseDto;
+import com.easyfinance.analytics.entrypoint.rest.dto.DebtAnalyticsResponseDto;
 import com.easyfinance.analytics.entrypoint.rest.dto.ExpenseSummaryResponseDto;
 import com.easyfinance.analytics.entrypoint.rest.dto.MonthlySummaryResponseDto;
 import com.easyfinance.analytics.entrypoint.rest.dto.PaymentMethodBreakdownResponseDto;
@@ -38,6 +42,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.LocalDate;
 
@@ -54,9 +59,11 @@ public class AnalyticsController {
     private final GetExpensesByPaymentMethodTypePort getExpensesByPaymentMethodTypePort;
     private final GetIncomesByCategoryPort getIncomesByCategoryPort;
     private final GetDebtSummaryPort getDebtSummaryPort;
+    private final GetDebtAnalyticsPort getDebtAnalyticsPort;
     private final GetBudgetSummaryPort getBudgetSummaryPort;
     private final GetBudgetVsExpensesByCategoryPort getBudgetVsExpensesByCategoryPort;
 
+    @Autowired
     public AnalyticsController(
             GetMonthlySummaryPort getMonthlySummaryPort,
             GetCashflowSummaryPort getCashflowSummaryPort,
@@ -67,6 +74,7 @@ public class AnalyticsController {
             GetExpensesByPaymentMethodTypePort getExpensesByPaymentMethodTypePort,
             GetIncomesByCategoryPort getIncomesByCategoryPort,
             GetDebtSummaryPort getDebtSummaryPort,
+            GetDebtAnalyticsPort getDebtAnalyticsPort,
             GetBudgetSummaryPort getBudgetSummaryPort,
             GetBudgetVsExpensesByCategoryPort getBudgetVsExpensesByCategoryPort
     ) {
@@ -79,8 +87,18 @@ public class AnalyticsController {
         this.getExpensesByPaymentMethodTypePort = getExpensesByPaymentMethodTypePort;
         this.getIncomesByCategoryPort = getIncomesByCategoryPort;
         this.getDebtSummaryPort = getDebtSummaryPort;
+        this.getDebtAnalyticsPort = getDebtAnalyticsPort;
         this.getBudgetSummaryPort = getBudgetSummaryPort;
         this.getBudgetVsExpensesByCategoryPort = getBudgetVsExpensesByCategoryPort;
+    }
+
+    public AnalyticsController(GetMonthlySummaryPort monthly, GetCashflowSummaryPort cashflowSummary,
+            GetExpenseSummaryPort expenseSummary, GetCashflowPort cashflow, GetExpensesByCategoryPort expensesByCategory,
+            GetExpensesByPaymentMethodPort expensesByPaymentMethod, GetExpensesByPaymentMethodTypePort expensesByPaymentMethodType,
+            GetIncomesByCategoryPort incomesByCategory, GetDebtSummaryPort debtSummary,
+            GetBudgetSummaryPort budgetSummary, GetBudgetVsExpensesByCategoryPort budgetVsExpensesByCategory) {
+        this(monthly, cashflowSummary, expenseSummary, cashflow, expensesByCategory, expensesByPaymentMethod,
+                expensesByPaymentMethodType, incomesByCategory, debtSummary, null, budgetSummary, budgetVsExpensesByCategory);
     }
 
     @GetMapping("/cashflow-summary")
@@ -243,6 +261,17 @@ public class AnalyticsController {
     @GetMapping("/debt-summary")
     public DebtSummaryResponseDto debtSummary(@PathVariable Long accountId) {
         return AnalyticsRestMapper.toDto(getDebtSummaryPort.getDebtSummary(accountId));
+    }
+
+    @GetMapping("/debts")
+    public DebtAnalyticsResponseDto debts(@PathVariable Long accountId, @RequestParam LocalDate from,
+                                          @RequestParam LocalDate to, @RequestParam CashflowGroupBy groupBy,
+                                          @RequestParam(defaultValue = "ACTIVE") DebtAnalyticsState state,
+                                          @RequestParam(required = false) Long participantId,
+                                          @RequestParam(required = false) Long categoryId,
+                                          @RequestParam(required = false) Long paymentMethodId) {
+        return AnalyticsRestMapper.toDto(getDebtAnalyticsPort.getDebtAnalytics(
+                new DebtAnalyticsQuery(accountId, from, to, groupBy, state, participantId, categoryId, paymentMethodId)));
     }
 
     @GetMapping("/budget-summary")

@@ -9,6 +9,7 @@ import com.easyfinance.analytics.application.response.CashflowSummaryResponse;
 import com.easyfinance.analytics.application.response.CategoryAmountItem;
 import com.easyfinance.analytics.application.response.CategoryBreakdownResponse;
 import com.easyfinance.analytics.application.response.DebtSummaryResponse;
+import com.easyfinance.analytics.application.response.DebtAnalyticsResponse;
 import com.easyfinance.analytics.application.response.ExpenseSummaryResponse;
 import com.easyfinance.analytics.application.response.MonthlySummaryResponse;
 import com.easyfinance.analytics.application.response.PaymentMethodAmountItem;
@@ -24,6 +25,7 @@ import com.easyfinance.analytics.entrypoint.rest.dto.CashflowSummaryResponseDto;
 import com.easyfinance.analytics.entrypoint.rest.dto.CategoryAmountItemDto;
 import com.easyfinance.analytics.entrypoint.rest.dto.CategoryBreakdownResponseDto;
 import com.easyfinance.analytics.entrypoint.rest.dto.DebtSummaryResponseDto;
+import com.easyfinance.analytics.entrypoint.rest.dto.DebtAnalyticsResponseDto;
 import com.easyfinance.analytics.entrypoint.rest.dto.ExpenseSummaryResponseDto;
 import com.easyfinance.analytics.entrypoint.rest.dto.MonthlySummaryResponseDto;
 import com.easyfinance.analytics.entrypoint.rest.dto.PaymentMethodAmountItemDto;
@@ -76,6 +78,16 @@ public final class AnalyticsRestMapper {
                 response.manualDebtsCount(),
                 response.installmentExpenseDebtsCount()
         );
+    }
+
+    public static DebtAnalyticsResponseDto toDto(DebtAnalyticsResponse response) {
+        var s = response.summary();
+        return new DebtAnalyticsResponseDto(response.accountId(), response.from().toString(), response.to().toString(), response.groupBy().name(),
+                response.state().name(), new DebtAnalyticsResponseDto.Summary(s.originalAmount(), s.remainingAmount(), s.capitalPaid(), s.interestPaid(), s.totalPaid(),
+                s.activeDebtsCount(), s.paidDebtsCount(), s.cancelledDebtsCount(), s.debtsCount()),
+                response.periods().stream().map(p -> new DebtAnalyticsResponseDto.Period(p.period(), p.capitalPaid(), p.interestPaid(), p.totalPaid())).toList(),
+                response.debts().stream().map(d -> new DebtAnalyticsResponseDto.Debt(d.debtId(), d.name(), d.state(), d.originalAmount(), d.capitalPaid(), d.interestPaid(), d.totalPaid(), d.remainingAmount(), d.paidPercentage(), d.paymentsCount())).toList(),
+                response.generatedAt());
     }
 
     public static BudgetSummaryResponseDto toDto(BudgetSummaryResponse response) {

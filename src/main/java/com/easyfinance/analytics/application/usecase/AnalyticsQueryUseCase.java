@@ -6,6 +6,7 @@ import com.easyfinance.analytics.application.port.in.GetCashflowPort;
 import com.easyfinance.analytics.application.port.in.GetCashflowSummaryPort;
 import com.easyfinance.analytics.application.port.in.GetBudgetSummaryPort;
 import com.easyfinance.analytics.application.port.in.GetDebtSummaryPort;
+import com.easyfinance.analytics.application.port.in.GetDebtAnalyticsPort;
 import com.easyfinance.analytics.application.port.in.GetExpenseSummaryPort;
 import com.easyfinance.analytics.application.port.in.GetExpensesByCategoryPort;
 import com.easyfinance.analytics.application.port.in.GetExpensesByPaymentMethodPort;
@@ -14,6 +15,7 @@ import com.easyfinance.analytics.application.port.in.GetIncomesByCategoryPort;
 import com.easyfinance.analytics.application.port.in.GetMonthlySummaryPort;
 import com.easyfinance.analytics.application.port.out.AnalyticsQueryPort;
 import com.easyfinance.analytics.application.query.CashflowQuery;
+import com.easyfinance.analytics.application.query.DebtAnalyticsQuery;
 import com.easyfinance.analytics.application.query.CashflowSummaryQuery;
 import com.easyfinance.analytics.application.query.ExpenseBreakdownQuery;
 import com.easyfinance.analytics.application.query.ExpenseSummaryQuery;
@@ -25,6 +27,7 @@ import com.easyfinance.analytics.application.response.CashflowResponse;
 import com.easyfinance.analytics.application.response.CashflowSummaryResponse;
 import com.easyfinance.analytics.application.response.CategoryBreakdownResponse;
 import com.easyfinance.analytics.application.response.DebtSummaryResponse;
+import com.easyfinance.analytics.application.response.DebtAnalyticsResponse;
 import com.easyfinance.analytics.application.response.ExpenseSummaryResponse;
 import com.easyfinance.analytics.application.response.MonthlySummaryResponse;
 import com.easyfinance.analytics.application.response.PaymentMethodBreakdownResponse;
@@ -48,6 +51,7 @@ public class AnalyticsQueryUseCase implements
         GetExpensesByPaymentMethodTypePort,
         GetIncomesByCategoryPort,
         GetDebtSummaryPort,
+        GetDebtAnalyticsPort,
         GetBudgetSummaryPort,
         GetBudgetVsExpensesByCategoryPort {
 
@@ -153,6 +157,13 @@ public class AnalyticsQueryUseCase implements
     public DebtSummaryResponse getDebtSummary(Long accountId) {
         requireActiveMember(accountId);
         return analyticsQueryPort.getDebtSummary(accountId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DebtAnalyticsResponse getDebtAnalytics(DebtAnalyticsQuery query) {
+        requireActiveMember(query.accountId());
+        return analyticsQueryPort.getDebtAnalytics(query);
     }
 
     @Override
