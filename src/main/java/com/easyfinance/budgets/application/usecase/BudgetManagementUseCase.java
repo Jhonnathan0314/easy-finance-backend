@@ -56,9 +56,11 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -288,6 +290,30 @@ public class BudgetManagementUseCase implements
         }
         if (!remainingPayment.isZero()) {
             throw new BusinessRuleViolationException("BUDGET_IMPACT_UPDATE_FAILED", "Debt payment could not be fully applied to budget impacts.");
+        }
+        if (command.debtFullySettled()) {
+            cancelUnreachedFutureImpacts(command.accountId(), command.debtId(), YearMonth.from(command.settlementDate()));
+        }
+    }
+
+    private void cancelUnreachedFutureImpacts(Long accountId, Long debtId, YearMonth settlementPeriod) {
+        List<BudgetImpact> impacts = impactRepository.findNonCancelledByAccountIdAndDebtIdOrderByPeriod(accountId, debtId);
+        Set<Long> futureSubBudgetIds = new HashSet<>();
+        for (BudgetImpact impact : impacts) {
+            YearMonth impactPeriod = YearMonth.of(impact.periodYear(), impact.periodMonth());
+            if (impactPeriod.isAfter(settlementPeriod)) {
+                impactRepository.save(impact.cancel());
+                futureSubBudgetIds.add(impact.subBudgetId());
+            }
+        }
+        if (futureSubBudgetIds.isEmpty()) {
+            return;
+        }
+        List<SubBudget> derivedSubBudgets = subBudgetRepository.findDebtDerivedActiveByAccountIdAndDebtId(accountId, debtId);
+        for (SubBudget subBudget : derivedSubBudgets) {
+            if (futureSubBudgetIds.contains(subBudget.id())) {
+                subBudgetRepository.save(subBudget.deactivateDebtDerived());
+            }
         }
     }
 

@@ -18,6 +18,7 @@ import com.easyfinance.debts.application.response.PageResponse;
 import com.easyfinance.debts.application.response.RegisterDebtPaymentResponse;
 import com.easyfinance.debts.domain.model.Debt;
 import com.easyfinance.debts.domain.model.DebtPayment;
+import com.easyfinance.debts.domain.model.DebtState;
 import com.easyfinance.expenses.application.command.CreateDebtPaymentExpenseCommand;
 import com.easyfinance.expenses.application.port.in.CreateDebtPaymentExpensePort;
 import com.easyfinance.expenses.application.response.ExpenseResponse;
@@ -83,7 +84,13 @@ public class DebtPaymentManagementUseCase implements
         DebtPayment savedPayment = paymentRepository.save(payment);
         Debt savedDebt = debtRepository.save(updatedDebt);
         if (savedDebt.originExpenseId() != null) {
-            budgetDebtImpactPort.applyDebtPaymentToImpacts(new ApplyDebtPaymentImpactCommand(savedDebt.accountId(), savedDebt.id(), savedPayment.amount()));
+            budgetDebtImpactPort.applyDebtPaymentToImpacts(new ApplyDebtPaymentImpactCommand(
+                    savedDebt.accountId(),
+                    savedDebt.id(),
+                    savedPayment.amount(),
+                    savedDebt.state() == DebtState.PAID,
+                    savedPayment.paymentDate()
+            ));
         }
         Long createdExpenseId = null;
         if (command.shouldCreateExpense()) {

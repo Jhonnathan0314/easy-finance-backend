@@ -500,10 +500,34 @@ class BudgetManagementUseCaseTest {
         when(impactRepository.findActiveByAccountIdAndDebtIdOrderByPeriod(1L, 5L)).thenReturn(List.of(january, february));
         when(impactRepository.save(any(BudgetImpact.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        useCase.applyDebtPaymentToImpacts(new ApplyDebtPaymentImpactCommand(1L, 5L, Money.cop(new BigDecimal("150000"))));
+        useCase.applyDebtPaymentToImpacts(new ApplyDebtPaymentImpactCommand(1L, 5L, Money.cop(new BigDecimal("150000")), false, LocalDate.of(2026, 2, 1)));
 
         verify(impactRepository).save(org.mockito.ArgumentMatchers.argThat(impact -> impact.id().equals(1L) && impact.status() == BudgetImpactStatus.PAID));
         verify(impactRepository).save(org.mockito.ArgumentMatchers.argThat(impact -> impact.id().equals(2L) && impact.paidAmount().amount().compareTo(new BigDecimal("50000.00")) == 0));
+    }
+
+    @Test
+    void earlyFullSettlementCancelsImpactsAfterTheSettlementMonthEvenIfThatMonthAlreadyElapsed() {
+        // Debt settled with a lump-sum payment on 2026-07-01, but this runs well after that date
+        // (e.g. today is 2026-09-14): impacts for August onward must still be cancelled even though
+        // August itself is already in the past relative to "now".
+        LocalDate settlementDate = LocalDate.of(2026, 7, 1);
+        BudgetImpact settlementMonthImpact = BudgetImpact.restore(1L, 1L, 10L, 200L, 5L, 9L, 2026, 7, Money.cop(new BigDecimal("100000")), Money.zeroCop(), BudgetImpactStatus.ACTIVE, com.easyfinance.budgets.domain.model.BudgetImpactSourceType.DEBT_INSTALLMENT, Instant.now(), Instant.now());
+        BudgetImpact alreadyElapsedButUnreachedImpact = BudgetImpact.restore(2L, 1L, 11L, 201L, 5L, 9L, 2026, 8, Money.cop(new BigDecimal("100000")), Money.zeroCop(), BudgetImpactStatus.ACTIVE, com.easyfinance.budgets.domain.model.BudgetImpactSourceType.DEBT_INSTALLMENT, Instant.now(), Instant.now());
+        SubBudget settlementMonthSubBudget = SubBudget.restore(200L, 1L, 10L, 7L, 5L, "Debt: Laptop", Money.cop(new BigDecimal("100000")), Money.zeroCop(), SubBudgetStatus.ACTIVE, SubBudgetSourceType.DEBT_DERIVED, Instant.now(), Instant.now());
+        SubBudget unreachedSubBudget = SubBudget.restore(201L, 1L, 11L, 7L, 5L, "Debt: Laptop", Money.cop(new BigDecimal("100000")), Money.zeroCop(), SubBudgetStatus.ACTIVE, SubBudgetSourceType.DEBT_DERIVED, Instant.now(), Instant.now());
+        when(impactRepository.findActiveByAccountIdAndDebtIdOrderByPeriod(1L, 5L)).thenReturn(List.of(settlementMonthImpact, alreadyElapsedButUnreachedImpact));
+        when(impactRepository.findNonCancelledByAccountIdAndDebtIdOrderByPeriod(1L, 5L)).thenReturn(List.of(settlementMonthImpact, alreadyElapsedButUnreachedImpact));
+        when(subBudgetRepository.findDebtDerivedActiveByAccountIdAndDebtId(1L, 5L)).thenReturn(List.of(settlementMonthSubBudget, unreachedSubBudget));
+        when(impactRepository.save(any(BudgetImpact.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(subBudgetRepository.save(any(SubBudget.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        useCase.applyDebtPaymentToImpacts(new ApplyDebtPaymentImpactCommand(1L, 5L, Money.cop(new BigDecimal("100000")), true, settlementDate));
+
+        verify(impactRepository).save(org.mockito.ArgumentMatchers.argThat(impact -> impact.id().equals(1L) && impact.status() == BudgetImpactStatus.PAID));
+        verify(impactRepository).save(org.mockito.ArgumentMatchers.argThat(impact -> impact.id().equals(2L) && impact.status() == BudgetImpactStatus.CANCELLED));
+        verify(subBudgetRepository, times(0)).save(org.mockito.ArgumentMatchers.argThat(subBudget -> subBudget.id().equals(200L)));
+        verify(subBudgetRepository).save(org.mockito.ArgumentMatchers.argThat(subBudget -> subBudget.id().equals(201L) && subBudget.status() == SubBudgetStatus.INACTIVE));
     }
 
     @Test
