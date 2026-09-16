@@ -18,5 +18,7 @@ logging:
 
 easy-finance:
   security:
+    cors:
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:https://easyfinance.justeasyproject.com}
     jwt:
       secret: ${JWT_SECRET:}
