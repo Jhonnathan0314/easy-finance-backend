@@ -147,4 +147,33 @@ class ExpenseTest {
         assertThatThrownBy(() -> expense.update(2L, 3L, 4L, "Dinner", Money.cop(new BigDecimal("15000")), LocalDate.now(), ExpensePaymentState.PAID))
                 .isInstanceOfSatisfying(BusinessRuleViolationException.class, ex -> assertThat(ex.code()).isEqualTo("EXPENSE_ALREADY_CANCELLED"));
     }
+
+    @Test
+    void changePaymentStateUpdatesStateAndKeepsOtherFields() {
+        Expense expense = Expense.createSimple(1L, 2L, 3L, 4L, "Lunch", Money.cop(new BigDecimal("12000")), LocalDate.now(), ExpensePaymentState.PENDING);
+
+        Expense paid = expense.changePaymentState(ExpensePaymentState.PAID);
+
+        assertThat(paid.paymentState()).isEqualTo(ExpensePaymentState.PAID);
+        assertThat(paid.categoryId()).isEqualTo(expense.categoryId());
+        assertThat(paid.amount()).isEqualTo(expense.amount());
+        assertThat(paid.expenseDate()).isEqualTo(expense.expenseDate());
+    }
+
+    @Test
+    void changePaymentStateRejectsNullState() {
+        Expense expense = Expense.createSimple(1L, 2L, 3L, 4L, "Lunch", Money.cop(new BigDecimal("12000")), LocalDate.now(), ExpensePaymentState.PENDING);
+
+        assertThatThrownBy(() -> expense.changePaymentState(null))
+                .isInstanceOfSatisfying(BusinessRuleViolationException.class, ex -> assertThat(ex.code()).isEqualTo("EXPENSE_PAYMENT_STATE_REQUIRED"));
+    }
+
+    @Test
+    void cancelledExpenseCannotChangePaymentState() {
+        Expense expense = Expense.createSimple(1L, 2L, 3L, 4L, "Lunch", Money.cop(new BigDecimal("12000")), LocalDate.now(), ExpensePaymentState.PENDING)
+                .cancel();
+
+        assertThatThrownBy(() -> expense.changePaymentState(ExpensePaymentState.PAID))
+                .isInstanceOfSatisfying(BusinessRuleViolationException.class, ex -> assertThat(ex.code()).isEqualTo("EXPENSE_ALREADY_CANCELLED"));
+    }
 }

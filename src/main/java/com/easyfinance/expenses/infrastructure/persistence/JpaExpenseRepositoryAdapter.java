@@ -1,6 +1,7 @@
 package com.easyfinance.expenses.infrastructure.persistence;
 
 import com.easyfinance.expenses.application.port.out.ExpenseRepositoryPort;
+import com.easyfinance.expenses.application.query.CreditCardClosingQuery;
 import com.easyfinance.expenses.application.query.ListExpensesQuery;
 import com.easyfinance.expenses.application.response.PageResponse;
 import com.easyfinance.expenses.domain.model.Expense;
@@ -17,6 +18,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -43,6 +45,11 @@ public class JpaExpenseRepositoryAdapter implements ExpenseRepositoryPort {
     }
 
     @Override
+    public List<Expense> saveAll(List<Expense> expenses) {
+        return expenses.stream().map(this::save).toList();
+    }
+
+    @Override
     public Optional<Expense> findByAccountIdAndId(Long accountId, Long expenseId) {
         return repository.findByAccountIdAndId(accountId, expenseId).map(mapper::toDomain);
     }
@@ -56,6 +63,25 @@ public class JpaExpenseRepositoryAdapter implements ExpenseRepositoryPort {
                 page.getSize(),
                 page.getTotalElements(),
                 page.getTotalPages()
+        );
+    }
+
+    @Override
+    public List<Expense> findEligibleForClosing(CreditCardClosingQuery query) {
+        Specification<ExpenseJpaEntity> spec = closingSpecification(query);
+        return repository.findAll(spec).stream().map(mapper::toDomain).toList();
+    }
+
+    private static Specification<ExpenseJpaEntity> closingSpecification(CreditCardClosingQuery query) {
+        return (root, criteriaQuery, builder) -> builder.and(
+                builder.equal(root.get("accountId"), query.accountId()),
+                builder.equal(root.get("paymentMethodId"), query.paymentMethodId()),
+                builder.equal(root.get("status"), ExpenseStatusJpa.ACTIVE),
+                builder.equal(root.get("expenseType"), ExpenseTypeJpa.SIMPLE),
+                builder.notEqual(root.get("sourceType"), ExpenseSourceTypeJpa.DEBT_PAYMENT),
+                root.get("paymentState").in(ExpensePaymentStateJpa.PENDING, ExpensePaymentStateJpa.PARTIAL),
+                builder.greaterThanOrEqualTo(root.get("expenseDate"), query.from()),
+                builder.lessThanOrEqualTo(root.get("expenseDate"), query.to())
         );
     }
 

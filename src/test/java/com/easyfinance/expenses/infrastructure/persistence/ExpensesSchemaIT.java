@@ -2,6 +2,7 @@ package com.easyfinance.expenses.infrastructure.persistence;
 
 import com.easyfinance.bootstrap.EasyFinanceApplication;
 import com.easyfinance.expenses.application.port.out.ExpenseRepositoryPort;
+import com.easyfinance.expenses.application.query.CreditCardClosingQuery;
 import com.easyfinance.expenses.application.query.ListExpensesQuery;
 import com.easyfinance.expenses.domain.model.ExpensePaymentState;
 import com.easyfinance.expenses.domain.model.ExpenseType;
@@ -17,6 +18,8 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -265,6 +268,35 @@ class ExpensesSchemaIT {
         assertThat(allTypesPage.content()).extracting("description").containsExactlyInAnyOrder("Simple", "Installment");
         assertThat(simplePage.content()).extracting("description").containsExactly("Simple");
         assertThat(installmentPage.content()).extracting("description").containsExactly("Installment");
+    }
+
+    @Test
+    void findEligibleForClosingExcludesPaidCancelledInstallmentAndOtherPaymentMethods() {
+        var fixture = createFixture();
+        Long otherPaymentMethodId = jdbcTemplate.queryForObject(
+                "INSERT INTO payment_methods (account_id, name, normalized_name, type, status) VALUES (?, ?, ?, ?, ?) RETURNING id",
+                Long.class,
+                fixture.accountId(),
+                "Other card " + System.nanoTime(),
+                "other-card-" + System.nanoTime(),
+                "CREDIT_CARD",
+                "ACTIVE"
+        );
+        insertExpense(fixture.accountId(), fixture.categoryId(), fixture.paymentMethodId(), fixture.participantId(), "Pending", "PENDING", "ACTIVE", "SIMPLE");
+        insertExpense(fixture.accountId(), fixture.categoryId(), fixture.paymentMethodId(), fixture.participantId(), "Partial", "PARTIAL", "ACTIVE", "SIMPLE");
+        insertExpense(fixture.accountId(), fixture.categoryId(), fixture.paymentMethodId(), fixture.participantId(), "Already paid", "PAID", "ACTIVE", "SIMPLE");
+        insertExpense(fixture.accountId(), fixture.categoryId(), fixture.paymentMethodId(), fixture.participantId(), "Cancelled", "PENDING", "CANCELLED", "SIMPLE");
+        insertExpense(fixture.accountId(), fixture.categoryId(), fixture.paymentMethodId(), fixture.participantId(), "Installment", "PENDING", "ACTIVE", "INSTALLMENT");
+        insertExpense(fixture.accountId(), fixture.categoryId(), otherPaymentMethodId, fixture.participantId(), "Other card", "PENDING", "ACTIVE", "SIMPLE");
+
+        var eligible = expenseRepository.findEligibleForClosing(new CreditCardClosingQuery(
+                fixture.accountId(),
+                fixture.paymentMethodId(),
+                LocalDate.of(2026, 1, 1),
+                LocalDate.of(2026, 12, 31)
+        ));
+
+        assertThat(eligible).extracting("description").containsExactlyInAnyOrder("Pending", "Partial");
     }
 
     private Fixture createFixture() {

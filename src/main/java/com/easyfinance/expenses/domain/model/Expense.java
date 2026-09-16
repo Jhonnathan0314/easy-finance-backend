@@ -233,6 +233,14 @@ public final class Expense {
         return new Expense(id, accountId, categoryId, paymentMethodId, participantId, description, amount, expenseDate, paymentState, ExpenseStatus.CANCELLED, expenseType, sourceType, sourceDebtPaymentId, sourceDebtId, createdAt, updatedAt);
     }
 
+    public Expense changePaymentState(ExpensePaymentState newPaymentState) {
+        ensureActive();
+        if (newPaymentState == null) {
+            throw new BusinessRuleViolationException("EXPENSE_PAYMENT_STATE_REQUIRED", "Expense payment state is required.");
+        }
+        return new Expense(id, accountId, categoryId, paymentMethodId, participantId, description, amount, expenseDate, newPaymentState, status, expenseType, sourceType, sourceDebtPaymentId, sourceDebtId, createdAt, updatedAt);
+    }
+
     public void ensureActive() {
         if (status == ExpenseStatus.CANCELLED) {
             throw new BusinessRuleViolationException("EXPENSE_ALREADY_CANCELLED", "Expense is already cancelled.");
