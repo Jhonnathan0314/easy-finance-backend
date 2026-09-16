@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-easy_finance}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-easy_finance}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_PORT:-4350}:5432"
     volumes:
       - easy-finance-postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -44,7 +44,7 @@ services:
       EXPENSE_IMPORT_MAX_REQUEST_SIZE: ${EXPENSE_IMPORT_MAX_REQUEST_SIZE:-5MB}
       EXPENSE_IMPORT_MAX_ROWS: ${EXPENSE_IMPORT_MAX_ROWS:-1500}
     ports:
-      - "${APP_PORT:-8080}:8080"
+      - "${APP_PORT:-8300}:8080"
 
   frontend:
     build:
@@ -54,7 +54,7 @@ services:
       app:
         condition: service_started
     ports:
-      - "${FRONTEND_PORT:-4200}:80"
+      - "${FRONTEND_PORT:-4300}:80"
 
 volumes:
   easy-finance-postgres-data:
