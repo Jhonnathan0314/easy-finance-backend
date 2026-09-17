@@ -5,6 +5,7 @@ import com.easyfinance.shared.application.PageQuery;
 import com.easyfinance.shared.domain.BusinessRuleViolationException;
 
 import java.time.LocalDate;
+import java.util.List;
 
 public record ListIncomesQuery(
         Long accountId,
@@ -12,7 +13,7 @@ public record ListIncomesQuery(
         Integer month,
         LocalDate from,
         LocalDate to,
-        Long categoryId,
+        List<Long> categoryIds,
         Long participantId,
         IncomeStatus status,
         String search,
@@ -33,9 +34,14 @@ public record ListIncomesQuery(
             throw new BusinessRuleViolationException("INCOME_DATE_INVALID", "Date range is invalid.");
         }
         search = normalizeSearch(search);
+        categoryIds = normalizeIds(categoryIds);
     }
 
     private static String normalizeSearch(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private static List<Long> normalizeIds(List<Long> values) {
+        return values == null || values.isEmpty() ? null : values;
     }
 }

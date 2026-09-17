@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/accounts/{accountId}/incomes")
@@ -71,7 +72,7 @@ public class IncomesController {
             @RequestParam(required = false) Integer month,
             @RequestParam(required = false) LocalDate from,
             @RequestParam(required = false) LocalDate to,
-            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) List<Long> categoryIds,
             @RequestParam(required = false) Long participantId,
             @RequestParam(required = false) IncomeStatusDto status,
             @RequestParam(required = false) String search,
@@ -85,7 +86,7 @@ public class IncomesController {
                 month,
                 from,
                 to,
-                categoryId,
+                categoryIds,
                 participantId,
                 status == null ? null : IncomeStatus.valueOf(status.name()),
                 search,

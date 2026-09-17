@@ -35,6 +35,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/accounts/{accountId}/expenses")
@@ -83,8 +84,8 @@ public class ExpensesController {
             @PathVariable Long accountId,
             @RequestParam(required = false) LocalDate from,
             @RequestParam(required = false) LocalDate to,
-            @RequestParam(required = false) Long categoryId,
-            @RequestParam(required = false) Long paymentMethodId,
+            @RequestParam(required = false) List<Long> categoryIds,
+            @RequestParam(required = false) List<Long> paymentMethodIds,
             @RequestParam(required = false) Long participantId,
             @RequestParam(required = false) ExpensePaymentStateDto paymentState,
             @RequestParam(required = false) ExpenseStatusDto status,
@@ -99,8 +100,8 @@ public class ExpensesController {
                 accountId,
                 from,
                 to,
-                categoryId,
-                paymentMethodId,
+                categoryIds,
+                paymentMethodIds,
                 participantId,
                 paymentState == null ? null : ExpensePaymentState.valueOf(paymentState.name()),
                 status == null ? null : ExpenseStatus.valueOf(status.name()),

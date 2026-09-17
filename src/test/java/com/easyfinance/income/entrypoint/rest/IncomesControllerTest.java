@@ -189,6 +189,30 @@ class IncomesControllerTest {
         assertThat(captor.getValue().month()).isEqualTo(5);
     }
 
+    @Test
+    void listReceivesMultipleCategoryIds() throws Exception {
+        when(listIncomesPort.listIncomes(any())).thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0));
+
+        mockMvc.perform(get("/api/v1/accounts/1/incomes?categoryIds=2&categoryIds=4"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<ListIncomesQuery> captor = ArgumentCaptor.forClass(ListIncomesQuery.class);
+        verify(listIncomesPort).listIncomes(captor.capture());
+        assertThat(captor.getValue().categoryIds()).containsExactly(2L, 4L);
+    }
+
+    @Test
+    void listOmitsCategoryIdsByDefault() throws Exception {
+        when(listIncomesPort.listIncomes(any())).thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0));
+
+        mockMvc.perform(get("/api/v1/accounts/1/incomes"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<ListIncomesQuery> captor = ArgumentCaptor.forClass(ListIncomesQuery.class);
+        verify(listIncomesPort).listIncomes(captor.capture());
+        assertThat(captor.getValue().categoryIds()).isNull();
+    }
+
     private static IncomeResponse income() {
         return new IncomeResponse(
                 5L,

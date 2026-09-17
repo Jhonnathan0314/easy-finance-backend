@@ -20,6 +20,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -268,6 +269,69 @@ class ExpensesSchemaIT {
         assertThat(allTypesPage.content()).extracting("description").containsExactlyInAnyOrder("Simple", "Installment");
         assertThat(simplePage.content()).extracting("description").containsExactly("Simple");
         assertThat(installmentPage.content()).extracting("description").containsExactly("Installment");
+    }
+
+    @Test
+    void listExpensesCanFilterByMultipleCategoryAndPaymentMethodIds() {
+        var fixture = createFixture();
+        Long otherCategoryId = jdbcTemplate.queryForObject(
+                "INSERT INTO categories (account_id, name, normalized_name, type, status) VALUES (?, ?, ?, ?, ?) RETURNING id",
+                Long.class,
+                fixture.accountId(),
+                "Transport " + System.nanoTime(),
+                "transport-" + System.nanoTime(),
+                "EXPENSE",
+                "ACTIVE"
+        );
+        Long otherPaymentMethodId = jdbcTemplate.queryForObject(
+                "INSERT INTO payment_methods (account_id, name, normalized_name, type, status) VALUES (?, ?, ?, ?, ?) RETURNING id",
+                Long.class,
+                fixture.accountId(),
+                "Other card " + System.nanoTime(),
+                "other-card-" + System.nanoTime(),
+                "CREDIT_CARD",
+                "ACTIVE"
+        );
+        insertExpense(fixture.accountId(), fixture.categoryId(), fixture.paymentMethodId(), fixture.participantId(), "Groceries", "PAID", "ACTIVE");
+        insertExpense(fixture.accountId(), otherCategoryId, fixture.paymentMethodId(), fixture.participantId(), "Taxi", "PAID", "ACTIVE");
+        insertExpense(fixture.accountId(), fixture.categoryId(), otherPaymentMethodId, fixture.participantId(), "Groceries other card", "PAID", "ACTIVE");
+        insertExpense(fixture.accountId(), otherCategoryId, otherPaymentMethodId, fixture.participantId(), "Unrelated", "PAID", "ACTIVE");
+
+        var byCategory = expenseRepository.findAll(new ListExpensesQuery(
+                fixture.accountId(),
+                null,
+                null,
+                List.of(fixture.categoryId(), otherCategoryId),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                PageQuery.of(0, 20),
+                "expenseDate,asc"
+        ));
+        var byPaymentMethod = expenseRepository.findAll(new ListExpensesQuery(
+                fixture.accountId(),
+                null,
+                null,
+                null,
+                List.of(fixture.paymentMethodId()),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                PageQuery.of(0, 20),
+                "expenseDate,asc"
+        ));
+
+        assertThat(byCategory.content()).extracting("description")
+                .containsExactlyInAnyOrder("Groceries", "Taxi", "Groceries other card", "Unrelated");
+        assertThat(byPaymentMethod.content()).extracting("description")
+                .containsExactlyInAnyOrder("Groceries", "Taxi");
     }
 
     @Test

@@ -241,6 +241,32 @@ class ExpensesControllerTest {
     }
 
     @Test
+    void listReceivesMultipleCategoryAndPaymentMethodIds() throws Exception {
+        when(listExpensesPort.listExpenses(any())).thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0));
+
+        mockMvc.perform(get("/api/v1/accounts/1/expenses?categoryIds=2&categoryIds=4&paymentMethodIds=3&paymentMethodIds=7"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<ListExpensesQuery> captor = ArgumentCaptor.forClass(ListExpensesQuery.class);
+        verify(listExpensesPort).listExpenses(captor.capture());
+        assertThat(captor.getValue().categoryIds()).containsExactly(2L, 4L);
+        assertThat(captor.getValue().paymentMethodIds()).containsExactly(3L, 7L);
+    }
+
+    @Test
+    void listOmitsCategoryAndPaymentMethodIdsByDefault() throws Exception {
+        when(listExpensesPort.listExpenses(any())).thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0));
+
+        mockMvc.perform(get("/api/v1/accounts/1/expenses"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<ListExpensesQuery> captor = ArgumentCaptor.forClass(ListExpensesQuery.class);
+        verify(listExpensesPort).listExpenses(captor.capture());
+        assertThat(captor.getValue().categoryIds()).isNull();
+        assertThat(captor.getValue().paymentMethodIds()).isNull();
+    }
+
+    @Test
     void installmentExpenseEndpointDelegates() throws Exception {
         when(createInstallmentExpensePort.createInstallmentExpense(any())).thenReturn(installmentExpense());
 

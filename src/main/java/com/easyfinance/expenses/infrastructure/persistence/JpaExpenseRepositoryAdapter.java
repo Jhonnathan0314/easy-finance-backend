@@ -96,11 +96,11 @@ public class JpaExpenseRepositoryAdapter implements ExpenseRepositoryPort {
             if (query.to() != null) {
                 predicate = builder.and(predicate, builder.lessThanOrEqualTo(root.get("expenseDate"), query.to()));
             }
-            if (query.categoryId() != null) {
-                predicate = builder.and(predicate, builder.equal(root.get("categoryId"), query.categoryId()));
+            if (query.categoryIds() != null) {
+                predicate = builder.and(predicate, root.get("categoryId").in(query.categoryIds()));
             }
-            if (query.paymentMethodId() != null) {
-                predicate = builder.and(predicate, builder.equal(root.get("paymentMethodId"), query.paymentMethodId()));
+            if (query.paymentMethodIds() != null) {
+                predicate = builder.and(predicate, root.get("paymentMethodId").in(query.paymentMethodIds()));
             }
             if (query.participantId() != null) {
                 predicate = builder.and(predicate, builder.equal(root.get("participantId"), query.participantId()));

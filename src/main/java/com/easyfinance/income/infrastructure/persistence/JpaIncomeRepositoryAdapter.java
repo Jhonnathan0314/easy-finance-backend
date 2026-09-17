@@ -79,8 +79,8 @@ public class JpaIncomeRepositoryAdapter implements IncomeRepositoryPort {
                     predicate = builder.and(predicate, builder.lessThanOrEqualTo(root.get("incomeDate"), yearMonth.atEndOfMonth()));
                 }
             }
-            if (query.categoryId() != null) {
-                predicate = builder.and(predicate, builder.equal(root.get("categoryId"), query.categoryId()));
+            if (query.categoryIds() != null) {
+                predicate = builder.and(predicate, root.get("categoryId").in(query.categoryIds()));
             }
             if (query.participantId() != null) {
                 predicate = builder.and(predicate, builder.equal(root.get("participantId"), query.participantId()));
