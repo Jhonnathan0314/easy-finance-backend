@@ -42,9 +42,10 @@ public final class DebtPayment {
         this.debtId = requireId(debtId, "DEBT_PAYMENT_DEBT_REQUIRED", "Debt id is required.");
         this.participantId = requireId(participantId, "DEBT_PAYMENT_PARTICIPANT_REQUIRED", "Participant id is required.");
         this.paymentType = requirePaymentType(paymentType);
-        this.capitalAmount = requirePositiveAmount(capitalAmount);
-        this.interestAmount = requireNonNegativeAmount(interestAmount);
+        this.capitalAmount = requireNonNegativeAmount(capitalAmount, "DEBT_PAYMENT_AMOUNT_INVALID", "Debt payment capital amount cannot be negative and must be in COP.");
+        this.interestAmount = requireNonNegativeAmount(interestAmount, "DEBT_PAYMENT_INTEREST_AMOUNT_INVALID", "Debt payment interest amount cannot be negative and must be in COP.");
         requireNoInterestOnCapitalPayment(this.paymentType, this.interestAmount);
+        requirePositiveTotalAmount(this.capitalAmount, this.interestAmount);
         this.paymentDate = requirePaymentDate(paymentDate);
         this.notes = DebtText.normalizeNotes(notes);
         this.status = requireStatus(status);
@@ -110,18 +111,17 @@ public final class DebtPayment {
         return value;
     }
 
-    private static Money requirePositiveAmount(Money value) {
-        if (value == null || value.amount() == null || value.amount().compareTo(BigDecimal.ZERO) <= 0 || value.currency() != CurrencyCode.COP) {
-            throw new BusinessRuleViolationException("DEBT_PAYMENT_AMOUNT_INVALID", "Debt payment amount must be greater than zero in COP.");
+    private static Money requireNonNegativeAmount(Money value, String code, String message) {
+        if (value == null || value.amount() == null || value.amount().compareTo(BigDecimal.ZERO) < 0 || value.currency() != CurrencyCode.COP) {
+            throw new BusinessRuleViolationException(code, message);
         }
         return value;
     }
 
-    private static Money requireNonNegativeAmount(Money value) {
-        if (value == null || value.amount() == null || value.amount().compareTo(BigDecimal.ZERO) < 0 || value.currency() != CurrencyCode.COP) {
-            throw new BusinessRuleViolationException("DEBT_PAYMENT_INTEREST_AMOUNT_INVALID", "Debt payment interest amount cannot be negative and must be in COP.");
+    private static void requirePositiveTotalAmount(Money capitalAmount, Money interestAmount) {
+        if (capitalAmount.amount().add(interestAmount.amount()).compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessRuleViolationException("DEBT_PAYMENT_AMOUNT_INVALID", "Debt payment amount must be greater than zero.");
         }
-        return value;
     }
 
     private static void requireNoInterestOnCapitalPayment(DebtPaymentType paymentType, Money interestAmount) {

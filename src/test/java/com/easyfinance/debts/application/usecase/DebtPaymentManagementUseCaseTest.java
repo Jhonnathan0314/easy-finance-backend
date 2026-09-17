@@ -142,6 +142,57 @@ class DebtPaymentManagementUseCaseTest {
     }
 
     @Test
+    void interestOnlyPaymentDoesNotReduceRemainingBalanceButAppliesInterestToImpacts() {
+        givenMemberAccess(AccountStatus.ACTIVE, 10L);
+        Debt derivedDebt = derivedDebt(
+                Money.cop(new BigDecimal("1200000")),
+                Money.cop(new BigDecimal("1200000")),
+                Money.cop(new BigDecimal("100000")),
+                DebtState.ACTIVE
+        );
+        when(debtRepository.findByAccountIdAndIdForUpdate(1L, 5L)).thenReturn(Optional.of(derivedDebt));
+        when(paymentRepository.save(any(DebtPayment.class))).thenAnswer(invocation -> persistedPayment(invocation.getArgument(0)));
+        when(debtRepository.save(any(Debt.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        RegisterDebtPaymentCommand interestOnlyCommand = new RegisterDebtPaymentCommand(
+                1L, 5L, DebtPaymentType.INSTALLMENT,
+                Money.zeroCop(), Money.cop(new BigDecimal("15000")),
+                LocalDate.of(2026, 5, 11), "Interest only payment",
+                false, null, null, null
+        );
+
+        var response = useCase.registerDebtPayment(interestOnlyCommand);
+
+        assertThat(response.payment().capitalAmount()).isEqualByComparingTo("0.00");
+        assertThat(response.payment().interestAmount()).isEqualByComparingTo("15000.00");
+        assertThat(response.debt().remainingAmount()).isEqualByComparingTo("1200000.00");
+        assertThat(response.debt().state()).isEqualTo("ACTIVE");
+
+        ArgumentCaptor<com.easyfinance.budgets.application.command.ApplyDebtPaymentImpactCommand> impactCaptor =
+                ArgumentCaptor.forClass(com.easyfinance.budgets.application.command.ApplyDebtPaymentImpactCommand.class);
+        verify(budgetDebtImpactPort).applyDebtPaymentToImpacts(impactCaptor.capture());
+        assertThat(impactCaptor.getValue().amount().amount()).isEqualByComparingTo("15000.00");
+    }
+
+    @Test
+    void zeroCapitalAndZeroInterestPaymentFails() {
+        givenMemberAccess(AccountStatus.ACTIVE, 10L);
+        when(debtRepository.findByAccountIdAndIdForUpdate(1L, 5L)).thenReturn(Optional.of(debt(Money.cop(new BigDecimal("100000")), DebtState.ACTIVE)));
+
+        RegisterDebtPaymentCommand invalidCommand = new RegisterDebtPaymentCommand(
+                1L, 5L, DebtPaymentType.INSTALLMENT,
+                Money.zeroCop(), Money.zeroCop(),
+                LocalDate.of(2026, 5, 11), null,
+                false, null, null, null
+        );
+
+        assertThatThrownBy(() -> useCase.registerDebtPayment(invalidCommand))
+                .isInstanceOfSatisfying(BusinessRuleViolationException.class, ex -> assertThat(ex.code()).isEqualTo("DEBT_PAYMENT_AMOUNT_INVALID"));
+        verify(paymentRepository, never()).save(any());
+        verify(debtRepository, never()).save(any());
+    }
+
+    @Test
     void capitalPaymentWithInterestAmountFails() {
         givenMemberAccess(AccountStatus.ACTIVE, 10L);
         when(debtRepository.findByAccountIdAndIdForUpdate(1L, 5L)).thenReturn(Optional.of(debt(Money.cop(new BigDecimal("100000")), DebtState.ACTIVE)));

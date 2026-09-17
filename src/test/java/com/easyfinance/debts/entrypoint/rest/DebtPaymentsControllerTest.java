@@ -82,7 +82,7 @@ class DebtPaymentsControllerTest {
         mockMvc.perform(post("/api/v1/accounts/1/debts/5/payments")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"paymentType":"INSTALLMENT","capitalAmount":0,"paymentDate":"2026-05-11"}
+                                {"paymentType":"INSTALLMENT","capitalAmount":-1,"paymentDate":"2026-05-11"}
                                 """))
                 .andExpect(status().isBadRequest());
     }

@@ -9,7 +9,7 @@ import java.time.LocalDate;
 
 public record RegisterDebtPaymentRequest(
         @NotNull DebtPaymentTypeDto paymentType,
-        @NotNull @DecimalMin(value = "0.01") BigDecimal capitalAmount,
+        @NotNull @DecimalMin(value = "0.00") BigDecimal capitalAmount,
         @DecimalMin(value = "0.00") BigDecimal interestAmount,
         @NotNull LocalDate paymentDate,
         @Size(max = 1000) String notes,

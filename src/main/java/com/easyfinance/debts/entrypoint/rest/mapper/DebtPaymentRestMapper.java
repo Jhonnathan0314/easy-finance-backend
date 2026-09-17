@@ -26,8 +26,8 @@ public final class DebtPaymentRestMapper {
                 accountId,
                 debtId,
                 DebtPaymentType.valueOf(request.paymentType().name()),
-                toPositiveCop(request.capitalAmount()),
-                toNonNegativeCop(request.resolvedInterestAmount()),
+                toNonNegativeCapitalCop(request.capitalAmount()),
+                toNonNegativeInterestCop(request.resolvedInterestAmount()),
                 request.paymentDate(),
                 request.notes(),
                 request.createExpense(),
@@ -74,14 +74,14 @@ public final class DebtPaymentRestMapper {
         );
     }
 
-    private static Money toPositiveCop(BigDecimal amount) {
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BusinessRuleViolationException("DEBT_PAYMENT_AMOUNT_INVALID", "Debt payment amount must be greater than zero in COP.");
+    private static Money toNonNegativeCapitalCop(BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) < 0) {
+            throw new BusinessRuleViolationException("DEBT_PAYMENT_AMOUNT_INVALID", "Debt payment capital amount cannot be negative.");
         }
-        return Money.positive(amount, CurrencyCode.COP);
+        return Money.nonNegative(amount, CurrencyCode.COP);
     }
 
-    private static Money toNonNegativeCop(BigDecimal amount) {
+    private static Money toNonNegativeInterestCop(BigDecimal amount) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) < 0) {
             throw new BusinessRuleViolationException("DEBT_PAYMENT_INTEREST_AMOUNT_INVALID", "Debt payment interest amount cannot be negative.");
         }

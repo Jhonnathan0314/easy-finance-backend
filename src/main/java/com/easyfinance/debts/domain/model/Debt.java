@@ -150,7 +150,7 @@ public final class Debt {
 
     public Debt applyPayment(Money paymentAmount) {
         ensurePayable();
-        Money resolvedPaymentAmount = requirePositiveAmount(paymentAmount, "DEBT_PAYMENT_AMOUNT_INVALID", "Debt payment amount must be greater than zero in COP.");
+        Money resolvedPaymentAmount = requireNonNegativeAmount(paymentAmount, "DEBT_PAYMENT_AMOUNT_INVALID", "Debt payment amount cannot be negative and must be in COP.");
         if (resolvedPaymentAmount.amount().compareTo(remainingBalance.amount()) > 0) {
             throw new BusinessRuleViolationException("DEBT_PAYMENT_EXCEEDS_REMAINING_BALANCE", "Debt payment exceeds remaining balance.");
         }
@@ -241,6 +241,13 @@ public final class Debt {
 
     private static Money requirePositiveAmount(Money value, String code, String message) {
         if (value == null || value.amount() == null || value.amount().compareTo(BigDecimal.ZERO) <= 0 || value.currency() != CurrencyCode.COP) {
+            throw new BusinessRuleViolationException(code, message);
+        }
+        return value;
+    }
+
+    private static Money requireNonNegativeAmount(Money value, String code, String message) {
+        if (value == null || value.amount() == null || value.amount().compareTo(BigDecimal.ZERO) < 0 || value.currency() != CurrencyCode.COP) {
             throw new BusinessRuleViolationException(code, message);
         }
         return value;

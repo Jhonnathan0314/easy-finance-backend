@@ -33,6 +33,15 @@ class DebtPaymentTest {
     }
 
     @Test
+    void createPaymentWithOnlyInterestSucceeds() {
+        DebtPayment payment = DebtPayment.create(1L, 2L, 10L, DebtPaymentType.INSTALLMENT, Money.zeroCop(), Money.cop(new BigDecimal("20000")), LocalDate.of(2026, 5, 11), "Interest only payment");
+
+        assertThat(payment.capitalAmount().amount()).isEqualByComparingTo("0.00");
+        assertThat(payment.interestAmount().amount()).isEqualByComparingTo("20000.00");
+        assertThat(payment.amount().amount()).isEqualByComparingTo("20000.00");
+    }
+
+    @Test
     void rejectInvalidAmount() {
         assertThatThrownBy(() -> DebtPayment.create(1L, 2L, 10L, DebtPaymentType.INSTALLMENT, Money.zeroCop(), Money.zeroCop(), LocalDate.now(), null))
                 .isInstanceOfSatisfying(BusinessRuleViolationException.class, ex -> assertThat(ex.code()).isEqualTo("DEBT_PAYMENT_AMOUNT_INVALID"));
