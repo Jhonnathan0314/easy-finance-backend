@@ -5,6 +5,7 @@ import com.easyfinance.shared.domain.Money;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.UUID;
 
 public final class SubBudget {
 
@@ -19,10 +20,11 @@ public final class SubBudget {
     private final Money spentAmount;
     private final SubBudgetStatus status;
     private final SubBudgetSourceType sourceType;
+    private final UUID recurringGroupId;
     private final Instant createdAt;
     private final Instant updatedAt;
 
-    private SubBudget(Long id, Long accountId, Long budgetId, Long categoryId, Long participantId, Long debtId, String name, Money plannedAmount, Money spentAmount, SubBudgetStatus status, SubBudgetSourceType sourceType, Instant createdAt, Instant updatedAt) {
+    private SubBudget(Long id, Long accountId, Long budgetId, Long categoryId, Long participantId, Long debtId, String name, Money plannedAmount, Money spentAmount, SubBudgetStatus status, SubBudgetSourceType sourceType, UUID recurringGroupId, Instant createdAt, Instant updatedAt) {
         this.id = id;
         this.accountId = Budget.requireId(accountId, "SUB_BUDGET_ACCOUNT_REQUIRED", "Sub-budget account is required.");
         this.budgetId = Budget.requireId(budgetId, "SUB_BUDGET_BUDGET_REQUIRED", "Budget id is required.");
@@ -34,6 +36,7 @@ public final class SubBudget {
         this.plannedAmount = requireNonNegative(plannedAmount);
         this.spentAmount = requireNonNegative(spentAmount);
         this.status = status == null ? SubBudgetStatus.ACTIVE : status;
+        this.recurringGroupId = this.sourceType == SubBudgetSourceType.MANUAL ? recurringGroupId : null;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -43,7 +46,7 @@ public final class SubBudget {
     }
 
     public static SubBudget createManual(Long accountId, Long budgetId, Long categoryId, Long participantId, String name, Money plannedAmount) {
-        return new SubBudget(null, accountId, budgetId, categoryId, participantId, null, name, plannedAmount, Money.zeroCop(), SubBudgetStatus.ACTIVE, SubBudgetSourceType.MANUAL, null, null);
+        return new SubBudget(null, accountId, budgetId, categoryId, participantId, null, name, plannedAmount, Money.zeroCop(), SubBudgetStatus.ACTIVE, SubBudgetSourceType.MANUAL, null, null, null);
     }
 
     public static SubBudget createDebtDerived(Long accountId, Long budgetId, Long categoryId, Long debtId, String name, Money plannedAmount) {
@@ -51,15 +54,19 @@ public final class SubBudget {
     }
 
     public static SubBudget createDebtDerived(Long accountId, Long budgetId, Long categoryId, Long participantId, Long debtId, String name, Money plannedAmount) {
-        return new SubBudget(null, accountId, budgetId, categoryId, participantId, debtId, name, plannedAmount, Money.zeroCop(), SubBudgetStatus.ACTIVE, SubBudgetSourceType.DEBT_DERIVED, null, null);
+        return new SubBudget(null, accountId, budgetId, categoryId, participantId, debtId, name, plannedAmount, Money.zeroCop(), SubBudgetStatus.ACTIVE, SubBudgetSourceType.DEBT_DERIVED, null, null, null);
     }
 
     public static SubBudget restore(Long id, Long accountId, Long budgetId, Long categoryId, Long debtId, String name, Money plannedAmount, Money spentAmount, SubBudgetStatus status, SubBudgetSourceType sourceType, Instant createdAt, Instant updatedAt) {
-        return restore(id, accountId, budgetId, categoryId, null, debtId, name, plannedAmount, spentAmount, status, sourceType, createdAt, updatedAt);
+        return restore(id, accountId, budgetId, categoryId, null, debtId, name, plannedAmount, spentAmount, status, sourceType, null, createdAt, updatedAt);
     }
 
     public static SubBudget restore(Long id, Long accountId, Long budgetId, Long categoryId, Long participantId, Long debtId, String name, Money plannedAmount, Money spentAmount, SubBudgetStatus status, SubBudgetSourceType sourceType, Instant createdAt, Instant updatedAt) {
-        return new SubBudget(id, accountId, budgetId, categoryId, participantId, debtId, name, plannedAmount, spentAmount, status, sourceType, createdAt, updatedAt);
+        return restore(id, accountId, budgetId, categoryId, participantId, debtId, name, plannedAmount, spentAmount, status, sourceType, null, createdAt, updatedAt);
+    }
+
+    public static SubBudget restore(Long id, Long accountId, Long budgetId, Long categoryId, Long participantId, Long debtId, String name, Money plannedAmount, Money spentAmount, SubBudgetStatus status, SubBudgetSourceType sourceType, UUID recurringGroupId, Instant createdAt, Instant updatedAt) {
+        return new SubBudget(id, accountId, budgetId, categoryId, participantId, debtId, name, plannedAmount, spentAmount, status, sourceType, recurringGroupId, createdAt, updatedAt);
     }
 
     public SubBudget updateManual(Long categoryId, String name, Money plannedAmount) {
@@ -68,19 +75,24 @@ public final class SubBudget {
 
     public SubBudget updateManual(Long categoryId, Long participantId, String name, Money plannedAmount) {
         ensureManualEditable();
-        return new SubBudget(id, accountId, budgetId, categoryId, participantId, debtId, name, plannedAmount, spentAmount, status, sourceType, createdAt, updatedAt);
+        return new SubBudget(id, accountId, budgetId, categoryId, participantId, debtId, name, plannedAmount, spentAmount, status, sourceType, recurringGroupId, createdAt, updatedAt);
     }
 
     public SubBudget deactivateManual() {
         ensureManualEditable();
-        return new SubBudget(id, accountId, budgetId, categoryId, participantId, debtId, name, plannedAmount, spentAmount, SubBudgetStatus.INACTIVE, sourceType, createdAt, updatedAt);
+        return new SubBudget(id, accountId, budgetId, categoryId, participantId, debtId, name, plannedAmount, spentAmount, SubBudgetStatus.INACTIVE, sourceType, recurringGroupId, createdAt, updatedAt);
     }
 
     public SubBudget deactivateDebtDerived() {
         if (sourceType != SubBudgetSourceType.DEBT_DERIVED) {
             throw new BusinessRuleViolationException("SUB_BUDGET_SOURCE_NOT_EDITABLE", "Only debt-derived sub-budgets can be deactivated from this operation.");
         }
-        return new SubBudget(id, accountId, budgetId, categoryId, participantId, debtId, name, plannedAmount, spentAmount, SubBudgetStatus.INACTIVE, sourceType, createdAt, updatedAt);
+        return new SubBudget(id, accountId, budgetId, categoryId, participantId, debtId, name, plannedAmount, spentAmount, SubBudgetStatus.INACTIVE, sourceType, recurringGroupId, createdAt, updatedAt);
+    }
+
+    public SubBudget withRecurringGroupId(UUID recurringGroupId) {
+        ensureManualEditable();
+        return new SubBudget(id, accountId, budgetId, categoryId, participantId, debtId, name, plannedAmount, spentAmount, status, sourceType, recurringGroupId, createdAt, updatedAt);
     }
 
     public void ensureManualEditable() {
@@ -100,6 +112,7 @@ public final class SubBudget {
     public Money spentAmount() { return spentAmount; }
     public SubBudgetStatus status() { return status; }
     public SubBudgetSourceType sourceType() { return sourceType; }
+    public UUID recurringGroupId() { return recurringGroupId; }
     public Instant createdAt() { return createdAt; }
     public Instant updatedAt() { return updatedAt; }
 

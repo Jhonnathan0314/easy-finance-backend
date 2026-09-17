@@ -2,8 +2,13 @@ package com.easyfinance.budgets.entrypoint.rest;
 
 import com.easyfinance.budgets.application.port.in.CreateSubBudgetPort;
 import com.easyfinance.budgets.application.port.in.DeactivateSubBudgetPort;
+import com.easyfinance.budgets.application.port.in.SubBudgetForwardPort;
 import com.easyfinance.budgets.application.port.in.UpdateSubBudgetPort;
 import com.easyfinance.budgets.entrypoint.rest.dto.CreateSubBudgetRequest;
+import com.easyfinance.budgets.entrypoint.rest.dto.SubBudgetForwardApplyRequest;
+import com.easyfinance.budgets.entrypoint.rest.dto.SubBudgetForwardApplyResponseDto;
+import com.easyfinance.budgets.entrypoint.rest.dto.SubBudgetForwardPlanResponseDto;
+import com.easyfinance.budgets.entrypoint.rest.dto.SubBudgetForwardRequest;
 import com.easyfinance.budgets.entrypoint.rest.dto.SubBudgetResponseDto;
 import com.easyfinance.budgets.entrypoint.rest.dto.UpdateSubBudgetRequest;
 import com.easyfinance.budgets.entrypoint.rest.mapper.BudgetRestMapper;
@@ -25,11 +30,18 @@ public class SubBudgetsController {
     private final CreateSubBudgetPort createSubBudgetPort;
     private final UpdateSubBudgetPort updateSubBudgetPort;
     private final DeactivateSubBudgetPort deactivateSubBudgetPort;
+    private final SubBudgetForwardPort subBudgetForwardPort;
 
-    public SubBudgetsController(CreateSubBudgetPort createSubBudgetPort, UpdateSubBudgetPort updateSubBudgetPort, DeactivateSubBudgetPort deactivateSubBudgetPort) {
+    public SubBudgetsController(
+            CreateSubBudgetPort createSubBudgetPort,
+            UpdateSubBudgetPort updateSubBudgetPort,
+            DeactivateSubBudgetPort deactivateSubBudgetPort,
+            SubBudgetForwardPort subBudgetForwardPort
+    ) {
         this.createSubBudgetPort = createSubBudgetPort;
         this.updateSubBudgetPort = updateSubBudgetPort;
         this.deactivateSubBudgetPort = deactivateSubBudgetPort;
+        this.subBudgetForwardPort = subBudgetForwardPort;
     }
 
     @PostMapping
@@ -56,5 +68,23 @@ public class SubBudgetsController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deactivate(@PathVariable Long accountId, @PathVariable Long budgetId, @PathVariable Long subBudgetId) {
         deactivateSubBudgetPort.deactivateSubBudget(accountId, budgetId, subBudgetId);
+    }
+
+    @PostMapping("/forward-preview")
+    public SubBudgetForwardPlanResponseDto previewForward(
+            @PathVariable Long accountId,
+            @PathVariable Long budgetId,
+            @Valid @RequestBody SubBudgetForwardRequest request
+    ) {
+        return BudgetRestMapper.toDto(subBudgetForwardPort.previewSubBudgetForward(BudgetRestMapper.toPreviewCommand(accountId, budgetId, request)));
+    }
+
+    @PostMapping("/forward-apply")
+    public SubBudgetForwardApplyResponseDto applyForward(
+            @PathVariable Long accountId,
+            @PathVariable Long budgetId,
+            @Valid @RequestBody SubBudgetForwardApplyRequest request
+    ) {
+        return BudgetRestMapper.toDto(subBudgetForwardPort.applySubBudgetForward(BudgetRestMapper.toApplyCommand(accountId, budgetId, request)));
     }
 }

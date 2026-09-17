@@ -4,11 +4,14 @@ import com.easyfinance.accounts.application.service.AccountAuthorizationService;
 import com.easyfinance.accounts.application.service.AccountAccess;
 import com.easyfinance.accounts.application.service.AssignedParticipantValidator;
 import com.easyfinance.budgets.application.command.ApplyDebtPaymentImpactCommand;
+import com.easyfinance.budgets.application.command.ApplySubBudgetForwardCommand;
 import com.easyfinance.budgets.application.command.CreateAnnualBudgetCommand;
 import com.easyfinance.budgets.application.command.CreateAnnualSubBudgetBaseCommand;
 import com.easyfinance.budgets.application.command.CreateDebtBudgetImpactsCommand;
 import com.easyfinance.budgets.application.command.CreateSubBudgetCommand;
 import com.easyfinance.budgets.application.command.DuplicateBudgetCommand;
+import com.easyfinance.budgets.application.command.PreviewSubBudgetForwardCommand;
+import com.easyfinance.budgets.application.command.SubBudgetForwardAction;
 import com.easyfinance.budgets.application.command.UpdateSubBudgetCommand;
 import com.easyfinance.budgets.application.command.UpsertBudgetCommand;
 import com.easyfinance.budgets.application.port.in.BudgetDebtImpactPort;
@@ -18,6 +21,7 @@ import com.easyfinance.budgets.application.port.in.DeactivateSubBudgetPort;
 import com.easyfinance.budgets.application.port.in.DuplicateBudgetPort;
 import com.easyfinance.budgets.application.port.in.GetBudgetPort;
 import com.easyfinance.budgets.application.port.in.ListBudgetsPort;
+import com.easyfinance.budgets.application.port.in.SubBudgetForwardPort;
 import com.easyfinance.budgets.application.port.in.UpdateSubBudgetPort;
 import com.easyfinance.budgets.application.port.in.UpsertBudgetPort;
 import com.easyfinance.budgets.application.port.out.BudgetImpactRepositoryPort;
@@ -30,6 +34,11 @@ import com.easyfinance.budgets.application.response.BudgetImpactResponse;
 import com.easyfinance.budgets.application.response.BudgetResponse;
 import com.easyfinance.budgets.application.response.AnnualBudgetResponse;
 import com.easyfinance.budgets.application.response.PageResponse;
+import com.easyfinance.budgets.application.response.SubBudgetForwardApplyResponse;
+import com.easyfinance.budgets.application.response.SubBudgetForwardMonthPlan;
+import com.easyfinance.budgets.application.response.SubBudgetForwardMonthResult;
+import com.easyfinance.budgets.application.response.SubBudgetForwardMonthStatus;
+import com.easyfinance.budgets.application.response.SubBudgetForwardPlanResponse;
 import com.easyfinance.budgets.application.response.SubBudgetResponse;
 import com.easyfinance.budgets.domain.model.Budget;
 import com.easyfinance.budgets.domain.model.BudgetImpact;
@@ -60,7 +69,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -73,7 +84,8 @@ public class BudgetManagementUseCase implements
         UpdateSubBudgetPort,
         DeactivateSubBudgetPort,
         DuplicateBudgetPort,
-        BudgetDebtImpactPort {
+        BudgetDebtImpactPort,
+        SubBudgetForwardPort {
 
     private final CurrentUserProvider currentUserProvider;
     private final AccountAuthorizationService accountAuthorizationService;
@@ -243,6 +255,196 @@ public class BudgetManagementUseCase implements
         budget.ensureActive();
         SubBudget subBudget = findSubBudget(accountId, budgetId, subBudgetId);
         subBudgetRepository.save(subBudget.deactivateManual());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SubBudgetForwardPlanResponse previewSubBudgetForward(PreviewSubBudgetForwardCommand command) {
+        AccountAccess access = accountAuthorizationService.requireActiveAdminForActiveAccount(command.accountId(), currentParticipantId());
+        Long resolvedParticipantId = assignedParticipantValidator.resolveNullableAssignedParticipantId(access, command.participantId());
+        ForwardContext context = buildForwardContext(command.accountId(), command.budgetId(), command.action(), command.subBudgetId(), command.categoryId(), resolvedParticipantId, command.name(), command.plannedAmount());
+        List<SubBudgetForwardMonthPlan> months = context.entries().stream().map(entry -> toMonthPlanDto(entry, context)).toList();
+        return new SubBudgetForwardPlanResponse(months);
+    }
+
+    @Override
+    @Transactional
+    public SubBudgetForwardApplyResponse applySubBudgetForward(ApplySubBudgetForwardCommand command) {
+        AccountAccess access = accountAuthorizationService.requireActiveAdminForActiveAccount(command.accountId(), currentParticipantId());
+        Long resolvedParticipantId = assignedParticipantValidator.resolveNullableAssignedParticipantId(access, command.participantId());
+        ForwardContext context = buildForwardContext(command.accountId(), command.budgetId(), command.action(), command.subBudgetId(), command.categoryId(), resolvedParticipantId, command.name(), command.plannedAmount());
+        Set<Integer> selectedMonths = command.months() == null ? Set.of() : new HashSet<>(command.months());
+        UUID groupId = resolveGroupIdForApply(context);
+
+        List<SubBudgetForwardMonthResult> results = new ArrayList<>();
+        for (ForwardMonthEntry entry : context.entries()) {
+            boolean isSource = entry.month().equals(context.sourceBudget().month());
+            boolean included = isSource || selectedMonths.contains(entry.month());
+            results.add(included ? applyToMonth(context, entry, groupId) : new SubBudgetForwardMonthResult(entry.year(), entry.month(), "SKIPPED", "NOT_SELECTED"));
+        }
+        return new SubBudgetForwardApplyResponse(results);
+    }
+
+    private ForwardContext buildForwardContext(Long accountId, Long budgetId, SubBudgetForwardAction action, Long subBudgetId, Long categoryId, Long participantId, String name, Money plannedAmount) {
+        Budget sourceBudget = findBudget(accountId, budgetId);
+        sourceBudget.ensureActive();
+
+        SubBudget sourceSubBudget = null;
+        if (action != SubBudgetForwardAction.CREATE) {
+            if (subBudgetId == null) {
+                throw new BusinessRuleViolationException("SUB_BUDGET_NOT_FOUND", "Sub-budget was not found.");
+            }
+            sourceSubBudget = findSubBudget(accountId, budgetId, subBudgetId);
+            sourceSubBudget.ensureManualEditable();
+        }
+
+        String normalizedName = name == null ? null : name.trim();
+        validateProposedPayload(action, normalizedName, plannedAmount);
+        if (action != SubBudgetForwardAction.DELETE) {
+            validateActiveCategory(accountId, categoryId);
+        }
+
+        UUID groupId = sourceSubBudget == null ? null : sourceSubBudget.recurringGroupId();
+        Long matchCategoryId = sourceSubBudget != null ? sourceSubBudget.categoryId() : categoryId;
+        Long matchParticipantId = sourceSubBudget != null ? sourceSubBudget.participantId() : participantId;
+        String matchName = sourceSubBudget != null ? sourceSubBudget.name() : normalizedName;
+
+        List<ForwardMonthEntry> entries = new ArrayList<>();
+        entries.add(new ForwardMonthEntry(sourceBudget.year(), sourceBudget.month(), sourceBudget, sourceSubBudget, sourceStatus(action)));
+
+        for (int month = sourceBudget.month() + 1; month <= 12; month++) {
+            Optional<Budget> monthBudgetOpt = budgetRepository.findByAccountIdAndYearAndMonth(accountId, sourceBudget.year(), month);
+            if (monthBudgetOpt.isEmpty()) {
+                entries.add(new ForwardMonthEntry(sourceBudget.year(), month, null, null, SubBudgetForwardMonthStatus.SKIPPED_NO_BUDGET));
+                continue;
+            }
+            Budget monthBudget = monthBudgetOpt.get();
+            if (monthBudget.status() != BudgetStatus.ACTIVE) {
+                entries.add(new ForwardMonthEntry(sourceBudget.year(), month, monthBudget, null, SubBudgetForwardMonthStatus.SKIPPED_CLOSED));
+                continue;
+            }
+            SubBudget matched = groupId == null
+                    ? null
+                    : subBudgetRepository.findActiveByAccountIdAndBudgetIdAndRecurringGroupId(accountId, monthBudget.id(), groupId).orElse(null);
+            if (matched == null) {
+                matched = subBudgetRepository.findManualActiveByAccountIdAndBudgetIdAndCategoryIdAndParticipantIdAndName(
+                        accountId, monthBudget.id(), matchCategoryId, matchParticipantId, matchName
+                ).orElse(null);
+            }
+            SubBudgetForwardMonthStatus status = resolveStatus(action, matched, categoryId, participantId, normalizedName, plannedAmount);
+            entries.add(new ForwardMonthEntry(sourceBudget.year(), month, monthBudget, matched, status));
+        }
+
+        return new ForwardContext(accountId, action, sourceBudget, sourceSubBudget, categoryId, participantId, normalizedName, plannedAmount, entries);
+    }
+
+    private SubBudgetForwardMonthStatus resolveStatus(SubBudgetForwardAction action, SubBudget matched, Long proposedCategoryId, Long proposedParticipantId, String proposedName, Money proposedPlannedAmount) {
+        if (action == SubBudgetForwardAction.DELETE) {
+            return matched == null ? SubBudgetForwardMonthStatus.NO_CHANGE : SubBudgetForwardMonthStatus.WILL_DEACTIVATE;
+        }
+        if (matched == null) {
+            return SubBudgetForwardMonthStatus.WILL_CREATE;
+        }
+        boolean sameValues = Objects.equals(matched.categoryId(), proposedCategoryId)
+                && Objects.equals(matched.participantId(), proposedParticipantId)
+                && Objects.equals(matched.name(), proposedName)
+                && matched.plannedAmount().amount().compareTo(proposedPlannedAmount.amount()) == 0;
+        return sameValues ? SubBudgetForwardMonthStatus.WILL_UPDATE : SubBudgetForwardMonthStatus.DIVERGES;
+    }
+
+    private SubBudgetForwardMonthStatus sourceStatus(SubBudgetForwardAction action) {
+        return switch (action) {
+            case CREATE -> SubBudgetForwardMonthStatus.WILL_CREATE;
+            case UPDATE -> SubBudgetForwardMonthStatus.WILL_UPDATE;
+            case DELETE -> SubBudgetForwardMonthStatus.WILL_DEACTIVATE;
+        };
+    }
+
+    private void validateProposedPayload(SubBudgetForwardAction action, String name, Money plannedAmount) {
+        if (action == SubBudgetForwardAction.DELETE) {
+            return;
+        }
+        if (name == null || name.isBlank()) {
+            throw new BusinessRuleViolationException("SUB_BUDGET_NAME_REQUIRED", "Sub-budget name is required.");
+        }
+        if (plannedAmount == null) {
+            throw new BusinessRuleViolationException("SUB_BUDGET_AMOUNT_INVALID", "Sub-budget amount cannot be negative.");
+        }
+    }
+
+    private UUID resolveGroupIdForApply(ForwardContext context) {
+        if (context.action() == SubBudgetForwardAction.DELETE) {
+            return null;
+        }
+        if (context.sourceSubBudget() != null && context.sourceSubBudget().recurringGroupId() != null) {
+            return context.sourceSubBudget().recurringGroupId();
+        }
+        return UUID.randomUUID();
+    }
+
+    private SubBudgetForwardMonthResult applyToMonth(ForwardContext context, ForwardMonthEntry entry, UUID groupId) {
+        return switch (entry.status()) {
+            case SKIPPED_CLOSED -> new SubBudgetForwardMonthResult(entry.year(), entry.month(), "SKIPPED", "BUDGET_CLOSED");
+            case SKIPPED_NO_BUDGET -> new SubBudgetForwardMonthResult(entry.year(), entry.month(), "SKIPPED", "BUDGET_NOT_FOUND");
+            case NO_CHANGE -> new SubBudgetForwardMonthResult(entry.year(), entry.month(), "SKIPPED", "NO_CHANGE");
+            case WILL_CREATE -> {
+                SubBudget created = SubBudget.createManual(
+                        context.accountId(), entry.budget().id(), context.proposedCategoryId(), context.proposedParticipantId(), context.proposedName(), context.proposedPlannedAmount()
+                ).withRecurringGroupId(groupId);
+                subBudgetRepository.save(created);
+                yield new SubBudgetForwardMonthResult(entry.year(), entry.month(), "APPLIED", null);
+            }
+            case WILL_UPDATE, DIVERGES -> {
+                SubBudget updated = entry.current().updateManual(context.proposedCategoryId(), context.proposedParticipantId(), context.proposedName(), context.proposedPlannedAmount());
+                if (!Objects.equals(updated.recurringGroupId(), groupId)) {
+                    updated = updated.withRecurringGroupId(groupId);
+                }
+                subBudgetRepository.save(updated);
+                yield new SubBudgetForwardMonthResult(entry.year(), entry.month(), "APPLIED", null);
+            }
+            case WILL_DEACTIVATE -> {
+                subBudgetRepository.save(entry.current().deactivateManual());
+                yield new SubBudgetForwardMonthResult(entry.year(), entry.month(), "APPLIED", null);
+            }
+        };
+    }
+
+    private SubBudgetForwardMonthPlan toMonthPlanDto(ForwardMonthEntry entry, ForwardContext context) {
+        SubBudget current = entry.current();
+        boolean showProposed = context.action() != SubBudgetForwardAction.DELETE
+                && entry.status() != SubBudgetForwardMonthStatus.SKIPPED_CLOSED
+                && entry.status() != SubBudgetForwardMonthStatus.SKIPPED_NO_BUDGET;
+        return new SubBudgetForwardMonthPlan(
+                entry.year(),
+                entry.month(),
+                entry.budget() == null ? null : entry.budget().id(),
+                entry.status(),
+                current == null ? null : current.id(),
+                current == null ? null : current.name(),
+                current == null ? null : current.categoryId(),
+                current == null ? null : current.participantId(),
+                current == null ? null : current.plannedAmount().amount(),
+                showProposed ? context.proposedName() : null,
+                showProposed ? context.proposedCategoryId() : null,
+                showProposed ? context.proposedParticipantId() : null,
+                showProposed && context.proposedPlannedAmount() != null ? context.proposedPlannedAmount().amount() : null
+        );
+    }
+
+    private record ForwardContext(
+            Long accountId,
+            SubBudgetForwardAction action,
+            Budget sourceBudget,
+            SubBudget sourceSubBudget,
+            Long proposedCategoryId,
+            Long proposedParticipantId,
+            String proposedName,
+            Money proposedPlannedAmount,
+            List<ForwardMonthEntry> entries
+    ) {
+    }
+
+    private record ForwardMonthEntry(Integer year, Integer month, Budget budget, SubBudget current, SubBudgetForwardMonthStatus status) {
     }
 
     @Override

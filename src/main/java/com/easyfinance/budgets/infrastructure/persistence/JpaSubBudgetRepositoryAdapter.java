@@ -12,6 +12,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public class JpaSubBudgetRepositoryAdapter implements SubBudgetRepositoryPort {
@@ -60,5 +61,17 @@ public class JpaSubBudgetRepositoryAdapter implements SubBudgetRepositoryPort {
     @Override
     public List<SubBudget> findByAccountIdAndBudgetId(Long accountId, Long budgetId) {
         return repository.findByAccountIdAndBudgetIdOrderByIdAsc(accountId, budgetId).stream().map(mapper::toDomain).toList();
+    }
+
+    @Override
+    public Optional<SubBudget> findActiveByAccountIdAndBudgetIdAndRecurringGroupId(Long accountId, Long budgetId, UUID recurringGroupId) {
+        return repository.findByAccountIdAndBudgetIdAndRecurringGroupIdAndStatus(accountId, budgetId, recurringGroupId, SubBudgetStatusJpa.ACTIVE).map(mapper::toDomain);
+    }
+
+    @Override
+    public Optional<SubBudget> findManualActiveByAccountIdAndBudgetIdAndCategoryIdAndParticipantIdAndName(Long accountId, Long budgetId, Long categoryId, Long participantId, String name) {
+        return repository.findByAccountIdAndBudgetIdAndSourceTypeAndStatusAndCategoryIdAndParticipantIdAndName(
+                accountId, budgetId, SubBudgetSourceTypeJpa.MANUAL, SubBudgetStatusJpa.ACTIVE, categoryId, participantId, name
+        ).map(mapper::toDomain);
     }
 }

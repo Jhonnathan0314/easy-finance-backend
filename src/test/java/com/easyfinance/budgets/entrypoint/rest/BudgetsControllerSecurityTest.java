@@ -6,6 +6,7 @@ import com.easyfinance.budgets.application.port.in.DeactivateSubBudgetPort;
 import com.easyfinance.budgets.application.port.in.DuplicateBudgetPort;
 import com.easyfinance.budgets.application.port.in.GetBudgetPort;
 import com.easyfinance.budgets.application.port.in.ListBudgetsPort;
+import com.easyfinance.budgets.application.port.in.SubBudgetForwardPort;
 import com.easyfinance.budgets.application.port.in.UpdateSubBudgetPort;
 import com.easyfinance.budgets.application.port.in.UpsertBudgetPort;
 import com.easyfinance.shared.infrastructure.security.JwtAuthenticationException;
@@ -107,6 +108,7 @@ class BudgetsControllerSecurityTest {
         @Bean CreateSubBudgetPort createSubBudgetPort() { return mock(CreateSubBudgetPort.class); }
         @Bean UpdateSubBudgetPort updateSubBudgetPort() { return mock(UpdateSubBudgetPort.class); }
         @Bean DeactivateSubBudgetPort deactivateSubBudgetPort() { return mock(DeactivateSubBudgetPort.class); }
+        @Bean SubBudgetForwardPort subBudgetForwardPort() { return mock(SubBudgetForwardPort.class); }
         @Bean JwtTokenService jwtTokenService() { return mock(JwtTokenService.class); }
         @Bean ObjectMapper objectMapper() { return new ObjectMapper().findAndRegisterModules(); }
     }

@@ -10,17 +10,22 @@ import com.easyfinance.accounts.domain.model.AccountParticipantRole;
 import com.easyfinance.accounts.domain.model.AccountParticipantStatus;
 import com.easyfinance.accounts.domain.model.AccountStatus;
 import com.easyfinance.budgets.application.command.ApplyDebtPaymentImpactCommand;
+import com.easyfinance.budgets.application.command.ApplySubBudgetForwardCommand;
 import com.easyfinance.budgets.application.command.CreateAnnualBudgetCommand;
 import com.easyfinance.budgets.application.command.CreateAnnualSubBudgetBaseCommand;
 import com.easyfinance.budgets.application.command.CreateDebtBudgetImpactsCommand;
 import com.easyfinance.budgets.application.command.CreateSubBudgetCommand;
 import com.easyfinance.budgets.application.command.DuplicateBudgetCommand;
+import com.easyfinance.budgets.application.command.PreviewSubBudgetForwardCommand;
+import com.easyfinance.budgets.application.command.SubBudgetForwardAction;
 import com.easyfinance.budgets.application.command.UpdateSubBudgetCommand;
 import com.easyfinance.budgets.application.command.UpsertBudgetCommand;
 import com.easyfinance.budgets.application.port.out.BudgetImpactRepositoryPort;
 import com.easyfinance.budgets.application.port.out.BudgetExpenseExecutionQueryPort;
 import com.easyfinance.budgets.application.port.out.BudgetRepositoryPort;
 import com.easyfinance.budgets.application.port.out.SubBudgetRepositoryPort;
+import com.easyfinance.budgets.application.response.SubBudgetForwardMonthPlan;
+import com.easyfinance.budgets.application.response.SubBudgetForwardMonthStatus;
 import com.easyfinance.budgets.domain.model.Budget;
 import com.easyfinance.budgets.domain.model.BudgetImpact;
 import com.easyfinance.budgets.domain.model.BudgetImpactStatus;
@@ -49,6 +54,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -338,6 +344,139 @@ class BudgetManagementUseCaseTest {
 
         assertThat(response.participantId()).isEqualTo(20L);
         assertThat(response.plannedAmount()).isEqualByComparingTo("120000.00");
+    }
+
+    @Test
+    void previewCreateForwardDetectsExistingUpdateAndDivergentMonths() {
+        givenAccess(AccountParticipantRole.ACCOUNT_ADMIN, AccountStatus.ACTIVE);
+        when(budgetRepository.findByAccountIdAndId(1L, 50L)).thenReturn(Optional.of(persistedBudget(Budget.create(1L, 2026, 5, "May"), 50L)));
+        when(catalogValidationPort.findCategoryForValidation(1L, 7L)).thenReturn(Optional.of(new CategoryValidationView(7L, 1L, CategoryType.EXPENSE, CatalogStatus.ACTIVE)));
+        for (int month = 6; month <= 9; month++) {
+            when(budgetRepository.findByAccountIdAndYearAndMonth(1L, 2026, month)).thenReturn(Optional.of(persistedBudget(Budget.create(1L, 2026, month, "M" + month), 45L + month)));
+        }
+        when(budgetRepository.findByAccountIdAndYearAndMonth(1L, 2026, 10)).thenReturn(Optional.of(persistedBudget(Budget.create(1L, 2026, 10, "M10").update(null, BudgetStatus.CLOSED), 55L)));
+        when(budgetRepository.findByAccountIdAndYearAndMonth(1L, 2026, 11)).thenReturn(Optional.empty());
+        when(budgetRepository.findByAccountIdAndYearAndMonth(1L, 2026, 12)).thenReturn(Optional.of(persistedBudget(Budget.create(1L, 2026, 12, "M12"), 57L)));
+        SubBudget matchingExisting = SubBudget.restore(80L, 1L, 51L, 7L, null, null, "Mercado", Money.cop(new BigDecimal("50000")), Money.zeroCop(), SubBudgetStatus.ACTIVE, SubBudgetSourceType.MANUAL, Instant.now(), Instant.now());
+        SubBudget divergentExisting = SubBudget.restore(81L, 1L, 52L, 7L, null, null, "Mercado", Money.cop(new BigDecimal("70000")), Money.zeroCop(), SubBudgetStatus.ACTIVE, SubBudgetSourceType.MANUAL, Instant.now(), Instant.now());
+        when(subBudgetRepository.findManualActiveByAccountIdAndBudgetIdAndCategoryIdAndParticipantIdAndName(any(), any(), any(), any(), any())).thenReturn(Optional.empty());
+        when(subBudgetRepository.findManualActiveByAccountIdAndBudgetIdAndCategoryIdAndParticipantIdAndName(1L, 51L, 7L, null, "Mercado")).thenReturn(Optional.of(matchingExisting));
+        when(subBudgetRepository.findManualActiveByAccountIdAndBudgetIdAndCategoryIdAndParticipantIdAndName(1L, 52L, 7L, null, "Mercado")).thenReturn(Optional.of(divergentExisting));
+
+        var plan = useCase.previewSubBudgetForward(new PreviewSubBudgetForwardCommand(1L, 50L, SubBudgetForwardAction.CREATE, null, 7L, null, "Mercado", Money.cop(new BigDecimal("50000"))));
+
+        Map<Integer, SubBudgetForwardMonthPlan> byMonth = plan.months().stream().collect(java.util.stream.Collectors.toMap(SubBudgetForwardMonthPlan::month, m -> m));
+        assertThat(byMonth).hasSize(8);
+        assertThat(byMonth.get(5).status()).isEqualTo(SubBudgetForwardMonthStatus.WILL_CREATE);
+        assertThat(byMonth.get(6).status()).isEqualTo(SubBudgetForwardMonthStatus.WILL_UPDATE);
+        assertThat(byMonth.get(7).status()).isEqualTo(SubBudgetForwardMonthStatus.DIVERGES);
+        assertThat(byMonth.get(7).currentPlannedAmount()).isEqualByComparingTo("70000.00");
+        assertThat(byMonth.get(8).status()).isEqualTo(SubBudgetForwardMonthStatus.WILL_CREATE);
+        assertThat(byMonth.get(9).status()).isEqualTo(SubBudgetForwardMonthStatus.WILL_CREATE);
+        assertThat(byMonth.get(10).status()).isEqualTo(SubBudgetForwardMonthStatus.SKIPPED_CLOSED);
+        assertThat(byMonth.get(11).status()).isEqualTo(SubBudgetForwardMonthStatus.SKIPPED_NO_BUDGET);
+        assertThat(byMonth.get(12).status()).isEqualTo(SubBudgetForwardMonthStatus.WILL_CREATE);
+    }
+
+    @Test
+    void applyCreateForwardOnlyTouchesSelectedMonthsAndSharesGroupId() {
+        givenAccess(AccountParticipantRole.ACCOUNT_ADMIN, AccountStatus.ACTIVE);
+        when(budgetRepository.findByAccountIdAndId(1L, 50L)).thenReturn(Optional.of(persistedBudget(Budget.create(1L, 2026, 5, "May"), 50L)));
+        when(catalogValidationPort.findCategoryForValidation(1L, 7L)).thenReturn(Optional.of(new CategoryValidationView(7L, 1L, CategoryType.EXPENSE, CatalogStatus.ACTIVE)));
+        for (int month = 6; month <= 8; month++) {
+            when(budgetRepository.findByAccountIdAndYearAndMonth(1L, 2026, month)).thenReturn(Optional.of(persistedBudget(Budget.create(1L, 2026, month, "M" + month), 45L + month)));
+        }
+        when(budgetRepository.findByAccountIdAndYearAndMonth(1L, 2026, 9)).thenReturn(Optional.empty());
+        when(budgetRepository.findByAccountIdAndYearAndMonth(1L, 2026, 10)).thenReturn(Optional.empty());
+        when(budgetRepository.findByAccountIdAndYearAndMonth(1L, 2026, 11)).thenReturn(Optional.empty());
+        when(budgetRepository.findByAccountIdAndYearAndMonth(1L, 2026, 12)).thenReturn(Optional.empty());
+        when(subBudgetRepository.findManualActiveByAccountIdAndBudgetIdAndCategoryIdAndParticipantIdAndName(any(), any(), any(), any(), any())).thenReturn(Optional.empty());
+        when(subBudgetRepository.save(any(SubBudget.class))).thenAnswer(invocation -> persistedSubBudget(invocation.getArgument(0), 900L + invocation.<SubBudget>getArgument(0).budgetId()));
+
+        var response = useCase.applySubBudgetForward(new ApplySubBudgetForwardCommand(1L, 50L, SubBudgetForwardAction.CREATE, null, 7L, null, "Mercado", Money.cop(new BigDecimal("50000")), List.of(6, 7)));
+
+        ArgumentCaptor<SubBudget> savedCaptor = ArgumentCaptor.forClass(SubBudget.class);
+        verify(subBudgetRepository, times(3)).save(savedCaptor.capture());
+        List<SubBudget> saved = savedCaptor.getAllValues();
+        assertThat(saved).extracting(SubBudget::budgetId).containsExactlyInAnyOrder(50L, 51L, 52L);
+        assertThat(saved).extracting(SubBudget::recurringGroupId).doesNotContainNull();
+        assertThat(saved.stream().map(SubBudget::recurringGroupId).distinct()).hasSize(1);
+
+        assertThat(response.months().stream().filter(m -> m.month() == 8).findFirst().orElseThrow().outcome()).isEqualTo("SKIPPED");
+        assertThat(response.months().stream().filter(m -> m.month() == 8).findFirst().orElseThrow().reason()).isEqualTo("NOT_SELECTED");
+    }
+
+    @Test
+    void applyUpdateForwardAdoptsLegacyMatchIntoNewGroup() {
+        givenAccess(AccountParticipantRole.ACCOUNT_ADMIN, AccountStatus.ACTIVE);
+        SubBudget source = SubBudget.restore(70L, 1L, 50L, 7L, null, null, "Mercado", Money.cop(new BigDecimal("50000")), Money.zeroCop(), SubBudgetStatus.ACTIVE, SubBudgetSourceType.MANUAL, Instant.now(), Instant.now());
+        when(budgetRepository.findByAccountIdAndId(1L, 50L)).thenReturn(Optional.of(persistedBudget(Budget.create(1L, 2026, 5, "May"), 50L)));
+        when(subBudgetRepository.findByAccountIdAndBudgetIdAndId(1L, 50L, 70L)).thenReturn(Optional.of(source));
+        when(catalogValidationPort.findCategoryForValidation(1L, 7L)).thenReturn(Optional.of(new CategoryValidationView(7L, 1L, CategoryType.EXPENSE, CatalogStatus.ACTIVE)));
+        when(budgetRepository.findByAccountIdAndYearAndMonth(1L, 2026, 6)).thenReturn(Optional.of(persistedBudget(Budget.create(1L, 2026, 6, "June"), 51L)));
+        for (int month = 7; month <= 12; month++) {
+            when(budgetRepository.findByAccountIdAndYearAndMonth(1L, 2026, month)).thenReturn(Optional.empty());
+        }
+        SubBudget legacyMatch = SubBudget.restore(80L, 1L, 51L, 7L, null, null, "Mercado", Money.cop(new BigDecimal("50000")), Money.zeroCop(), SubBudgetStatus.ACTIVE, SubBudgetSourceType.MANUAL, Instant.now(), Instant.now());
+        when(subBudgetRepository.findManualActiveByAccountIdAndBudgetIdAndCategoryIdAndParticipantIdAndName(1L, 51L, 7L, null, "Mercado")).thenReturn(Optional.of(legacyMatch));
+        when(subBudgetRepository.save(any(SubBudget.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        useCase.applySubBudgetForward(new ApplySubBudgetForwardCommand(1L, 50L, SubBudgetForwardAction.UPDATE, 70L, 7L, null, "Mercado", Money.cop(new BigDecimal("60000")), List.of(6)));
+
+        ArgumentCaptor<SubBudget> savedCaptor = ArgumentCaptor.forClass(SubBudget.class);
+        verify(subBudgetRepository, times(2)).save(savedCaptor.capture());
+        List<SubBudget> saved = savedCaptor.getAllValues();
+        assertThat(saved).extracting(SubBudget::id).containsExactlyInAnyOrder(70L, 80L);
+        assertThat(saved).allMatch(subBudget -> subBudget.plannedAmount().amount().compareTo(new BigDecimal("60000")) == 0);
+        assertThat(saved).extracting(SubBudget::recurringGroupId).doesNotContainNull();
+        assertThat(saved.stream().map(SubBudget::recurringGroupId).distinct()).hasSize(1);
+    }
+
+    @Test
+    void applyDeleteForwardDeactivatesMatchesAndSkipsMonthsWithNoChange() {
+        givenAccess(AccountParticipantRole.ACCOUNT_ADMIN, AccountStatus.ACTIVE);
+        SubBudget source = SubBudget.restore(70L, 1L, 50L, 7L, null, null, "Mercado", Money.cop(new BigDecimal("50000")), Money.zeroCop(), SubBudgetStatus.ACTIVE, SubBudgetSourceType.MANUAL, Instant.now(), Instant.now());
+        when(budgetRepository.findByAccountIdAndId(1L, 50L)).thenReturn(Optional.of(persistedBudget(Budget.create(1L, 2026, 5, "May"), 50L)));
+        when(subBudgetRepository.findByAccountIdAndBudgetIdAndId(1L, 50L, 70L)).thenReturn(Optional.of(source));
+        when(budgetRepository.findByAccountIdAndYearAndMonth(1L, 2026, 6)).thenReturn(Optional.of(persistedBudget(Budget.create(1L, 2026, 6, "June"), 51L)));
+        when(budgetRepository.findByAccountIdAndYearAndMonth(1L, 2026, 7)).thenReturn(Optional.of(persistedBudget(Budget.create(1L, 2026, 7, "July"), 52L)));
+        for (int month = 8; month <= 12; month++) {
+            when(budgetRepository.findByAccountIdAndYearAndMonth(1L, 2026, month)).thenReturn(Optional.empty());
+        }
+        SubBudget matchInJune = SubBudget.restore(80L, 1L, 51L, 7L, null, null, "Mercado", Money.cop(new BigDecimal("50000")), Money.zeroCop(), SubBudgetStatus.ACTIVE, SubBudgetSourceType.MANUAL, Instant.now(), Instant.now());
+        when(subBudgetRepository.findManualActiveByAccountIdAndBudgetIdAndCategoryIdAndParticipantIdAndName(1L, 51L, 7L, null, "Mercado")).thenReturn(Optional.of(matchInJune));
+        when(subBudgetRepository.findManualActiveByAccountIdAndBudgetIdAndCategoryIdAndParticipantIdAndName(1L, 52L, 7L, null, "Mercado")).thenReturn(Optional.empty());
+        when(subBudgetRepository.save(any(SubBudget.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = useCase.applySubBudgetForward(new ApplySubBudgetForwardCommand(1L, 50L, SubBudgetForwardAction.DELETE, 70L, null, null, null, null, List.of(6, 7)));
+
+        ArgumentCaptor<SubBudget> savedCaptor = ArgumentCaptor.forClass(SubBudget.class);
+        verify(subBudgetRepository, times(2)).save(savedCaptor.capture());
+        assertThat(savedCaptor.getAllValues()).extracting(SubBudget::id).containsExactlyInAnyOrder(70L, 80L);
+        assertThat(savedCaptor.getAllValues()).allMatch(subBudget -> subBudget.status() == SubBudgetStatus.INACTIVE);
+        assertThat(response.months().stream().filter(m -> m.month() == 7).findFirst().orElseThrow().outcome()).isEqualTo("SKIPPED");
+        assertThat(response.months().stream().filter(m -> m.month() == 7).findFirst().orElseThrow().reason()).isEqualTo("NO_CHANGE");
+    }
+
+    @Test
+    void forwardActionsRejectDebtDerivedSourceSubBudget() {
+        givenAccess(AccountParticipantRole.ACCOUNT_ADMIN, AccountStatus.ACTIVE);
+        SubBudget derived = SubBudget.restore(70L, 1L, 50L, 7L, null, 5L, "Debt: Laptop", Money.cop(new BigDecimal("50000")), Money.zeroCop(), SubBudgetStatus.ACTIVE, SubBudgetSourceType.DEBT_DERIVED, Instant.now(), Instant.now());
+        when(budgetRepository.findByAccountIdAndId(1L, 50L)).thenReturn(Optional.of(persistedBudget(Budget.create(1L, 2026, 5, "May"), 50L)));
+        when(subBudgetRepository.findByAccountIdAndBudgetIdAndId(1L, 50L, 70L)).thenReturn(Optional.of(derived));
+
+        assertThatThrownBy(() -> useCase.previewSubBudgetForward(new PreviewSubBudgetForwardCommand(1L, 50L, SubBudgetForwardAction.DELETE, 70L, null, null, null, null)))
+                .isInstanceOfSatisfying(BusinessRuleViolationException.class, ex -> assertThat(ex.code()).isEqualTo("SUB_BUDGET_SOURCE_NOT_EDITABLE"));
+    }
+
+    @Test
+    void memberCannotPreviewOrApplyForward() {
+        givenAccess(AccountParticipantRole.ACCOUNT_MEMBER, AccountStatus.ACTIVE);
+
+        assertThatThrownBy(() -> useCase.previewSubBudgetForward(new PreviewSubBudgetForwardCommand(1L, 50L, SubBudgetForwardAction.CREATE, null, 7L, null, "Mercado", Money.cop(new BigDecimal("50000")))))
+                .isInstanceOf(ForbiddenOperationException.class);
+        assertThatThrownBy(() -> useCase.applySubBudgetForward(new ApplySubBudgetForwardCommand(1L, 50L, SubBudgetForwardAction.CREATE, null, 7L, null, "Mercado", Money.cop(new BigDecimal("50000")), List.of())))
+                .isInstanceOf(ForbiddenOperationException.class);
     }
 
     @Test

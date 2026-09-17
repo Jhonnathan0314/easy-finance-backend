@@ -1,9 +1,12 @@
 package com.easyfinance.budgets.entrypoint.rest.mapper;
 
+import com.easyfinance.budgets.application.command.ApplySubBudgetForwardCommand;
 import com.easyfinance.budgets.application.command.CreateSubBudgetCommand;
 import com.easyfinance.budgets.application.command.CreateAnnualBudgetCommand;
 import com.easyfinance.budgets.application.command.CreateAnnualSubBudgetBaseCommand;
 import com.easyfinance.budgets.application.command.DuplicateBudgetCommand;
+import com.easyfinance.budgets.application.command.PreviewSubBudgetForwardCommand;
+import com.easyfinance.budgets.application.command.SubBudgetForwardAction;
 import com.easyfinance.budgets.application.command.UpdateSubBudgetCommand;
 import com.easyfinance.budgets.application.command.UpsertBudgetCommand;
 import com.easyfinance.budgets.application.response.BudgetDetailResponse;
@@ -11,6 +14,10 @@ import com.easyfinance.budgets.application.response.BudgetImpactResponse;
 import com.easyfinance.budgets.application.response.BudgetResponse;
 import com.easyfinance.budgets.application.response.AnnualBudgetResponse;
 import com.easyfinance.budgets.application.response.PageResponse;
+import com.easyfinance.budgets.application.response.SubBudgetForwardApplyResponse;
+import com.easyfinance.budgets.application.response.SubBudgetForwardMonthPlan;
+import com.easyfinance.budgets.application.response.SubBudgetForwardMonthResult;
+import com.easyfinance.budgets.application.response.SubBudgetForwardPlanResponse;
 import com.easyfinance.budgets.application.response.SubBudgetResponse;
 import com.easyfinance.budgets.domain.model.BudgetStatus;
 import com.easyfinance.budgets.entrypoint.rest.dto.BudgetDetailResponseDto;
@@ -22,11 +29,18 @@ import com.easyfinance.budgets.entrypoint.rest.dto.CreateAnnualSubBudgetBaseRequ
 import com.easyfinance.budgets.entrypoint.rest.dto.CreateSubBudgetRequest;
 import com.easyfinance.budgets.entrypoint.rest.dto.DuplicateBudgetRequest;
 import com.easyfinance.budgets.entrypoint.rest.dto.PageResponseDto;
+import com.easyfinance.budgets.entrypoint.rest.dto.SubBudgetForwardApplyRequest;
+import com.easyfinance.budgets.entrypoint.rest.dto.SubBudgetForwardApplyResponseDto;
+import com.easyfinance.budgets.entrypoint.rest.dto.SubBudgetForwardMonthPlanDto;
+import com.easyfinance.budgets.entrypoint.rest.dto.SubBudgetForwardMonthResultDto;
+import com.easyfinance.budgets.entrypoint.rest.dto.SubBudgetForwardPlanResponseDto;
+import com.easyfinance.budgets.entrypoint.rest.dto.SubBudgetForwardRequest;
 import com.easyfinance.budgets.entrypoint.rest.dto.SubBudgetResponseDto;
 import com.easyfinance.budgets.entrypoint.rest.dto.UpdateSubBudgetRequest;
 import com.easyfinance.budgets.entrypoint.rest.dto.UpsertBudgetRequest;
 import com.easyfinance.shared.domain.Money;
 
+import java.util.List;
 import java.util.function.Function;
 
 public final class BudgetRestMapper {
@@ -79,6 +93,33 @@ public final class BudgetRestMapper {
 
     public static UpdateSubBudgetCommand toCommand(Long accountId, Long budgetId, Long subBudgetId, UpdateSubBudgetRequest request) {
         return new UpdateSubBudgetCommand(accountId, budgetId, subBudgetId, request.categoryId(), request.participantId(), request.name(), Money.cop(request.plannedAmount()));
+    }
+
+    public static PreviewSubBudgetForwardCommand toPreviewCommand(Long accountId, Long budgetId, SubBudgetForwardRequest request) {
+        return new PreviewSubBudgetForwardCommand(
+                accountId,
+                budgetId,
+                SubBudgetForwardAction.valueOf(request.action().name()),
+                request.subBudgetId(),
+                request.categoryId(),
+                request.participantId(),
+                request.name(),
+                request.plannedAmount() == null ? null : Money.cop(request.plannedAmount())
+        );
+    }
+
+    public static ApplySubBudgetForwardCommand toApplyCommand(Long accountId, Long budgetId, SubBudgetForwardApplyRequest request) {
+        return new ApplySubBudgetForwardCommand(
+                accountId,
+                budgetId,
+                SubBudgetForwardAction.valueOf(request.action().name()),
+                request.subBudgetId(),
+                request.categoryId(),
+                request.participantId(),
+                request.name(),
+                request.plannedAmount() == null ? null : Money.cop(request.plannedAmount()),
+                request.months() == null ? List.of() : request.months()
+        );
     }
 
     public static BudgetResponseDto toDto(BudgetResponse response) {
@@ -140,6 +181,36 @@ public final class BudgetRestMapper {
                 response.createdAt(),
                 response.updatedAt()
         );
+    }
+
+    public static SubBudgetForwardPlanResponseDto toDto(SubBudgetForwardPlanResponse response) {
+        return new SubBudgetForwardPlanResponseDto(response.months().stream().map(BudgetRestMapper::toDto).toList());
+    }
+
+    private static SubBudgetForwardMonthPlanDto toDto(SubBudgetForwardMonthPlan plan) {
+        return new SubBudgetForwardMonthPlanDto(
+                plan.year(),
+                plan.month(),
+                plan.budgetId(),
+                plan.status().name(),
+                plan.currentSubBudgetId(),
+                plan.currentName(),
+                plan.currentCategoryId(),
+                plan.currentParticipantId(),
+                plan.currentPlannedAmount(),
+                plan.proposedName(),
+                plan.proposedCategoryId(),
+                plan.proposedParticipantId(),
+                plan.proposedPlannedAmount()
+        );
+    }
+
+    public static SubBudgetForwardApplyResponseDto toDto(SubBudgetForwardApplyResponse response) {
+        return new SubBudgetForwardApplyResponseDto(response.months().stream().map(BudgetRestMapper::toDto).toList());
+    }
+
+    private static SubBudgetForwardMonthResultDto toDto(SubBudgetForwardMonthResult result) {
+        return new SubBudgetForwardMonthResultDto(result.year(), result.month(), result.outcome(), result.reason());
     }
 
     public static <T, R> PageResponseDto<R> toDto(PageResponse<T> response, Function<T, R> mapper) {

@@ -4,6 +4,7 @@ import com.easyfinance.budgets.application.command.CreateSubBudgetCommand;
 import com.easyfinance.budgets.application.command.UpdateSubBudgetCommand;
 import com.easyfinance.budgets.application.port.in.CreateSubBudgetPort;
 import com.easyfinance.budgets.application.port.in.DeactivateSubBudgetPort;
+import com.easyfinance.budgets.application.port.in.SubBudgetForwardPort;
 import com.easyfinance.budgets.application.port.in.UpdateSubBudgetPort;
 import com.easyfinance.budgets.application.response.SubBudgetResponse;
 import com.easyfinance.shared.infrastructure.error.GlobalExceptionHandler;
@@ -32,8 +33,9 @@ class SubBudgetsControllerTest {
     private final CreateSubBudgetPort createSubBudgetPort = mock(CreateSubBudgetPort.class);
     private final UpdateSubBudgetPort updateSubBudgetPort = mock(UpdateSubBudgetPort.class);
     private final DeactivateSubBudgetPort deactivateSubBudgetPort = mock(DeactivateSubBudgetPort.class);
+    private final SubBudgetForwardPort subBudgetForwardPort = mock(SubBudgetForwardPort.class);
     private final MockMvc mockMvc = MockMvcBuilders
-            .standaloneSetup(new SubBudgetsController(createSubBudgetPort, updateSubBudgetPort, deactivateSubBudgetPort))
+            .standaloneSetup(new SubBudgetsController(createSubBudgetPort, updateSubBudgetPort, deactivateSubBudgetPort, subBudgetForwardPort))
             .setControllerAdvice(new GlobalExceptionHandler())
             .build();
 

@@ -23,6 +23,7 @@ public class SubBudgetPersistenceMapper {
                 Money.cop(entity.getSpentAmount()),
                 SubBudgetStatus.valueOf(entity.getStatus().name()),
                 SubBudgetSourceType.valueOf(entity.getSourceType().name()),
+                entity.getRecurringGroupId(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );
@@ -48,5 +49,6 @@ public class SubBudgetPersistenceMapper {
         entity.setSpentCurrency(subBudget.spentAmount().currency().name());
         entity.setStatus(SubBudgetStatusJpa.valueOf(subBudget.status().name()));
         entity.setSourceType(SubBudgetSourceTypeJpa.valueOf(subBudget.sourceType().name()));
+        entity.setRecurringGroupId(subBudget.recurringGroupId());
     }
 }

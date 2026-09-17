@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 @Entity
 @Table(name = "sub_budgets")
@@ -58,6 +59,9 @@ public class SubBudgetJpaEntity extends AuditableJpaEntity {
     @Column(name = "source_type", nullable = false, length = 30)
     private SubBudgetSourceTypeJpa sourceType;
 
+    @Column(name = "recurring_group_id")
+    private UUID recurringGroupId;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public Long getAccountId() { return accountId; }
@@ -84,4 +88,6 @@ public class SubBudgetJpaEntity extends AuditableJpaEntity {
     public void setStatus(SubBudgetStatusJpa status) { this.status = status; }
     public SubBudgetSourceTypeJpa getSourceType() { return sourceType; }
     public void setSourceType(SubBudgetSourceTypeJpa sourceType) { this.sourceType = sourceType; }
+    public UUID getRecurringGroupId() { return recurringGroupId; }
+    public void setRecurringGroupId(UUID recurringGroupId) { this.recurringGroupId = recurringGroupId; }
 }
