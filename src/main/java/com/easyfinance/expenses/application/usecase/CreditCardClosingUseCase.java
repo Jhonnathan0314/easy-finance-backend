@@ -74,10 +74,10 @@ public class CreditCardClosingUseCase implements PreviewCreditCardClosingPort, C
         if (eligible.isEmpty()) {
             throw new BusinessRuleViolationException("CREDIT_CARD_CLOSING_EMPTY", "There are no expenses to close in the selected range.");
         }
-        List<Expense> paid = eligible.stream().map(expense -> expense.changePaymentState(ExpensePaymentState.PAID)).toList();
-        List<Expense> saved = expenseRepository.saveAll(paid);
+        List<Expense> updated = eligible.stream().map(expense -> expense.changePaymentState(command.targetState())).toList();
+        List<Expense> saved = expenseRepository.saveAll(updated);
         BigDecimal total = saved.stream().map(expense -> expense.amount().amount()).reduce(BigDecimal.ZERO, BigDecimal::add);
-        return new CreditCardClosingResultResponse(command.paymentMethodId(), command.from(), command.to(), total, saved.size());
+        return new CreditCardClosingResultResponse(command.paymentMethodId(), command.from(), command.to(), total, saved.size(), command.targetState());
     }
 
     private CurrentUser currentUser() {
@@ -101,7 +101,7 @@ public class CreditCardClosingUseCase implements PreviewCreditCardClosingPort, C
     }
 
     private static CreditCardClosingQuery toQuery(CreditCardClosingCommand command) {
-        return new CreditCardClosingQuery(command.accountId(), command.paymentMethodId(), command.from(), command.to(), command.categoryIds());
+        return new CreditCardClosingQuery(command.accountId(), command.paymentMethodId(), command.from(), command.to(), command.categoryIds(), command.targetState());
     }
 
     private CreditCardClosingPreviewResponse buildPreview(CreditCardClosingCommand command, List<Expense> eligible) {

@@ -5,6 +5,7 @@ import com.easyfinance.expenses.application.query.CreditCardClosingQuery;
 import com.easyfinance.expenses.application.query.ListExpensesQuery;
 import com.easyfinance.expenses.application.response.PageResponse;
 import com.easyfinance.expenses.domain.model.Expense;
+import com.easyfinance.expenses.domain.model.ExpensePaymentState;
 import com.easyfinance.expenses.domain.model.ExpenseStatus;
 import com.easyfinance.expenses.infrastructure.mapper.ExpensePersistenceMapper;
 import com.easyfinance.expenses.infrastructure.persistence.jpa.ExpenseJpaEntity;
@@ -72,6 +73,12 @@ public class JpaExpenseRepositoryAdapter implements ExpenseRepositoryPort {
         return repository.findAll(spec).stream().map(mapper::toDomain).toList();
     }
 
+    private static List<ExpensePaymentStateJpa> closingSourceStates(CreditCardClosingQuery query) {
+        return query.targetState() == ExpensePaymentState.IN_POCKET
+                ? List.of(ExpensePaymentStateJpa.PENDING, ExpensePaymentStateJpa.PARTIAL)
+                : List.of(ExpensePaymentStateJpa.PENDING, ExpensePaymentStateJpa.PARTIAL, ExpensePaymentStateJpa.IN_POCKET);
+    }
+
     private static Specification<ExpenseJpaEntity> closingSpecification(CreditCardClosingQuery query) {
         return (root, criteriaQuery, builder) -> {
             var predicate = builder.and(
@@ -80,7 +87,7 @@ public class JpaExpenseRepositoryAdapter implements ExpenseRepositoryPort {
                     builder.equal(root.get("status"), ExpenseStatusJpa.ACTIVE),
                     builder.equal(root.get("expenseType"), ExpenseTypeJpa.SIMPLE),
                     builder.notEqual(root.get("sourceType"), ExpenseSourceTypeJpa.DEBT_PAYMENT),
-                    root.get("paymentState").in(ExpensePaymentStateJpa.PENDING, ExpensePaymentStateJpa.PARTIAL),
+                    root.get("paymentState").in(closingSourceStates(query)),
                     builder.greaterThanOrEqualTo(root.get("expenseDate"), query.from()),
                     builder.lessThanOrEqualTo(root.get("expenseDate"), query.to())
             );

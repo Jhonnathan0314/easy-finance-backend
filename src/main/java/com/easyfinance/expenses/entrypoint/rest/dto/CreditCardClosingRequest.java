@@ -9,6 +9,7 @@ public record CreditCardClosingRequest(
         @NotNull Long paymentMethodId,
         @NotNull LocalDate from,
         @NotNull LocalDate to,
-        List<Long> categoryIds
+        List<Long> categoryIds,
+        ExpensePaymentStateDto targetState
 ) {
 }

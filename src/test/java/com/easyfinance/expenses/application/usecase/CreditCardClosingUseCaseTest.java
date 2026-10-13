@@ -107,6 +107,22 @@ class CreditCardClosingUseCaseTest {
     }
 
     @Test
+    void confirmClosingCanMoveEligibleExpensesToInPocket() {
+        givenMemberAccess(AccountParticipantRole.ACCOUNT_ADMIN);
+        givenCreditCardPaymentMethod();
+        when(expenseRepository.findEligibleForClosing(any(CreditCardClosingQuery.class))).thenReturn(List.of(expense(2L, "10000")));
+        when(expenseRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        CreditCardClosingResultResponse result = useCase.confirmClosing(new CreditCardClosingCommand(
+                1L, 3L, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31), null, ExpensePaymentState.IN_POCKET));
+
+        ArgumentCaptor<List<Expense>> captor = ArgumentCaptor.forClass(List.class);
+        verify(expenseRepository).saveAll(captor.capture());
+        assertThat(captor.getValue().get(0).paymentState()).isEqualTo(ExpensePaymentState.IN_POCKET);
+        assertThat(result.targetState()).isEqualTo(ExpensePaymentState.IN_POCKET);
+    }
+
+    @Test
     void confirmClosingMarksEligibleExpensesAsPaid() {
         givenMemberAccess(AccountParticipantRole.ACCOUNT_ADMIN);
         givenCreditCardPaymentMethod();

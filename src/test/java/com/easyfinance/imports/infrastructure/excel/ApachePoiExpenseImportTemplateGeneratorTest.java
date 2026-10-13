@@ -41,7 +41,8 @@ class ApachePoiExpenseImportTemplateGeneratorTest {
             assertThat(valores.getRow(2).getCell(1).getStringCellValue()).isEqualTo("Visa");
             assertThat(valores.getRow(1).getCell(2).getStringCellValue()).isEqualTo("PENDING");
             assertThat(valores.getRow(2).getCell(2).getStringCellValue()).isEqualTo("PARTIAL");
-            assertThat(valores.getRow(3).getCell(2).getStringCellValue()).isEqualTo("PAID");
+            assertThat(valores.getRow(3).getCell(2).getStringCellValue()).isEqualTo("IN_POCKET");
+            assertThat(valores.getRow(4).getCell(2).getStringCellValue()).isEqualTo("PAID");
             assertThat(valores.getRow(1).getCell(3).getStringCellValue()).isEqualTo("Loan | Saldo: 120000.00 | Inicio: 2026-05-01 | MANUAL");
             assertThat(valores.getRow(1).getCell(4).getNumericCellValue()).isEqualTo(99D);
             assertThat(valores.getRow(1).getCell(5).getStringCellValue()).isEqualTo("SI");

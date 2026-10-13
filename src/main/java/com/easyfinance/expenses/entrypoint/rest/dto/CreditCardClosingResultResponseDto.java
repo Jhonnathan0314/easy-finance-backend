@@ -8,6 +8,10 @@ public record CreditCardClosingResultResponseDto(
         LocalDate from,
         LocalDate to,
         BigDecimal totalAmount,
-        long updatedCount
+        long updatedCount,
+        String targetState
 ) {
+    public CreditCardClosingResultResponseDto(Long paymentMethodId, LocalDate from, LocalDate to, BigDecimal totalAmount, long updatedCount) {
+        this(paymentMethodId, from, to, totalAmount, updatedCount, "PAID");
+    }
 }

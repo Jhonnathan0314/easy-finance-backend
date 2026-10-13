@@ -2,6 +2,8 @@ package com.easyfinance.expenses.entrypoint.rest.mapper;
 
 import com.easyfinance.expenses.application.command.CreditCardClosingCommand;
 import com.easyfinance.expenses.application.response.CreditCardClosingCategoryItem;
+import com.easyfinance.expenses.domain.model.ExpensePaymentState;
+import com.easyfinance.expenses.entrypoint.rest.dto.ExpensePaymentStateDto;
 import com.easyfinance.expenses.application.response.CreditCardClosingPreviewResponse;
 import com.easyfinance.expenses.application.response.CreditCardClosingResultResponse;
 import com.easyfinance.expenses.entrypoint.rest.dto.CreditCardClosingCategoryItemDto;
@@ -17,12 +19,16 @@ public final class CreditCardClosingRestMapper {
     private CreditCardClosingRestMapper() {
     }
 
-    public static CreditCardClosingCommand toCommand(Long accountId, Long paymentMethodId, LocalDate from, LocalDate to, List<Long> categoryIds) {
-        return new CreditCardClosingCommand(accountId, paymentMethodId, from, to, categoryIds);
+    public static CreditCardClosingCommand toCommand(Long accountId, Long paymentMethodId, LocalDate from, LocalDate to, List<Long> categoryIds, ExpensePaymentStateDto targetState) {
+        return new CreditCardClosingCommand(accountId, paymentMethodId, from, to, categoryIds, toDomain(targetState));
     }
 
     public static CreditCardClosingCommand toCommand(Long accountId, CreditCardClosingRequest request) {
-        return new CreditCardClosingCommand(accountId, request.paymentMethodId(), request.from(), request.to(), request.categoryIds());
+        return new CreditCardClosingCommand(accountId, request.paymentMethodId(), request.from(), request.to(), request.categoryIds(), toDomain(request.targetState()));
+    }
+
+    private static ExpensePaymentState toDomain(ExpensePaymentStateDto state) {
+        return state == null ? null : ExpensePaymentState.valueOf(state.name());
     }
 
     public static CreditCardClosingPreviewResponseDto toDto(CreditCardClosingPreviewResponse response) {
@@ -43,7 +49,8 @@ public final class CreditCardClosingRestMapper {
                 response.from(),
                 response.to(),
                 response.totalAmount(),
-                response.updatedCount()
+                response.updatedCount(),
+                response.targetState().name()
         );
     }
 

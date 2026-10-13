@@ -5,6 +5,7 @@ import com.easyfinance.expenses.application.port.in.PreviewCreditCardClosingPort
 import com.easyfinance.expenses.entrypoint.rest.dto.CreditCardClosingPreviewResponseDto;
 import com.easyfinance.expenses.entrypoint.rest.dto.CreditCardClosingRequest;
 import com.easyfinance.expenses.entrypoint.rest.dto.CreditCardClosingResultResponseDto;
+import com.easyfinance.expenses.entrypoint.rest.dto.ExpensePaymentStateDto;
 import com.easyfinance.expenses.entrypoint.rest.mapper.CreditCardClosingRestMapper;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,10 +40,11 @@ public class CreditCardClosingController {
             @RequestParam Long paymentMethodId,
             @RequestParam LocalDate from,
             @RequestParam LocalDate to,
-            @RequestParam(required = false) List<Long> categoryIds
+            @RequestParam(required = false) List<Long> categoryIds,
+            @RequestParam(required = false) ExpensePaymentStateDto targetState
     ) {
         return CreditCardClosingRestMapper.toDto(
-                previewCreditCardClosingPort.previewClosing(CreditCardClosingRestMapper.toCommand(accountId, paymentMethodId, from, to, categoryIds))
+                previewCreditCardClosingPort.previewClosing(CreditCardClosingRestMapper.toCommand(accountId, paymentMethodId, from, to, categoryIds, targetState))
         );
     }
 

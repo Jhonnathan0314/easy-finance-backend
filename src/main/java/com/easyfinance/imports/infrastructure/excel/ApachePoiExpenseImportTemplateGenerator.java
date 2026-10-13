@@ -43,7 +43,7 @@ public class ApachePoiExpenseImportTemplateGenerator implements ExpenseImportTem
     private static final String DEBT_PAYMENT_TYPE_RANGE = "TiposPagoDeuda";
     private static final String PARTICIPANT_RANGE = "ParticipantesGastos";
     private static final String[] HEADERS = {"Fecha", "DescripciÃ³n", "Monto", "CategorÃ­a", "MedioPago", "EstadoPago", "AplicaPagoDeuda", "Deuda", "TipoPagoDeuda", "NotasPagoDeuda", "Participante", "Estado"};
-    private static final String[] PAYMENT_STATES = {"PENDING", "PARTIAL", "PAID"};
+    private static final String[] PAYMENT_STATES = {"PENDING", "PARTIAL", "IN_POCKET", "PAID"};
     private static final String[] DEBT_PAYMENT_FLAGS = {"SI", "NO"};
     private static final String[] DEBT_PAYMENT_TYPES = {"INSTALLMENT", "CAPITAL_PAYMENT"};
 
@@ -104,7 +104,7 @@ public class ApachePoiExpenseImportTemplateGenerator implements ExpenseImportTem
         addAmountValidation(sheet);
         addFormulaListValidation(sheet, 3, CATEGORY_RANGE, "CategorÃ­a invÃ¡lida", "Use una categorÃ­a EXPENSE activa de la hoja Valores.");
         addFormulaListValidation(sheet, 4, PAYMENT_METHOD_RANGE, "Medio de pago invÃ¡lido", "Use un medio de pago activo de la hoja Valores.");
-        addFormulaListValidation(sheet, 5, PAYMENT_STATE_RANGE, "Estado invÃ¡lido", "Use PENDING, PARTIAL o PAID.");
+        addFormulaListValidation(sheet, 5, PAYMENT_STATE_RANGE, "Estado invÃ¡lido", "Use PENDING, PARTIAL, IN_POCKET o PAID.");
         addFormulaListValidation(sheet, 6, DEBT_PAYMENT_FLAG_RANGE, "Valor invÃ¡lido", "Use SI o NO.");
         addFormulaListValidation(sheet, 7, DEBT_RANGE, "Deuda invÃ¡lida", "Use una deuda ACTIVE de la hoja Valores.");
         addFormulaListValidation(sheet, 8, DEBT_PAYMENT_TYPE_RANGE, "Tipo invÃ¡lido", "Use INSTALLMENT o CAPITAL_PAYMENT.");
@@ -276,7 +276,7 @@ public class ApachePoiExpenseImportTemplateGenerator implements ExpenseImportTem
             case 2 -> "Monto del gasto. Debe ser mayor a 0.";
             case 3 -> "Seleccione una categorÃ­a EXPENSE activa de esta cuenta.";
             case 4 -> "Seleccione un medio de pago activo de esta cuenta.";
-            case 5 -> "Seleccione PENDING, PARTIAL o PAID.";
+            case 5 -> "Seleccione PENDING, PARTIAL, IN_POCKET o PAID.";
             case 6 -> "Use SI si esta fila tambien registra pago de deuda; vacio equivale a NO.";
             case 7 -> "Seleccione una deuda ACTIVE de esta cuenta cuando AplicaPagoDeuda sea SI.";
             case 8 -> "Seleccione INSTALLMENT o CAPITAL_PAYMENT cuando AplicaPagoDeuda sea SI.";
