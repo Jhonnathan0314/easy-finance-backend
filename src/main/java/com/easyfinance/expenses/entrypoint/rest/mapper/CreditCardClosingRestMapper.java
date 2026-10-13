@@ -10,18 +10,19 @@ import com.easyfinance.expenses.entrypoint.rest.dto.CreditCardClosingRequest;
 import com.easyfinance.expenses.entrypoint.rest.dto.CreditCardClosingResultResponseDto;
 
 import java.time.LocalDate;
+import java.util.List;
 
 public final class CreditCardClosingRestMapper {
 
     private CreditCardClosingRestMapper() {
     }
 
-    public static CreditCardClosingCommand toCommand(Long accountId, Long paymentMethodId, LocalDate from, LocalDate to) {
-        return new CreditCardClosingCommand(accountId, paymentMethodId, from, to);
+    public static CreditCardClosingCommand toCommand(Long accountId, Long paymentMethodId, LocalDate from, LocalDate to, List<Long> categoryIds) {
+        return new CreditCardClosingCommand(accountId, paymentMethodId, from, to, categoryIds);
     }
 
     public static CreditCardClosingCommand toCommand(Long accountId, CreditCardClosingRequest request) {
-        return new CreditCardClosingCommand(accountId, request.paymentMethodId(), request.from(), request.to());
+        return new CreditCardClosingCommand(accountId, request.paymentMethodId(), request.from(), request.to(), request.categoryIds());
     }
 
     public static CreditCardClosingPreviewResponseDto toDto(CreditCardClosingPreviewResponse response) {

@@ -101,7 +101,7 @@ public class CreditCardClosingUseCase implements PreviewCreditCardClosingPort, C
     }
 
     private static CreditCardClosingQuery toQuery(CreditCardClosingCommand command) {
-        return new CreditCardClosingQuery(command.accountId(), command.paymentMethodId(), command.from(), command.to());
+        return new CreditCardClosingQuery(command.accountId(), command.paymentMethodId(), command.from(), command.to(), command.categoryIds());
     }
 
     private CreditCardClosingPreviewResponse buildPreview(CreditCardClosingCommand command, List<Expense> eligible) {

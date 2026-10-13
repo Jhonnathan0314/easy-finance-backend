@@ -73,16 +73,22 @@ public class JpaExpenseRepositoryAdapter implements ExpenseRepositoryPort {
     }
 
     private static Specification<ExpenseJpaEntity> closingSpecification(CreditCardClosingQuery query) {
-        return (root, criteriaQuery, builder) -> builder.and(
-                builder.equal(root.get("accountId"), query.accountId()),
-                builder.equal(root.get("paymentMethodId"), query.paymentMethodId()),
-                builder.equal(root.get("status"), ExpenseStatusJpa.ACTIVE),
-                builder.equal(root.get("expenseType"), ExpenseTypeJpa.SIMPLE),
-                builder.notEqual(root.get("sourceType"), ExpenseSourceTypeJpa.DEBT_PAYMENT),
-                root.get("paymentState").in(ExpensePaymentStateJpa.PENDING, ExpensePaymentStateJpa.PARTIAL),
-                builder.greaterThanOrEqualTo(root.get("expenseDate"), query.from()),
-                builder.lessThanOrEqualTo(root.get("expenseDate"), query.to())
-        );
+        return (root, criteriaQuery, builder) -> {
+            var predicate = builder.and(
+                    builder.equal(root.get("accountId"), query.accountId()),
+                    builder.equal(root.get("paymentMethodId"), query.paymentMethodId()),
+                    builder.equal(root.get("status"), ExpenseStatusJpa.ACTIVE),
+                    builder.equal(root.get("expenseType"), ExpenseTypeJpa.SIMPLE),
+                    builder.notEqual(root.get("sourceType"), ExpenseSourceTypeJpa.DEBT_PAYMENT),
+                    root.get("paymentState").in(ExpensePaymentStateJpa.PENDING, ExpensePaymentStateJpa.PARTIAL),
+                    builder.greaterThanOrEqualTo(root.get("expenseDate"), query.from()),
+                    builder.lessThanOrEqualTo(root.get("expenseDate"), query.to())
+            );
+            if (query.categoryIds() != null) {
+                predicate = builder.and(predicate, root.get("categoryId").in(query.categoryIds()));
+            }
+            return predicate;
+        };
     }
 
     private static Specification<ExpenseJpaEntity> specification(ListExpensesQuery query) {

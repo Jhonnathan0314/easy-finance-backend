@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/accounts/{accountId}/expenses/credit-card-closing")
@@ -37,10 +38,11 @@ public class CreditCardClosingController {
             @PathVariable Long accountId,
             @RequestParam Long paymentMethodId,
             @RequestParam LocalDate from,
-            @RequestParam LocalDate to
+            @RequestParam LocalDate to,
+            @RequestParam(required = false) List<Long> categoryIds
     ) {
         return CreditCardClosingRestMapper.toDto(
-                previewCreditCardClosingPort.previewClosing(CreditCardClosingRestMapper.toCommand(accountId, paymentMethodId, from, to))
+                previewCreditCardClosingPort.previewClosing(CreditCardClosingRestMapper.toCommand(accountId, paymentMethodId, from, to, categoryIds))
         );
     }
 
