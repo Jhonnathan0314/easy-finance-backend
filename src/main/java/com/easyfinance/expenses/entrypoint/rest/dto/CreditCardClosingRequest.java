@@ -10,6 +10,7 @@ public record CreditCardClosingRequest(
         @NotNull LocalDate from,
         @NotNull LocalDate to,
         List<Long> categoryIds,
-        ExpensePaymentStateDto targetState
+        ExpensePaymentStateDto targetState,
+        List<Long> expenseIds
 ) {
 }

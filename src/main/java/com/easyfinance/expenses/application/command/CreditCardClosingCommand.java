@@ -11,14 +11,19 @@ public record CreditCardClosingCommand(
         LocalDate from,
         LocalDate to,
         List<Long> categoryIds,
-        ExpensePaymentState targetState
+        ExpensePaymentState targetState,
+        List<Long> expenseIds
 ) {
     public CreditCardClosingCommand(Long accountId, Long paymentMethodId, LocalDate from, LocalDate to) {
-        this(accountId, paymentMethodId, from, to, null, null);
+        this(accountId, paymentMethodId, from, to, null, null, null);
     }
 
     public CreditCardClosingCommand(Long accountId, Long paymentMethodId, LocalDate from, LocalDate to, List<Long> categoryIds) {
-        this(accountId, paymentMethodId, from, to, categoryIds, null);
+        this(accountId, paymentMethodId, from, to, categoryIds, null, null);
+    }
+
+    public CreditCardClosingCommand(Long accountId, Long paymentMethodId, LocalDate from, LocalDate to, List<Long> categoryIds, ExpensePaymentState targetState) {
+        this(accountId, paymentMethodId, from, to, categoryIds, targetState, null);
     }
 
     public CreditCardClosingCommand {

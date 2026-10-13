@@ -70,7 +70,9 @@ public class CreditCardClosingUseCase implements PreviewCreditCardClosingPort, C
         CurrentUser currentUser = currentUser();
         accountAuthorizationService.requireActiveAdminForActiveAccount(command.accountId(), currentUser.participantId());
         validateCreditCardPaymentMethod(command.accountId(), command.paymentMethodId());
-        List<Expense> eligible = expenseRepository.findEligibleForClosing(toQuery(command));
+        List<Expense> eligible = expenseRepository.findEligibleForClosing(toQuery(command)).stream()
+                .filter(expense -> command.expenseIds() == null || command.expenseIds().contains(expense.id()))
+                .toList();
         if (eligible.isEmpty()) {
             throw new BusinessRuleViolationException("CREDIT_CARD_CLOSING_EMPTY", "There are no expenses to close in the selected range.");
         }

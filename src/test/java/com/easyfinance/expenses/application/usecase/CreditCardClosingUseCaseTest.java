@@ -123,6 +123,21 @@ class CreditCardClosingUseCaseTest {
     }
 
     @Test
+    void confirmClosingOnlyUpdatesSelectedExpenseIds() {
+        givenMemberAccess(AccountParticipantRole.ACCOUNT_ADMIN);
+        givenCreditCardPaymentMethod();
+        when(expenseRepository.findEligibleForClosing(any(CreditCardClosingQuery.class)))
+                .thenReturn(List.of(expenseWithId(11L, "10000"), expenseWithId(12L, "5000")));
+        when(expenseRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        CreditCardClosingResultResponse result = useCase.confirmClosing(new CreditCardClosingCommand(
+                1L, 3L, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31), null, null, List.of(11L)));
+
+        assertThat(result.updatedCount()).isEqualTo(1);
+        assertThat(result.totalAmount()).isEqualByComparingTo(new BigDecimal("10000"));
+    }
+
+    @Test
     void confirmClosingMarksEligibleExpensesAsPaid() {
         givenMemberAccess(AccountParticipantRole.ACCOUNT_ADMIN);
         givenCreditCardPaymentMethod();
@@ -169,6 +184,12 @@ class CreditCardClosingUseCaseTest {
 
     private static Expense expense(Long categoryId, String amount) {
         return Expense.createSimple(1L, categoryId, 3L, 10L, "Purchase", Money.cop(new BigDecimal(amount)), LocalDate.of(2026, 1, 15), ExpensePaymentState.PENDING);
+    }
+
+    private static Expense expenseWithId(Long id, String amount) {
+        return Expense.restore(id, 1L, 2L, 3L, 10L, "Purchase", Money.cop(new BigDecimal(amount)), LocalDate.of(2026, 1, 15),
+                ExpensePaymentState.PENDING, com.easyfinance.expenses.domain.model.ExpenseStatus.ACTIVE,
+                com.easyfinance.expenses.domain.model.ExpenseType.SIMPLE, Instant.now(), Instant.now());
     }
 
     private static CategoryResponse categoryResponse(Long id, String name) {

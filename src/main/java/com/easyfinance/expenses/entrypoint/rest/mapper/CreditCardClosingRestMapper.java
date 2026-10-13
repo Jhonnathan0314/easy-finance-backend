@@ -24,7 +24,7 @@ public final class CreditCardClosingRestMapper {
     }
 
     public static CreditCardClosingCommand toCommand(Long accountId, CreditCardClosingRequest request) {
-        return new CreditCardClosingCommand(accountId, request.paymentMethodId(), request.from(), request.to(), request.categoryIds(), toDomain(request.targetState()));
+        return new CreditCardClosingCommand(accountId, request.paymentMethodId(), request.from(), request.to(), request.categoryIds(), toDomain(request.targetState()), request.expenseIds());
     }
 
     private static ExpensePaymentState toDomain(ExpensePaymentStateDto state) {
