@@ -117,6 +117,10 @@ class InstallmentExpenseBudgetTransactionIT {
                 }
 
                 @Override
+                public void revertDebtPaymentFromImpacts(Long accountId, Long debtId, com.easyfinance.shared.domain.Money amount) {
+                }
+
+                @Override
                 public void cancelActiveImpactsForDebt(Long accountId, Long debtId) {
                 }
             };

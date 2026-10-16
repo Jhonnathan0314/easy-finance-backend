@@ -8,4 +8,6 @@ import java.util.Optional;
 public interface SpringDataExpenseRepository extends JpaRepository<ExpenseJpaEntity, Long>, JpaSpecificationExecutor<ExpenseJpaEntity> {
 
     Optional<ExpenseJpaEntity> findByAccountIdAndId(Long accountId, Long id);
+
+    boolean existsByAccountIdAndSourceDebtPaymentIdAndStatus(Long accountId, Long sourceDebtPaymentId, ExpenseStatusJpa status);
 }

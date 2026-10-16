@@ -18,5 +18,7 @@ public interface ExpenseRepositoryPort {
 
     PageResponse<Expense> findAll(ListExpensesQuery query);
 
+    boolean existsActiveBySourceDebtPaymentId(Long accountId, Long debtPaymentId);
+
     List<Expense> findEligibleForClosing(CreditCardClosingQuery query);
 }

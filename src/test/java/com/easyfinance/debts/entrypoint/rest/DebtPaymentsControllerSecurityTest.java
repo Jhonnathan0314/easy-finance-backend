@@ -1,6 +1,8 @@
 package com.easyfinance.debts.entrypoint.rest;
 
+import com.easyfinance.debts.application.port.in.CancelDebtPaymentPort;
 import com.easyfinance.debts.application.port.in.GetDebtPaymentPort;
+import com.easyfinance.debts.application.port.in.UpdateDebtPaymentPort;
 import com.easyfinance.debts.application.port.in.ListDebtPaymentsPort;
 import com.easyfinance.debts.application.port.in.RegisterDebtPaymentPort;
 import com.easyfinance.shared.infrastructure.security.JwtAuthenticationException;
@@ -71,6 +73,8 @@ class DebtPaymentsControllerSecurityTest {
         @Bean RegisterDebtPaymentPort registerDebtPaymentPort() { return mock(RegisterDebtPaymentPort.class); }
         @Bean ListDebtPaymentsPort listDebtPaymentsPort() { return mock(ListDebtPaymentsPort.class); }
         @Bean GetDebtPaymentPort getDebtPaymentPort() { return mock(GetDebtPaymentPort.class); }
+        @Bean UpdateDebtPaymentPort updateDebtPaymentPort() { return mock(UpdateDebtPaymentPort.class); }
+        @Bean CancelDebtPaymentPort cancelDebtPaymentPort() { return mock(CancelDebtPaymentPort.class); }
         @Bean JwtTokenService jwtTokenService() { return mock(JwtTokenService.class); }
         @Bean ObjectMapper objectMapper() { return new ObjectMapper().findAndRegisterModules(); }
     }

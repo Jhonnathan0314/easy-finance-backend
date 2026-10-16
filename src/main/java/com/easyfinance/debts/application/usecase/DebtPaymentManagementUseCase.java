@@ -21,6 +21,7 @@ import com.easyfinance.debts.domain.model.DebtPayment;
 import com.easyfinance.debts.domain.model.DebtState;
 import com.easyfinance.expenses.application.command.CreateDebtPaymentExpenseCommand;
 import com.easyfinance.expenses.application.port.in.CreateDebtPaymentExpensePort;
+import com.easyfinance.expenses.application.port.in.DebtPaymentExpenseQueryPort;
 import com.easyfinance.expenses.application.response.ExpenseResponse;
 import com.easyfinance.shared.application.CurrentUser;
 import com.easyfinance.shared.application.CurrentUserProvider;
@@ -43,6 +44,7 @@ public class DebtPaymentManagementUseCase implements
     private final DebtPaymentRepositoryPort paymentRepository;
     private final BudgetDebtImpactPort budgetDebtImpactPort;
     private final CreateDebtPaymentExpensePort createDebtPaymentExpensePort;
+    private final DebtPaymentExpenseQueryPort debtPaymentExpenseQueryPort;
 
     public DebtPaymentManagementUseCase(
             CurrentUserProvider currentUserProvider,
@@ -51,8 +53,10 @@ public class DebtPaymentManagementUseCase implements
             DebtRepositoryPort debtRepository,
             DebtPaymentRepositoryPort paymentRepository,
             BudgetDebtImpactPort budgetDebtImpactPort,
-            CreateDebtPaymentExpensePort createDebtPaymentExpensePort
+            CreateDebtPaymentExpensePort createDebtPaymentExpensePort,
+            DebtPaymentExpenseQueryPort debtPaymentExpenseQueryPort
     ) {
+        this.debtPaymentExpenseQueryPort = debtPaymentExpenseQueryPort;
         this.currentUserProvider = currentUserProvider;
         this.accountAuthorizationService = accountAuthorizationService;
         this.assignedParticipantValidator = assignedParticipantValidator;
@@ -175,7 +179,8 @@ public class DebtPaymentManagementUseCase implements
                 payment.notes(),
                 payment.status().name(),
                 payment.createdAt(),
-                payment.updatedAt()
+                payment.updatedAt(),
+                payment.id() != null && debtPaymentExpenseQueryPort.hasActiveExpenseForDebtPayment(payment.accountId(), payment.id())
         );
     }
 

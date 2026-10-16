@@ -18,6 +18,14 @@ public record DebtPaymentResponse(
         String notes,
         String status,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        boolean hasAssociatedExpense
 ) {
+    public DebtPaymentResponse(
+            Long id, Long accountId, Long debtId, Long participantId, String paymentType, BigDecimal amount,
+            BigDecimal capitalAmount, BigDecimal interestAmount, String currency, LocalDate paymentDate,
+            String notes, String status, Instant createdAt, Instant updatedAt
+    ) {
+        this(id, accountId, debtId, participantId, paymentType, amount, capitalAmount, interestAmount, currency, paymentDate, notes, status, createdAt, updatedAt, false);
+    }
 }

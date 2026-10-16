@@ -64,6 +64,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -495,6 +496,25 @@ public class BudgetManagementUseCase implements
         }
         if (command.debtFullySettled()) {
             cancelUnreachedFutureImpacts(command.accountId(), command.debtId(), YearMonth.from(command.settlementDate()));
+        }
+    }
+
+    @Override
+    @Transactional
+    public void revertDebtPaymentFromImpacts(Long accountId, Long debtId, Money amount) {
+        Money remaining = amount;
+        List<BudgetImpact> impacts = new ArrayList<>(impactRepository.findNonCancelledByAccountIdAndDebtIdOrderByPeriod(accountId, debtId));
+        Collections.reverse(impacts);
+        for (BudgetImpact impact : impacts) {
+            if (remaining.isZero()) {
+                break;
+            }
+            BigDecimal reverted = remaining.amount().min(impact.paidAmount().amount());
+            if (reverted.signum() == 0) {
+                continue;
+            }
+            impactRepository.save(impact.revertPayment(Money.cop(reverted)));
+            remaining = Money.cop(remaining.amount().subtract(reverted));
         }
     }
 

@@ -1,6 +1,8 @@
 package com.easyfinance.debts.entrypoint.rest;
 
+import com.easyfinance.debts.application.port.in.CancelDebtPaymentPort;
 import com.easyfinance.debts.application.port.in.GetDebtPaymentPort;
+import com.easyfinance.debts.application.port.in.UpdateDebtPaymentPort;
 import com.easyfinance.debts.application.port.in.ListDebtPaymentsPort;
 import com.easyfinance.debts.application.port.in.RegisterDebtPaymentPort;
 import com.easyfinance.debts.application.response.DebtPaymentResponse;
@@ -34,12 +36,14 @@ class DebtPaymentsControllerTest {
     private final RegisterDebtPaymentPort registerDebtPaymentPort = mock(RegisterDebtPaymentPort.class);
     private final ListDebtPaymentsPort listDebtPaymentsPort = mock(ListDebtPaymentsPort.class);
     private final GetDebtPaymentPort getDebtPaymentPort = mock(GetDebtPaymentPort.class);
+    private final UpdateDebtPaymentPort updateDebtPaymentPort = mock(UpdateDebtPaymentPort.class);
+    private final CancelDebtPaymentPort cancelDebtPaymentPort = mock(CancelDebtPaymentPort.class);
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new DebtPaymentsController(registerDebtPaymentPort, listDebtPaymentsPort, getDebtPaymentPort))
+                .standaloneSetup(new DebtPaymentsController(registerDebtPaymentPort, listDebtPaymentsPort, getDebtPaymentPort, updateDebtPaymentPort, cancelDebtPaymentPort))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }

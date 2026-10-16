@@ -1,6 +1,9 @@
 package com.easyfinance.debts.entrypoint.rest;
 
+import com.easyfinance.debts.application.port.in.CancelDebtPaymentPort;
 import com.easyfinance.debts.application.port.in.GetDebtPaymentPort;
+import com.easyfinance.debts.application.port.in.UpdateDebtPaymentPort;
+import com.easyfinance.debts.entrypoint.rest.dto.UpdateDebtPaymentRequest;
 import com.easyfinance.debts.application.port.in.ListDebtPaymentsPort;
 import com.easyfinance.debts.application.port.in.RegisterDebtPaymentPort;
 import com.easyfinance.debts.application.query.ListDebtPaymentsQuery;
@@ -16,7 +19,9 @@ import com.easyfinance.debts.entrypoint.rest.mapper.DebtPaymentRestMapper;
 import com.easyfinance.shared.application.PageQuery;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -34,12 +39,18 @@ public class DebtPaymentsController {
     private final RegisterDebtPaymentPort registerDebtPaymentPort;
     private final ListDebtPaymentsPort listDebtPaymentsPort;
     private final GetDebtPaymentPort getDebtPaymentPort;
+    private final UpdateDebtPaymentPort updateDebtPaymentPort;
+    private final CancelDebtPaymentPort cancelDebtPaymentPort;
 
     public DebtPaymentsController(
             RegisterDebtPaymentPort registerDebtPaymentPort,
             ListDebtPaymentsPort listDebtPaymentsPort,
-            GetDebtPaymentPort getDebtPaymentPort
+            GetDebtPaymentPort getDebtPaymentPort,
+            UpdateDebtPaymentPort updateDebtPaymentPort,
+            CancelDebtPaymentPort cancelDebtPaymentPort
     ) {
+        this.updateDebtPaymentPort = updateDebtPaymentPort;
+        this.cancelDebtPaymentPort = cancelDebtPaymentPort;
         this.registerDebtPaymentPort = registerDebtPaymentPort;
         this.listDebtPaymentsPort = listDebtPaymentsPort;
         this.getDebtPaymentPort = getDebtPaymentPort;
@@ -83,5 +94,21 @@ public class DebtPaymentsController {
     @GetMapping("/{paymentId}")
     public DebtPaymentResponseDto get(@PathVariable Long accountId, @PathVariable Long debtId, @PathVariable Long paymentId) {
         return DebtPaymentRestMapper.toDto(getDebtPaymentPort.getDebtPayment(accountId, debtId, paymentId));
+    }
+
+    @PutMapping("/{paymentId}")
+    public RegisterDebtPaymentResponseDto update(
+            @PathVariable Long accountId,
+            @PathVariable Long debtId,
+            @PathVariable Long paymentId,
+            @Valid @RequestBody UpdateDebtPaymentRequest request
+    ) {
+        return DebtPaymentRestMapper.toDto(updateDebtPaymentPort.updateDebtPayment(DebtPaymentRestMapper.toCommand(accountId, debtId, paymentId, request)));
+    }
+
+    @DeleteMapping("/{paymentId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void cancel(@PathVariable Long accountId, @PathVariable Long debtId, @PathVariable Long paymentId) {
+        cancelDebtPaymentPort.cancelDebtPayment(accountId, debtId, paymentId);
     }
 }

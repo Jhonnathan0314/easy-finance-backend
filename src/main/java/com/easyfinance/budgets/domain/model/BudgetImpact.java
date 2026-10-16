@@ -58,6 +58,12 @@ public final class BudgetImpact {
         return new BudgetImpact(id, accountId, budgetId, subBudgetId, debtId, expenseId, periodYear, periodMonth, expectedAmount, newPaidAmount, null, sourceType, createdAt, updatedAt);
     }
 
+    public BudgetImpact revertPayment(Money amount) {
+        BigDecimal reverted = amount.amount().min(paidAmount.amount());
+        Money newPaidAmount = Money.cop(paidAmount.amount().subtract(reverted));
+        return new BudgetImpact(id, accountId, budgetId, subBudgetId, debtId, expenseId, periodYear, periodMonth, expectedAmount, newPaidAmount, null, sourceType, createdAt, updatedAt);
+    }
+
     public BudgetImpact cancel() {
         if (status == BudgetImpactStatus.CANCELLED) {
             return this;

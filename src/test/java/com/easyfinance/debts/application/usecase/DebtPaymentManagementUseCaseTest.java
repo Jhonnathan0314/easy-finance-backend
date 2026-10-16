@@ -22,6 +22,7 @@ import com.easyfinance.debts.domain.model.DebtPaymentType;
 import com.easyfinance.debts.domain.model.DebtSourceType;
 import com.easyfinance.debts.domain.model.DebtState;
 import com.easyfinance.expenses.application.port.in.CreateDebtPaymentExpensePort;
+import com.easyfinance.expenses.application.port.in.DebtPaymentExpenseQueryPort;
 import com.easyfinance.expenses.application.response.ExpenseResponse;
 import com.easyfinance.shared.application.CurrentUser;
 import com.easyfinance.shared.application.CurrentUserProvider;
@@ -59,9 +60,10 @@ class DebtPaymentManagementUseCaseTest {
     private final DebtPaymentRepositoryPort paymentRepository = mock(DebtPaymentRepositoryPort.class);
     private final BudgetDebtImpactPort budgetDebtImpactPort = mock(BudgetDebtImpactPort.class);
     private final CreateDebtPaymentExpensePort createDebtPaymentExpensePort = mock(CreateDebtPaymentExpensePort.class);
+    private final DebtPaymentExpenseQueryPort debtPaymentExpenseQueryPort = mock(DebtPaymentExpenseQueryPort.class);
     private final AccountAuthorizationService authorizationService = new AccountAuthorizationService(accountRepository, accountParticipantRepository);
     private final AssignedParticipantValidator assignedParticipantValidator = new AssignedParticipantValidator(accountParticipantRepository);
-    private final DebtPaymentManagementUseCase useCase = new DebtPaymentManagementUseCase(currentUserProvider, authorizationService, assignedParticipantValidator, debtRepository, paymentRepository, budgetDebtImpactPort, createDebtPaymentExpensePort);
+    private final DebtPaymentManagementUseCase useCase = new DebtPaymentManagementUseCase(currentUserProvider, authorizationService, assignedParticipantValidator, debtRepository, paymentRepository, budgetDebtImpactPort, createDebtPaymentExpensePort, debtPaymentExpenseQueryPort);
 
     @BeforeEach
     void setUp() {

@@ -160,6 +160,18 @@ public final class Debt {
         return new Debt(id, accountId, participantId, originExpenseId, sourceType, name, description, totalAmount, scheduledTotalAmount, newRemainingBalance, installmentCount, installmentAmount, startDate, endDate, newState, notes, createdAt, updatedAt);
     }
 
+    public Debt revertPayment(Money paymentAmount) {
+        if (state == DebtState.CANCELLED) {
+            throw new BusinessRuleViolationException("DEBT_CANCELLED", "Debt is cancelled.");
+        }
+        Money resolvedAmount = requireNonNegativeAmount(paymentAmount, "DEBT_PAYMENT_AMOUNT_INVALID", "Debt payment amount cannot be negative and must be in COP.");
+        BigDecimal newRemainingAmount = remainingBalance.amount().add(resolvedAmount.amount());
+        if (newRemainingAmount.compareTo(totalAmount.amount()) > 0) {
+            throw new BusinessRuleViolationException("DEBT_PAYMENT_REVERT_EXCEEDS_TOTAL", "Reverting the payment would exceed the debt total amount.");
+        }
+        return new Debt(id, accountId, participantId, originExpenseId, sourceType, name, description, totalAmount, scheduledTotalAmount, Money.cop(newRemainingAmount), installmentCount, installmentAmount, startDate, endDate, DebtState.ACTIVE, notes, createdAt, updatedAt);
+    }
+
     public void ensureActive() {
         if (state == DebtState.CANCELLED) {
             throw new BusinessRuleViolationException("DEBT_ALREADY_CANCELLED", "Debt is already cancelled.");

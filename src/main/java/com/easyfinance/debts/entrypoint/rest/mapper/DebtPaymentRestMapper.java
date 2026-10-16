@@ -1,6 +1,8 @@
 package com.easyfinance.debts.entrypoint.rest.mapper;
 
 import com.easyfinance.debts.application.command.RegisterDebtPaymentCommand;
+import com.easyfinance.debts.application.command.UpdateDebtPaymentCommand;
+import com.easyfinance.debts.entrypoint.rest.dto.UpdateDebtPaymentRequest;
 import com.easyfinance.debts.application.response.DebtPaymentResponse;
 import com.easyfinance.debts.application.response.PageResponse;
 import com.easyfinance.debts.application.response.RegisterDebtPaymentResponse;
@@ -60,7 +62,21 @@ public final class DebtPaymentRestMapper {
                 response.notes(),
                 response.status(),
                 response.createdAt(),
-                response.updatedAt()
+                response.updatedAt(),
+                response.hasAssociatedExpense()
+        );
+    }
+
+    public static UpdateDebtPaymentCommand toCommand(Long accountId, Long debtId, Long paymentId, UpdateDebtPaymentRequest request) {
+        return new UpdateDebtPaymentCommand(
+                accountId,
+                debtId,
+                paymentId,
+                DebtPaymentType.valueOf(request.paymentType().name()),
+                toNonNegativeCapitalCop(request.capitalAmount()),
+                toNonNegativeInterestCop(request.resolvedInterestAmount()),
+                request.paymentDate(),
+                request.notes()
         );
     }
 

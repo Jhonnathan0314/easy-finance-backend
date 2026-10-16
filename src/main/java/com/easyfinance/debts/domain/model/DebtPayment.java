@@ -83,6 +83,14 @@ public final class DebtPayment {
         return new DebtPayment(id, accountId, debtId, participantId, paymentType, capitalAmount, interestAmount, paymentDate, notes, status, createdAt, updatedAt);
     }
 
+    public DebtPayment update(DebtPaymentType paymentType, Money capitalAmount, Money interestAmount, LocalDate paymentDate, String notes) {
+        return new DebtPayment(id, accountId, debtId, participantId, paymentType, capitalAmount, interestAmount, paymentDate, notes, status, createdAt, updatedAt);
+    }
+
+    public DebtPayment cancel() {
+        return new DebtPayment(id, accountId, debtId, participantId, paymentType, capitalAmount, interestAmount, paymentDate, notes, DebtPaymentStatus.CANCELLED, createdAt, updatedAt);
+    }
+
     public Long id() { return id; }
     public Long accountId() { return accountId; }
     public Long debtId() { return debtId; }
