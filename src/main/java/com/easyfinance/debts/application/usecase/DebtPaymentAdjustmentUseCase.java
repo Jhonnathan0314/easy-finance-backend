@@ -15,7 +15,7 @@ import com.easyfinance.debts.domain.model.Debt;
 import com.easyfinance.debts.domain.model.DebtPayment;
 import com.easyfinance.debts.domain.model.DebtPaymentStatus;
 import com.easyfinance.debts.domain.model.DebtState;
-import com.easyfinance.expenses.application.port.in.DebtPaymentExpenseQueryPort;
+import com.easyfinance.expenses.application.port.in.DebtPaymentExpenseSyncPort;
 import com.easyfinance.shared.application.CurrentUser;
 import com.easyfinance.shared.application.CurrentUserProvider;
 import com.easyfinance.shared.domain.BusinessRuleViolationException;
@@ -25,7 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Edits or cancels a debt payment that has no associated expense. Both operations first revert the
+ * Edits or cancels a debt payment, keeping its associated expense (if any) in sync. Both operations first revert the
  * original payment (debt balance and budget impacts) and, for edits, apply the new values.
  */
 @Service
@@ -36,7 +36,7 @@ public class DebtPaymentAdjustmentUseCase implements UpdateDebtPaymentPort, Canc
     private final DebtRepositoryPort debtRepository;
     private final DebtPaymentRepositoryPort paymentRepository;
     private final BudgetDebtImpactPort budgetDebtImpactPort;
-    private final DebtPaymentExpenseQueryPort debtPaymentExpenseQueryPort;
+    private final DebtPaymentExpenseSyncPort debtPaymentExpenseSyncPort;
 
     public DebtPaymentAdjustmentUseCase(
             CurrentUserProvider currentUserProvider,
@@ -44,14 +44,14 @@ public class DebtPaymentAdjustmentUseCase implements UpdateDebtPaymentPort, Canc
             DebtRepositoryPort debtRepository,
             DebtPaymentRepositoryPort paymentRepository,
             BudgetDebtImpactPort budgetDebtImpactPort,
-            DebtPaymentExpenseQueryPort debtPaymentExpenseQueryPort
+            DebtPaymentExpenseSyncPort debtPaymentExpenseSyncPort
     ) {
         this.currentUserProvider = currentUserProvider;
         this.accountAuthorizationService = accountAuthorizationService;
         this.debtRepository = debtRepository;
         this.paymentRepository = paymentRepository;
         this.budgetDebtImpactPort = budgetDebtImpactPort;
-        this.debtPaymentExpenseQueryPort = debtPaymentExpenseQueryPort;
+        this.debtPaymentExpenseSyncPort = debtPaymentExpenseSyncPort;
     }
 
     @Override
@@ -72,6 +72,12 @@ public class DebtPaymentAdjustmentUseCase implements UpdateDebtPaymentPort, Canc
         Debt updatedDebt = reverted.applyPayment(updatedPayment.capitalAmount());
         DebtPayment savedPayment = paymentRepository.save(updatedPayment);
         Debt savedDebt = debtRepository.save(updatedDebt);
+        debtPaymentExpenseSyncPort.updateExpenseForDebtPayment(
+                savedPayment.accountId(),
+                savedPayment.id(),
+                savedPayment.amount(),
+                savedPayment.paymentDate()
+        );
         if (savedDebt.originExpenseId() != null) {
             budgetDebtImpactPort.applyDebtPaymentToImpacts(new ApplyDebtPaymentImpactCommand(
                     savedDebt.accountId(),
@@ -94,6 +100,7 @@ public class DebtPaymentAdjustmentUseCase implements UpdateDebtPaymentPort, Canc
         Debt reverted = revert(debt, payment);
         paymentRepository.save(payment.cancel());
         debtRepository.save(reverted);
+        debtPaymentExpenseSyncPort.cancelExpenseForDebtPayment(accountId, paymentId);
     }
 
     private Debt revert(Debt debt, DebtPayment payment) {
@@ -116,12 +123,6 @@ public class DebtPaymentAdjustmentUseCase implements UpdateDebtPaymentPort, Canc
                 .orElseThrow(() -> new NotFoundException("DEBT_PAYMENT_NOT_FOUND", "Debt payment was not found."));
         if (payment.status() != DebtPaymentStatus.ACTIVE) {
             throw new BusinessRuleViolationException("DEBT_PAYMENT_NOT_ACTIVE", "Debt payment is already cancelled.");
-        }
-        if (debtPaymentExpenseQueryPort.hasActiveExpenseForDebtPayment(accountId, paymentId)) {
-            throw new BusinessRuleViolationException(
-                    "DEBT_PAYMENT_HAS_EXPENSE",
-                    "A debt payment with an associated expense cannot be edited or deleted from the debt."
-            );
         }
         return payment;
     }

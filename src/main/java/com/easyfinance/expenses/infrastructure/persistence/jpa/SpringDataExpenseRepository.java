@@ -9,5 +9,7 @@ public interface SpringDataExpenseRepository extends JpaRepository<ExpenseJpaEnt
 
     Optional<ExpenseJpaEntity> findByAccountIdAndId(Long accountId, Long id);
 
+    Optional<ExpenseJpaEntity> findFirstByAccountIdAndSourceDebtPaymentIdAndStatus(Long accountId, Long sourceDebtPaymentId, ExpenseStatusJpa status);
+
     boolean existsByAccountIdAndSourceDebtPaymentIdAndStatus(Long accountId, Long sourceDebtPaymentId, ExpenseStatusJpa status);
 }

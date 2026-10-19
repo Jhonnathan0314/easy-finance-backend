@@ -73,6 +73,12 @@ public class JpaExpenseRepositoryAdapter implements ExpenseRepositoryPort {
     }
 
     @Override
+    public Optional<Expense> findActiveBySourceDebtPaymentId(Long accountId, Long debtPaymentId) {
+        return repository.findFirstByAccountIdAndSourceDebtPaymentIdAndStatus(accountId, debtPaymentId, ExpenseStatusJpa.ACTIVE)
+                .map(mapper::toDomain);
+    }
+
+    @Override
     public List<Expense> findEligibleForClosing(CreditCardClosingQuery query) {
         Specification<ExpenseJpaEntity> spec = closingSpecification(query);
         return repository.findAll(spec).stream().map(mapper::toDomain).toList();

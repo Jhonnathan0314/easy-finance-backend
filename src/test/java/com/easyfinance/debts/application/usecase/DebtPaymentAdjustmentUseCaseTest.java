@@ -18,7 +18,7 @@ import com.easyfinance.debts.domain.model.DebtPaymentStatus;
 import com.easyfinance.debts.domain.model.DebtPaymentType;
 import com.easyfinance.debts.domain.model.DebtSourceType;
 import com.easyfinance.debts.domain.model.DebtState;
-import com.easyfinance.expenses.application.port.in.DebtPaymentExpenseQueryPort;
+import com.easyfinance.expenses.application.port.in.DebtPaymentExpenseSyncPort;
 import com.easyfinance.shared.application.CurrentUser;
 import com.easyfinance.shared.application.CurrentUserProvider;
 import com.easyfinance.shared.domain.BusinessRuleViolationException;
@@ -49,14 +49,14 @@ class DebtPaymentAdjustmentUseCaseTest {
     private final DebtRepositoryPort debtRepository = mock(DebtRepositoryPort.class);
     private final DebtPaymentRepositoryPort paymentRepository = mock(DebtPaymentRepositoryPort.class);
     private final BudgetDebtImpactPort budgetDebtImpactPort = mock(BudgetDebtImpactPort.class);
-    private final DebtPaymentExpenseQueryPort expenseQueryPort = mock(DebtPaymentExpenseQueryPort.class);
+    private final DebtPaymentExpenseSyncPort expenseSyncPort = mock(DebtPaymentExpenseSyncPort.class);
     private final DebtPaymentAdjustmentUseCase useCase = new DebtPaymentAdjustmentUseCase(
             currentUserProvider,
             new AccountAuthorizationService(accountRepository, accountParticipantRepository),
             debtRepository,
             paymentRepository,
             budgetDebtImpactPort,
-            expenseQueryPort
+            expenseSyncPort
     );
 
     @BeforeEach
@@ -101,14 +101,24 @@ class DebtPaymentAdjustmentUseCaseTest {
     }
 
     @Test
-    void paymentsWithAnAssociatedExpenseCannotBeAdjusted() {
+    void cancellingAPaymentAlsoCancelsItsAssociatedExpense() {
         when(debtRepository.findByAccountIdAndIdForUpdate(1L, 5L)).thenReturn(Optional.of(debt("60000", DebtState.ACTIVE, null)));
         when(paymentRepository.findByAccountIdAndDebtIdAndId(1L, 5L, 50L)).thenReturn(Optional.of(payment("40000")));
-        when(expenseQueryPort.hasActiveExpenseForDebtPayment(1L, 50L)).thenReturn(true);
 
-        assertThatThrownBy(() -> useCase.cancelDebtPayment(1L, 5L, 50L))
-                .isInstanceOfSatisfying(BusinessRuleViolationException.class, ex -> assertThat(ex.code()).isEqualTo("DEBT_PAYMENT_HAS_EXPENSE"));
-        verify(debtRepository, never()).save(any());
+        useCase.cancelDebtPayment(1L, 5L, 50L);
+
+        verify(expenseSyncPort).cancelExpenseForDebtPayment(1L, 50L);
+    }
+
+    @Test
+    void updatingAPaymentSyncsItsAssociatedExpenseAmountAndDate() {
+        when(debtRepository.findByAccountIdAndIdForUpdate(1L, 5L)).thenReturn(Optional.of(debt("60000", DebtState.ACTIVE, null)));
+        when(paymentRepository.findByAccountIdAndDebtIdAndId(1L, 5L, 50L)).thenReturn(Optional.of(payment("40000")));
+
+        useCase.updateDebtPayment(new UpdateDebtPaymentCommand(
+                1L, 5L, 50L, DebtPaymentType.INSTALLMENT, Money.cop(new BigDecimal("25000")), Money.cop(new BigDecimal("1000")), LocalDate.of(2026, 6, 1), null));
+
+        verify(expenseSyncPort).updateExpenseForDebtPayment(1L, 50L, Money.cop(new BigDecimal("26000")), LocalDate.of(2026, 6, 1));
     }
 
     @Test
